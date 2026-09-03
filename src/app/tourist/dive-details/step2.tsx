@@ -1,22 +1,31 @@
-import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
+import {
+  Button,
+  Checkbox,
+  ContentContainer,
+  Dropdown,
+  FileUpload,
+  ScreenHeader,
+  StepProgress,
+  TextInput,
+} from "../../../components";
 import { colors } from "../../../constants/colors";
-import { Button, TextInput, Dropdown, FileUpload, ContentContainer } from "../../../components";
+import { spacing } from "../../../constants/spacing";
+import { typography } from "../../../constants/typography";
 import { useAuth } from "../../../hooks/useAuth";
+import { FileInfo, uploadFile } from "../../../lib/storage";
 import { supabase } from "../../../lib/supabase";
-import { uploadFile, FileInfo } from "../../../lib/storage";
-import * as DocumentPicker from "expo-document-picker";
 
 const nationalityOptions = [
   { label: "Filipino", value: "filipino" },
@@ -63,10 +72,13 @@ export default function DiveDetailsStep2() {
   useEffect(() => {
     if (profile) {
       if (profile.nationality) setNationality(profile.nationality);
-      if (profile.emergency_contact_name) setEmergencyName(profile.emergency_contact_name);
-      if (profile.emergency_contact_number) setEmergencyPhone(profile.emergency_contact_number);
+      if (profile.emergency_contact_name)
+        setEmergencyName(profile.emergency_contact_name);
+      if (profile.emergency_contact_number)
+        setEmergencyPhone(profile.emergency_contact_number);
       if (profile.dive_pass_type) setDivePassType(profile.dive_pass_type);
-      if (profile.certification_level) setCertLevel(profile.certification_level);
+      if (profile.certification_level)
+        setCertLevel(profile.certification_level);
       if (profile.date_accredited) setDateAccredited(profile.date_accredited);
       if (profile.renewal_date) setRenewalDate(profile.renewal_date);
     }
@@ -84,7 +96,11 @@ export default function DiveDetailsStep2() {
     if (!certLevel) errs.certLevel = "Required";
     if (!dateAccredited.trim()) errs.dateAccredited = "Required";
     if (!renewalDate.trim()) errs.renewalDate = "Required";
-    if (dateAccredited.trim() && renewalDate.trim() && renewalDate < dateAccredited) {
+    if (
+      dateAccredited.trim() &&
+      renewalDate.trim() &&
+      renewalDate < dateAccredited
+    ) {
       errs.renewalDate = "Renewal date must be after accredited date";
     }
     if (!agreed) errs.agreed = "You must agree to continue";
@@ -100,7 +116,12 @@ export default function DiveDetailsStep2() {
       });
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        setCertFile({ name: asset.name, mimeType: asset.mimeType, size: asset.size, uri: asset.uri });
+        setCertFile({
+          name: asset.name,
+          mimeType: asset.mimeType,
+          size: asset.size,
+          uri: asset.uri,
+        });
         setCertError("");
       }
     } catch {
@@ -119,7 +140,11 @@ export default function DiveDetailsStep2() {
     if (renewalDate.trim()) {
       const rd = new Date(renewalDate.trim());
       rd.setHours(0, 0, 0, 0);
-      setExpiredWarning(rd < today ? "This certification is expired. Please renew as needed." : "");
+      setExpiredWarning(
+        rd < today
+          ? "This certification is expired. Please renew as needed."
+          : "",
+      );
     }
 
     try {
@@ -136,20 +161,33 @@ export default function DiveDetailsStep2() {
 
       if (certFile) {
         const { path: certPath, error: certUploadError } = await uploadFile(
-          "tourist_uploads", "certifications", certFile, profile?.id || ""
+          "tourist_uploads",
+          "certifications",
+          certFile,
+          profile?.id || "",
         );
-        if (certUploadError) { setSaveError(certUploadError); setSaving(false); return; }
+        if (certUploadError) {
+          setSaveError(certUploadError);
+          setSaving(false);
+          return;
+        }
         if (certPath) updates.cert_upload_path = certPath;
       }
 
       const { error: profileError } = await updateProfile(updates);
 
-      if (profileError) { setSaveError(profileError); setSaving(false); return; }
+      if (profileError) {
+        setSaveError(profileError);
+        setSaving(false);
+        return;
+      }
 
       // Create or update eco_dive_id
       if (profile) {
         const year = new Date().getFullYear();
-        const hash = String(profile.id.charCodeAt(0) || Math.floor(Math.random() * 999)).padStart(6, "0");
+        const hash = String(
+          profile.id.charCodeAt(0) || Math.floor(Math.random() * 999),
+        ).padStart(6, "0");
         const ecoIdNumber = `ECO-${year}-${hash}`;
 
         const { data: existing } = await supabase
@@ -163,12 +201,24 @@ export default function DiveDetailsStep2() {
             .from("eco_dive_ids")
             .update({ status: "complete", eco_id_number: ecoIdNumber })
             .eq("tourist_id", profile.id);
-          if (updateError) { setSaveError("Failed to update Eco-Dive ID."); setSaving(false); return; }
+          if (updateError) {
+            setSaveError("Failed to update Eco-Dive ID.");
+            setSaving(false);
+            return;
+          }
         } else {
           const { error: insertError } = await supabase
             .from("eco_dive_ids")
-            .insert({ tourist_id: profile.id, eco_id_number: ecoIdNumber, status: "complete" });
-          if (insertError) { setSaveError("Failed to create Eco-Dive ID."); setSaving(false); return; }
+            .insert({
+              tourist_id: profile.id,
+              eco_id_number: ecoIdNumber,
+              status: "complete",
+            });
+          if (insertError) {
+            setSaveError("Failed to create Eco-Dive ID.");
+            setSaving(false);
+            return;
+          }
         }
       }
 
@@ -176,13 +226,20 @@ export default function DiveDetailsStep2() {
       setSaving(false);
       // Route resolves to /(tabs)/eco-dive-id/complete via route-group collapse
       router.push("/eco-dive-id/complete");
-    } catch { setSaveError("Something went wrong. Please try again."); setSaving(false); }
+    } catch {
+      setSaveError("Something went wrong. Please try again.");
+      setSaving(false);
+    }
   };
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator size="large" color={colors.primaryBlue} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color={colors.primaryBlue}
+          style={{ marginTop: 40 }}
+        />
       </SafeAreaView>
     );
   }
@@ -191,12 +248,13 @@ export default function DiveDetailsStep2() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color={colors.darkText} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Dive Details</Text>
+      <ScreenHeader title="Dive Details" onBack={() => router.back()} />
+
+      <View style={{ paddingTop: spacing.md }}>
+        <StepProgress
+          steps={["Basic Info", "Certification"]}
+          currentIndex={1}
+        />
       </View>
 
       <ScrollView
@@ -207,134 +265,139 @@ export default function DiveDetailsStep2() {
         <ContentContainer maxWidth={720}>
           {/* Basic Information */}
           <Text style={styles.sectionLabel}>Basic Information</Text>
-        <View style={styles.divider} />
+          <View style={styles.divider} />
 
-        <Dropdown
-          label="Nationality"
-          placeholder="e.g Filipino"
-          value={nationality}
-          options={nationalityOptions}
-          onSelect={setNationality}
-          error={errors.nationality}
-        />
-
-        <View style={styles.twoCol}>
-          <View style={styles.twoColItem}>
-            <TextInput
-              label="Emergency Contact Name"
-              placeholder="Juan Dela Cruz"
-              value={emergencyName}
-              onChangeText={setEmergencyName}
-              error={errors.emergencyName}
-            />
-          </View>
-          <View style={styles.twoColItem}>
-            <TextInput
-              label="Phone Number"
-              placeholder="+63 9XXXXXXXXX"
-              value={emergencyPhone}
-              onChangeText={setEmergencyPhone}
-              keyboardType="phone-pad"
-              error={errors.emergencyPhone}
-            />
-          </View>
-        </View>
-
-        {/* Dive Pass */}
-        <View style={styles.sectionSpacer} />
-        <Text style={styles.sectionLabel}>Dive Pass</Text>
-        <View style={styles.divider} />
-
-        <Dropdown
-          label="Type of Dive Pass"
-          placeholder="Select dive pass type"
-          value={divePassType}
-          options={divePassOptions}
-          onSelect={setDivePassType}
-          error={errors.divePassType}
-        />
-
-        {/* Certification */}
-        <View style={styles.sectionSpacer} />
-        <Text style={styles.sectionLabel}>Certification</Text>
-        <View style={styles.divider} />
-
-        <Dropdown
-          label="Certification Level"
-          placeholder="Select certification level"
-          value={certLevel}
-          options={certLevelOptions}
-          onSelect={setCertLevel}
-          error={errors.certLevel}
-        />
-
-        <View style={styles.twoCol}>
-          <View style={styles.twoColItem}>
-            <TextInput
-              label="Date Accredited"
-              placeholder="YYYY-MM-DD"
-              value={dateAccredited}
-              onChangeText={setDateAccredited}
-              error={errors.dateAccredited}
-            />
-          </View>
-          <View style={styles.twoColItem}>
-            <TextInput
-              label="Renewal Date"
-              placeholder="YYYY-MM-DD"
-              value={renewalDate}
-              onChangeText={(v) => {
-                setRenewalDate(v);
-                const rd = new Date(v);
-                rd.setHours(0, 0, 0, 0);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                setExpiredWarning(rd < today ? "This certification is expired. Please renew as needed." : "");
-              }}
-              error={errors.renewalDate}
-            />
-          </View>
-        </View>
-
-        {expiredWarning ? <Text style={styles.warningText}>{expiredWarning}</Text> : null}
-
-        {/* Uploads */}
-        <View style={styles.sectionSpacer} />
-        <Text style={styles.sectionLabel}>Uploads</Text>
-        <View style={styles.divider} />
-
-        <FileUpload label="Upload Certification" onPress={pickCertFile} fileName={certFile?.name} showCamera />
-        {certError ? <Text style={styles.errorText}>{certError}</Text> : null}
-
-        {/* Data Privacy */}
-        <View style={styles.sectionSpacer} />
-        <Text style={styles.sectionLabel}>Data Privacy</Text>
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.checkboxRow}
-          onPress={() => setAgreed(!agreed)}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={agreed ? "checkbox" : "square-outline"}
-            size={20}
-            color={agreed ? colors.primaryBlue : colors.gray}
+          <Dropdown
+            label="Nationality"
+            placeholder="e.g Filipino"
+            value={nationality}
+            options={nationalityOptions}
+            onSelect={setNationality}
+            error={errors.nationality}
           />
-          <Text style={styles.checkboxLabel}>
-            I consent to the collection and processing of my personal data in accordance with the
-            Data Privacy Act of 2012.
-          </Text>
-        </TouchableOpacity>
-        {errors.agreed && <Text style={styles.errorText}>{errors.agreed}</Text>}
 
-        <View style={styles.spacer} />
+          <View style={styles.twoCol}>
+            <View style={styles.twoColItem}>
+              <TextInput
+                label="Emergency Contact Name"
+                placeholder="Juan Dela Cruz"
+                value={emergencyName}
+                onChangeText={setEmergencyName}
+                error={errors.emergencyName}
+              />
+            </View>
+            <View style={styles.twoColItem}>
+              <TextInput
+                label="Phone Number"
+                placeholder="+63 9XXXXXXXXX"
+                value={emergencyPhone}
+                onChangeText={setEmergencyPhone}
+                keyboardType="phone-pad"
+                error={errors.emergencyPhone}
+              />
+            </View>
+          </View>
 
-        {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
+          {/* Dive Pass */}
+          <View style={styles.sectionSpacer} />
+          <Text style={styles.sectionLabel}>Dive Pass</Text>
+          <View style={styles.divider} />
 
-        <Button title={saving ? "Saving..." : "Save"} onPress={handleSave} disabled={saving} />
+          <Dropdown
+            label="Type of Dive Pass"
+            placeholder="Select dive pass type"
+            value={divePassType}
+            options={divePassOptions}
+            onSelect={setDivePassType}
+            error={errors.divePassType}
+          />
 
-        <View style={{ height: 40 }} />
+          {/* Certification */}
+          <View style={styles.sectionSpacer} />
+          <Text style={styles.sectionLabel}>Certification</Text>
+          <View style={styles.divider} />
+
+          <Dropdown
+            label="Certification Level"
+            placeholder="Select certification level"
+            value={certLevel}
+            options={certLevelOptions}
+            onSelect={setCertLevel}
+            error={errors.certLevel}
+          />
+
+          <View style={styles.twoCol}>
+            <View style={styles.twoColItem}>
+              <TextInput
+                label="Date Accredited"
+                placeholder="YYYY-MM-DD"
+                value={dateAccredited}
+                onChangeText={setDateAccredited}
+                error={errors.dateAccredited}
+              />
+            </View>
+            <View style={styles.twoColItem}>
+              <TextInput
+                label="Renewal Date"
+                placeholder="YYYY-MM-DD"
+                value={renewalDate}
+                onChangeText={(v) => {
+                  setRenewalDate(v);
+                  const rd = new Date(v);
+                  rd.setHours(0, 0, 0, 0);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  setExpiredWarning(
+                    rd < today
+                      ? "This certification is expired. Please renew as needed."
+                      : "",
+                  );
+                }}
+                error={errors.renewalDate}
+              />
+            </View>
+          </View>
+
+          {expiredWarning ? (
+            <Text style={styles.warningText}>{expiredWarning}</Text>
+          ) : null}
+
+          {/* Uploads */}
+          <View style={styles.sectionSpacer} />
+          <Text style={styles.sectionLabel}>Uploads</Text>
+          <View style={styles.divider} />
+
+          <FileUpload
+            label="Upload Certification"
+            onPress={pickCertFile}
+            fileName={certFile?.name}
+            showCamera
+          />
+          {certError ? <Text style={styles.errorText}>{certError}</Text> : null}
+
+          {/* Data Privacy */}
+          <View style={styles.sectionSpacer} />
+          <Text style={styles.sectionLabel}>Data Privacy</Text>
+          <View style={styles.divider} />
+
+          <Checkbox
+            checked={agreed}
+            onToggle={() => setAgreed(!agreed)}
+            label="I consent to the collection and processing of my personal data in accordance with the Data Privacy Act of 2012."
+            error={errors.agreed}
+          />
+
+          <View style={styles.spacer} />
+
+          {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
+
+          <Button
+            title={saving ? "Saving..." : "Save"}
+            onPress={handleSave}
+            disabled={saving}
+          />
+
+          <View style={{ height: 40 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -350,8 +413,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 12,
-    paddingBottom: 20,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
   headerRow: {
     flexDirection: "row",
@@ -373,26 +436,24 @@ const styles = StyleSheet.create({
     color: colors.darkText,
   },
   sectionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.darkText,
-    marginBottom: 4,
+    ...typography.h3,
+    marginBottom: spacing.xs,
   },
   divider: {
     height: 1,
     backgroundColor: colors.grayLight,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   twoCol: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
+    gap: spacing.md,
+    marginTop: spacing.md,
   },
   twoColItem: {
     flex: 1,
   },
   sectionSpacer: {
-    marginTop: 20,
+    marginTop: spacing.lg,
   },
   checkboxRow: {
     flexDirection: "row",
@@ -406,9 +467,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   errorText: {
+    ...typography.caption,
     color: colors.red,
-    fontSize: 12,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   warningText: {
     color: "#92400E",
@@ -422,6 +483,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   spacer: {
-    height: 24,
+    height: spacing.xl,
   },
 });

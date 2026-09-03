@@ -2,10 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import BottomNav from "../../components/BottomNav";
-import SideNav from "../../components/SideNav";
 import DesktopHeader from "../../components/DesktopHeader";
-import { useAuth } from "../../hooks/useAuth";
+import SideNav from "../../components/SideNav";
 import { useLayout } from "../../context/LayoutContext";
+import { useAuth } from "../../hooks/useAuth";
 
 function TouristGate() {
   const { isOperator, isLoading } = useAuth();
@@ -44,14 +44,14 @@ const tabLabels: Record<string, string> = {
 };
 
 export default function TabLayout() {
-  const { isDesktop } = useLayout();
+  const { isDesktop, sidebarWidth } = useLayout();
 
   return (
     <>
       <TouristGate />
       {isDesktop && (
         <>
-          <DesktopHeader sidebarWidth={240} />
+          <DesktopHeader sidebarWidth={sidebarWidth} />
         </>
       )}
       <Tabs
@@ -60,7 +60,12 @@ export default function TabLayout() {
         }}
         tabBar={(props) =>
           isDesktop ? (
-            <SideNav {...props} tabIcons={tabIcons} tabLabels={tabLabels} />
+            <SideNav
+              {...props}
+              tabIcons={tabIcons}
+              tabLabels={tabLabels}
+              width={sidebarWidth}
+            />
           ) : (
             <BottomNav {...props} tabIcons={tabIcons} tabLabels={tabLabels} />
           )

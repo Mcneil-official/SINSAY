@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -9,12 +10,19 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
+import {
+  Button,
+  ContentContainer,
+  ScreenHeader,
+  StatCard,
+  StatusBadge,
+} from "../../components";
 import { colors } from "../../constants/colors";
-import { Button, StatCard, StatusBadge, ContentContainer } from "../../components";
-import { useAuth } from "../../hooks/useAuth";
+import { spacing } from "../../constants/spacing";
+import { typography } from "../../constants/typography";
 import { useLayout } from "../../context/LayoutContext";
+import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 
 interface ManifestItem {
@@ -39,6 +47,7 @@ export default function OperatorDashboardScreen() {
   const router = useRouter();
   const { user, isLoading: authLoading, unreadCount } = useAuth();
   const { isDesktop, isTablet } = useLayout();
+  const isWide = isDesktop || isTablet;
   const statsBasis = isDesktop ? "30%" : isTablet ? "48%" : "100%";
 
   const [establishmentName, setEstablishmentName] = useState<string>("");
@@ -71,7 +80,10 @@ export default function OperatorDashboardScreen() {
       .eq("status", "approved")
       .single();
     if (data?.resort_name) setEstablishmentName(data.resort_name);
-    else setEstablishmentName(user?.user_metadata?.full_name?.split(" ")[0] || "Operator");
+    else
+      setEstablishmentName(
+        user?.user_metadata?.full_name?.split(" ")[0] || "Operator",
+      );
   };
 
   const loadStats = useCallback(async () => {
@@ -167,7 +179,7 @@ export default function OperatorDashboardScreen() {
               .select("id", { count: "exact", head: true })
               .eq("manifest_id", m.id);
             return { ...m, diver_count: count || 0 } as ManifestItem;
-          })
+          }),
         );
         setManifests(withCounts);
       } else {
@@ -183,151 +195,226 @@ export default function OperatorDashboardScreen() {
   if (authLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator size="large" color={colors.primaryBlue} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color={colors.primaryBlue}
+          style={{ marginTop: 40 }}
+        />
       </SafeAreaView>
     );
   }
 
-  const todayDelta = yesterdayDivers > 0
-    ? `+${((todayDivers - yesterdayDivers) / yesterdayDivers * 100).toFixed(0)}% vs yesterday`
-    : todayDivers > 0 ? "New today" : undefined;
+  const percentChange =
+    yesterdayDivers > 0
+      ? Math.round(((todayDivers - yesterdayDivers) / yesterdayDivers) * 100)
+      : null;
+  const todayDelta =
+    percentChange !== null
+      ? `${percentChange >= 0 ? "+" : ""}${percentChange}% vs yesterday`
+      : todayDivers > 0
+        ? "New today"
+        : undefined;
+  const isDeltaPositive = percentChange === null || percentChange >= 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+      >
         <ContentContainer maxWidth={900}>
-        {/* Greeting */}
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.greeting}>Hi, {establishmentName}!</Text>
-            <Text style={styles.subGreeting}>Logged in as Operator</Text>
-          </View>
-          <TouchableOpacity style={styles.bellButton} onPress={() => router.push("/notifications")}>
-            <Ionicons name="notifications-outline" size={20} color={colors.darkText} />
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Stat Cards */}
-        {statError ? (
-          <View style={styles.retrySection}>
-            <Text style={styles.retryText}>Failed to load stats</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={loadStats}>
-              <Text style={styles.retryBtnText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.statsRow}>
-            <View style={[styles.statItem, { flexBasis: statsBasis }]}>
-              <StatCard
-                icon={<Ionicons name="people" size={20} color={colors.primaryBlue} />}
-                value={statLoading ? "..." : String(todayDivers)}
-                label="Today's Divers"
-                delta={statLoading ? undefined : todayDelta}
-              />
-            </View>
-            <View style={[styles.statItem, { flexBasis: statsBasis }]}>
-              <StatCard
-                icon={<Ionicons name="ticket" size={20} color={colors.primaryBlue} />}
-                value={statLoading ? "..." : String(remainingPasses ?? "?")}
-                label="Remaining Passes"
-                delta={statLoading ? undefined : purchasedPasses > 0 ? `of ${purchasedPasses} purchased` : undefined}
-              />
-            </View>
-            <View style={[styles.statItem, { flexBasis: statsBasis }]}>
-              <StatCard
-                icon={<Ionicons name="document-text" size={20} color={colors.primaryBlue} />}
-                value={statLoading ? "..." : String(weekCount)}
-                label="Manifests Sent"
-                delta={statLoading ? undefined : "This week"}
-              />
-            </View>
-          </View>
-        )}
-
-        {/* Pass gate warning */}
-        {!statLoading && !statError && remainingPasses !== null && remainingPasses <= 0 && (
-          <View style={styles.warningBanner}>
-            <Ionicons name="alert-circle" size={16} color={colors.orange} />
-            <Text style={styles.warningText}>
-              No remaining passes.{' '}
-              <Text style={styles.warningLink} onPress={() => router.push("/(operator-tabs)/buy-pass")}>
-                Purchase more
-              </Text>{' '}
-              to create manifests.
-            </Text>
-          </View>
-        )}
-
-        {/* Create Manifest */}
-        <View style={styles.createWrap}>
-          <Button
-            title="+ Create Dive Manifest"
-            onPress={() => router.push("/establishment/create-manifest/step1")}
-            icon={<Ionicons name="add" size={18} color={colors.white} />}
-          />
-        </View>
-
-        {/* Recent Manifests */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Recent Manifests</Text>
-          <TouchableOpacity onPress={() => router.push("/(operator-tabs)/manifests")}>
-            <Text style={styles.seeAll}>See all</Text>
-          </TouchableOpacity>
-        </View>
-
-        {manifestError ? (
-          <View style={styles.retrySection}>
-            <Text style={styles.retryText}>Failed to load manifests</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={loadManifests}>
-              <Text style={styles.retryBtnText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : manifestLoading ? (
-          <ActivityIndicator size="small" color={colors.primaryBlue} style={{ marginTop: 20 }} />
-        ) : manifests.length === 0 ? (
-          <Text style={styles.emptyText}>No manifests yet. Create your first one!</Text>
-        ) : (
-          <View style={styles.manifestList}>
-            {manifests.slice(0, 5).map((m) => {
-              const status = deriveStatus(m.dive_date);
-              return (
-                <TouchableOpacity
-                  key={m.id}
-                  style={styles.manifestRow}
-                  activeOpacity={0.7}
-                  onPress={() => router.push({
-                    pathname: "/(operator-tabs)/manifests",
-                    params: { id: m.id },
-                  })}
-                >
-                  <View style={styles.manifestIcon}>
-                    <Ionicons name="boat" size={20} color={colors.primaryBlue} />
-                  </View>
-                  <View style={styles.manifestInfo}>
-                    <Text style={styles.manifestTitle}>{m.boat_name}</Text>
-                    <Text style={styles.manifestMeta}>
-                      {new Date(m.dive_date).toLocaleDateString("en-US", {
-                        month: "short", day: "numeric", year: "numeric",
-                      })} · {m.diver_count} divers · {m.location}
+          {/* Greeting */}
+          <ScreenHeader
+            title={`Hi, ${establishmentName}!`}
+            subtitle="Logged in as Operator"
+            size="large"
+            rightElement={
+              <TouchableOpacity
+                style={styles.bellButton}
+                onPress={() => router.push("/notifications")}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={20}
+                  color={colors.darkText}
+                />
+                {unreadCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {unreadCount > 99 ? "99+" : unreadCount}
                     </Text>
                   </View>
-                  <StatusBadge
-                    label={status === "active" ? "Active" : "Done"}
-                    variant={status}
-                  />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
+                )}
+              </TouchableOpacity>
+            }
+          />
 
-        <View style={{ height: 120 }} />
+          {/* Stat Cards */}
+          {statError ? (
+            <View style={styles.retrySection}>
+              <Text style={styles.retryText}>Failed to load stats</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={loadStats}>
+                <Text style={styles.retryBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.statsRow}>
+              <View style={[styles.statItem, { flexBasis: statsBasis }]}>
+                <StatCard
+                  icon={
+                    <Ionicons
+                      name="people"
+                      size={20}
+                      color={colors.primaryBlue}
+                    />
+                  }
+                  value={statLoading ? "..." : String(todayDivers)}
+                  label="Today's Divers"
+                  delta={statLoading ? undefined : todayDelta}
+                  deltaPositive={isDeltaPositive}
+                />
+              </View>
+              <View style={[styles.statItem, { flexBasis: statsBasis }]}>
+                <StatCard
+                  icon={
+                    <Ionicons
+                      name="ticket"
+                      size={20}
+                      color={colors.primaryBlue}
+                    />
+                  }
+                  value={statLoading ? "..." : String(remainingPasses ?? "?")}
+                  label="Remaining Passes"
+                  delta={
+                    statLoading
+                      ? undefined
+                      : purchasedPasses > 0
+                        ? `of ${purchasedPasses} purchased`
+                        : undefined
+                  }
+                />
+              </View>
+              <View style={[styles.statItem, { flexBasis: statsBasis }]}>
+                <StatCard
+                  icon={
+                    <Ionicons
+                      name="document-text"
+                      size={20}
+                      color={colors.primaryBlue}
+                    />
+                  }
+                  value={statLoading ? "..." : String(weekCount)}
+                  label="Manifests Sent"
+                  delta={statLoading ? undefined : "This week"}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Pass gate warning */}
+          {!statLoading &&
+            !statError &&
+            remainingPasses !== null &&
+            remainingPasses <= 0 && (
+              <View style={styles.warningBanner}>
+                <Ionicons name="alert-circle" size={16} color={colors.orange} />
+                <Text style={styles.warningText}>
+                  No remaining passes.{" "}
+                  <Text
+                    style={styles.warningLink}
+                    onPress={() => router.push("/(operator-tabs)/buy-pass")}
+                  >
+                    Purchase more
+                  </Text>{" "}
+                  to create manifests.
+                </Text>
+              </View>
+            )}
+
+          {/* Create Manifest */}
+          <View style={styles.createWrap}>
+            <Button
+              title="+ Create Dive Manifest"
+              onPress={() =>
+                router.push("/establishment/create-manifest/step1")
+              }
+              icon={<Ionicons name="add" size={18} color={colors.white} />}
+            />
+          </View>
+
+          {/* Recent Manifests */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Recent Manifests</Text>
+            <TouchableOpacity
+              onPress={() => router.push("/(operator-tabs)/manifests")}
+            >
+              <Text style={styles.seeAll}>See all</Text>
+            </TouchableOpacity>
+          </View>
+
+          {manifestError ? (
+            <View style={styles.retrySection}>
+              <Text style={styles.retryText}>Failed to load manifests</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={loadManifests}>
+                <Text style={styles.retryBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : manifestLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.primaryBlue}
+              style={{ marginTop: 20 }}
+            />
+          ) : manifests.length === 0 ? (
+            <Text style={styles.emptyText}>
+              No manifests yet. Create your first one!
+            </Text>
+          ) : (
+            <View style={styles.manifestList}>
+              {manifests.slice(0, 5).map((m) => {
+                const status = deriveStatus(m.dive_date);
+                return (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={styles.manifestRow}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(operator-tabs)/manifests",
+                        params: { id: m.id },
+                      })
+                    }
+                  >
+                    <View style={styles.manifestIcon}>
+                      <Ionicons
+                        name="boat"
+                        size={20}
+                        color={colors.primaryBlue}
+                      />
+                    </View>
+                    <View style={styles.manifestInfo}>
+                      <Text style={styles.manifestTitle}>{m.boat_name}</Text>
+                      <Text style={styles.manifestMeta}>
+                        {new Date(m.dive_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}{" "}
+                        · {m.diver_count} divers · {m.location}
+                      </Text>
+                    </View>
+                    <StatusBadge
+                      label={status === "active" ? "Active" : "Done"}
+                      variant={status}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          <View style={{ height: 120 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -337,48 +424,114 @@ export default function OperatorDashboardScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
   container: { flex: 1 },
-  scrollContent: { paddingTop: 12, paddingBottom: 20 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  scrollContent: { paddingTop: spacing.md, paddingBottom: spacing.lg },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
   greeting: { fontSize: 22, fontWeight: "700", color: colors.darkText },
   subGreeting: { fontSize: 13, color: colors.gray, marginTop: 4 },
   bellButton: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: colors.white,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   badge: {
-    position: "absolute", top: -4, right: -4,
-    minWidth: 18, height: 18, borderRadius: 9,
-    backgroundColor: colors.red, alignItems: "center", justifyContent: "center",
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.red,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 4,
   },
   badgeText: { fontSize: 10, fontWeight: "700", color: colors.white },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 24, gap: 10 },
+  statsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: spacing.xl,
+    gap: spacing.md,
+  },
   statItem: { flexGrow: 1 },
   warningBanner: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "#FFF7E6", borderRadius: 12, padding: 12, marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: "#FFF7E6",
+    borderRadius: 12,
+    padding: spacing.md,
+    marginTop: spacing.lg,
   },
-  warningText: { fontSize: 12, color: "#92400E", flex: 1, lineHeight: 17 },
-  warningLink: { fontWeight: "700", color: colors.primaryBlue, textDecorationLine: "underline" },
-  createWrap: { marginTop: 16 },
-  sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 28 },
-  sectionTitle: { fontSize: 18, fontWeight: "600", color: colors.darkText },
+  warningText: {
+    ...typography.caption,
+    color: "#92400E",
+    flex: 1,
+    lineHeight: 17,
+  },
+  warningLink: {
+    fontWeight: "700",
+    color: colors.primaryBlue,
+    textDecorationLine: "underline",
+  },
+  createWrap: { marginTop: spacing.lg },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: spacing.xl,
+  },
+  sectionTitle: { ...typography.h2 },
   seeAll: { fontSize: 12, fontWeight: "500", color: colors.primaryBlue },
   retrySection: { alignItems: "center", marginTop: 24, gap: 8 },
   retryText: { fontSize: 13, color: colors.gray },
-  retryBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.grayLight },
-  retryBtnText: { fontSize: 12, fontWeight: "600", color: colors.primaryBlue },
-  manifestList: { marginTop: 12, gap: 8 },
-  manifestRow: {
-    flexDirection: "row", alignItems: "center", backgroundColor: colors.white,
-    borderRadius: 14, padding: 14, shadowColor: "#000", shadowOpacity: 0.04,
-    shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1, gap: 12,
+  retryBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.grayLight,
   },
-  manifestIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#EBF2FF", alignItems: "center", justifyContent: "center" },
+  retryBtnText: { fontSize: 12, fontWeight: "600", color: colors.primaryBlue },
+  manifestList: { marginTop: spacing.md, gap: spacing.sm },
+  manifestRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: spacing.md + 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+    gap: spacing.md,
+  },
+  manifestIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#EBF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   manifestInfo: { flex: 1 },
   manifestTitle: { fontSize: 14, fontWeight: "600", color: colors.darkText },
   manifestMeta: { fontSize: 11, color: colors.gray, marginTop: 2 },
-  emptyText: { fontSize: 13, color: colors.gray, textAlign: "center", marginTop: 20 },
+  emptyText: {
+    fontSize: 13,
+    color: colors.gray,
+    textAlign: "center",
+    marginTop: 20,
+  },
 });

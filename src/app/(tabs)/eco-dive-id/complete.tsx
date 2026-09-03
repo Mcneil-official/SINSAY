@@ -15,7 +15,7 @@ import {
   UIManager,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { StatusBadge, Card } from "../../../components";
+import { StatusBadge, Card, ErrorState } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -80,14 +80,11 @@ export default function EcoDiveIDCompleteScreen() {
   if (!profile) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.red} />
-          <Text style={styles.errorText}>Unable to load profile data.</Text>
-          <Text style={styles.errorSubText}>Your account may not be fully set up. Please contact support or try again.</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => refreshProfile()}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          message="Unable to load profile data."
+          description="Your account may not be fully set up. Please contact support or try again."
+          onRetry={() => refreshProfile()}
+        />
       </SafeAreaView>
     );
   }
@@ -459,11 +456,6 @@ const styles = StyleSheet.create({
   stepLabelPending: {
     color: colors.gray,
   },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 12 },
-  errorText: { fontSize: 14, color: colors.red, textAlign: "center" },
-  errorSubText: { fontSize: 13, color: colors.gray, textAlign: "center", marginTop: 8, paddingHorizontal: 24 },
-  retryBtn: { borderRadius: 8, backgroundColor: colors.primaryBlue, paddingVertical: 10, paddingHorizontal: 24 },
-  retryText: { fontSize: 14, fontWeight: "600", color: colors.white },
 });
 
 const activeStyles = StyleSheet.create({

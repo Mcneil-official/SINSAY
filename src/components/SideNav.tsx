@@ -1,11 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 
@@ -16,9 +11,13 @@ interface SideNavProps {
   navigation: any;
   tabIcons: Record<
     string,
-    { focused: keyof typeof Ionicons.glyphMap; unfocused: keyof typeof Ionicons.glyphMap }
+    {
+      focused: keyof typeof Ionicons.glyphMap;
+      unfocused: keyof typeof Ionicons.glyphMap;
+    }
   >;
   tabLabels: Record<string, string>;
+  width?: number;
 }
 
 export default function SideNav({
@@ -26,11 +25,12 @@ export default function SideNav({
   navigation,
   tabIcons,
   tabLabels,
+  width = 240,
 }: SideNavProps) {
   const { signOut } = useAuth();
 
   return (
-    <View style={styles.sidebar}>
+    <View style={[styles.sidebar, { width }]}>
       <View style={styles.logoSection}>
         <Ionicons name="water" size={28} color={colors.white} />
         <Text style={styles.logoText}>SINSAY</Text>
@@ -65,11 +65,17 @@ export default function SideNav({
               accessibilityLabel={label}
             >
               <Ionicons
-                name={isFocused ? icon?.focused || "ellipse" : icon?.unfocused || "ellipse-outline"}
+                name={
+                  isFocused
+                    ? icon?.focused || "ellipse"
+                    : icon?.unfocused || "ellipse-outline"
+                }
                 size={20}
                 color={isFocused ? colors.white : "rgba(255,255,255,0.5)"}
               />
-              <Text style={[styles.navLabel, isFocused && styles.navLabelActive]}>
+              <Text
+                style={[styles.navLabel, isFocused && styles.navLabelActive]}
+              >
                 {label}
               </Text>
             </TouchableOpacity>
@@ -77,8 +83,16 @@ export default function SideNav({
         })}
       </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={signOut} activeOpacity={0.7}>
-        <Ionicons name="log-out-outline" size={20} color="rgba(255,255,255,0.5)" />
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={signOut}
+        activeOpacity={0.7}
+      >
+        <Ionicons
+          name="log-out-outline"
+          size={20}
+          color="rgba(255,255,255,0.5)"
+        />
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
     </View>
@@ -91,7 +105,6 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 240,
     backgroundColor: "#0F172A",
     flexDirection: "column",
     justifyContent: "space-between",

@@ -1,22 +1,33 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Card } from "./Card";
+import { StyleSheet, Text, View } from "react-native";
 import { colors } from "../constants/colors";
+import { Card } from "./Card";
 
 interface StatCardProps {
   icon: React.ReactNode;
   value: string;
   label: string;
   delta?: string;
+  deltaPositive?: boolean;
 }
 
-export function StatCard({ icon, value, label, delta }: StatCardProps) {
+export function StatCard({
+  icon,
+  value,
+  label,
+  delta,
+  deltaPositive = true,
+}: StatCardProps) {
   return (
     <Card style={styles.card}>
       <View style={styles.iconWrap}>{icon}</View>
       <Text style={styles.value}>{value}</Text>
       <Text style={styles.label}>{label}</Text>
-      {delta && <Text style={styles.delta}>{delta}</Text>}
+      {delta && (
+        <Text style={[styles.delta, !deltaPositive && styles.deltaNegative]}>
+          {delta}
+        </Text>
+      )}
     </Card>
   );
 }
@@ -45,5 +56,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.green,
     marginTop: 2,
+  },
+  deltaNegative: {
+    color: colors.red,
   },
 });

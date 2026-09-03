@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
-import { ContentContainer } from "../components";
+import { ContentContainer, EmptyState } from "../components";
 
 const notifIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   eco_dive_activated: "checkmark-circle",
@@ -28,7 +28,7 @@ const notifColors: Record<string, string> = {
   dive_plan_ready: colors.primaryBlue,
   operator_application_approved: colors.green,
   operator_application_rejected: colors.red,
-  pass_purchase_verified: colors.amber,
+  pass_purchase_verified: colors.amberDark,
 };
 
 function timeAgo(dateStr: string): string {
@@ -79,10 +79,7 @@ export default function NotificationsScreen() {
       </View>
 
       {notifications.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="notifications-off-outline" size={48} color={colors.gray} />
-          <Text style={styles.emptyText}>No notifications yet</Text>
-        </View>
+        <EmptyState icon="notifications-off-outline" message="No notifications yet" />
       ) : (
         <ContentContainer maxWidth={720} style={styles.container}>
           <ScrollView
@@ -199,15 +196,5 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.primaryBlue,
     marginTop: 6,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.gray,
   },
 });

@@ -1,29 +1,35 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import React, { useState, useEffect } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
+import {
+  Button,
+  Card,
+  ContentContainer,
+  StepProgress,
+} from "../../../components";
 import { colors } from "../../../constants/colors";
-import { Button, Card, ContentContainer } from "../../../components";
 import { supabase } from "../../../lib/supabase";
 import { PaymentConfigRow } from "../../../types/supabase";
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const { passId, passLabel, passCount, quantity, total } = useLocalSearchParams<{
-    passId?: string;
-    passLabel?: string;
-    passCount?: string;
-    quantity?: string;
-    total?: string;
-  }>();
+  const { passId, passLabel, passCount, quantity, total } =
+    useLocalSearchParams<{
+      passId?: string;
+      passLabel?: string;
+      passCount?: string;
+      quantity?: string;
+      total?: string;
+    }>();
 
   const [config, setConfig] = useState<PaymentConfigRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,17 +61,7 @@ export default function PaymentScreen() {
 
       <ContentContainer maxWidth={720} style={styles.container}>
         {/* Progress steps */}
-        <View style={styles.progressRow}>
-          <View style={styles.progressStepWrap}>
-            <View style={styles.progressDotActive} />
-            <Text style={styles.progressTextActive}>Payment</Text>
-          </View>
-          <View style={styles.progressLine} />
-          <View style={styles.progressStepWrap}>
-            <View style={styles.progressDotInactive} />
-            <Text style={styles.progressTextInactive}>Upload Receipt</Text>
-          </View>
-        </View>
+        <StepProgress steps={["Payment", "Upload Receipt"]} currentIndex={0} />
 
         {/* Order Summary */}
         <Card style={styles.summaryCard}>
@@ -76,7 +72,9 @@ export default function PaymentScreen() {
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Qty</Text>
-            <Text style={styles.summaryValue}>{quantity} × {passCount} passes</Text>
+            <Text style={styles.summaryValue}>
+              {quantity} × {passCount} passes
+            </Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
@@ -87,18 +85,30 @@ export default function PaymentScreen() {
 
         {/* Payment instructions */}
         {loading ? (
-          <ActivityIndicator size="small" color={colors.primaryBlue} style={{ marginTop: 20 }} />
+          <ActivityIndicator
+            size="small"
+            color={colors.primaryBlue}
+            style={{ marginTop: 20 }}
+          />
         ) : config ? (
           <>
             <Card style={styles.accountCard}>
               <Text style={styles.payLabel}>Send payment to:</Text>
               <View style={styles.accountRow}>
-                <Ionicons name="business-outline" size={18} color={colors.primaryBlue} />
+                <Ionicons
+                  name="business-outline"
+                  size={18}
+                  color={colors.primaryBlue}
+                />
                 <Text style={styles.accountLabel}>Account Name</Text>
               </View>
               <Text style={styles.accountValue}>{config.account_name}</Text>
               <View style={styles.accountRow}>
-                <Ionicons name="card-outline" size={18} color={colors.primaryBlue} />
+                <Ionicons
+                  name="card-outline"
+                  size={18}
+                  color={colors.primaryBlue}
+                />
                 <Text style={styles.accountLabel}>Account Number</Text>
               </View>
               <Text style={styles.accountValue}>{config.account_number}</Text>
@@ -108,7 +118,11 @@ export default function PaymentScreen() {
               <Card style={styles.qrCard}>
                 <Text style={styles.qrTitle}>Scan to Pay</Text>
                 <View style={styles.qrPlaceholder}>
-                  <Ionicons name="qr-code" size={80} color={colors.primaryBlue} />
+                  <Ionicons
+                    name="qr-code"
+                    size={80}
+                    color={colors.primaryBlue}
+                  />
                 </View>
                 <Text style={styles.qrNote}>Scan via GCash or Maya</Text>
               </Card>
@@ -117,7 +131,8 @@ export default function PaymentScreen() {
         ) : (
           <Card style={styles.accountCard}>
             <Text style={styles.payLabel}>
-              Payment details not yet configured by the Tourism Office. Please contact them directly.
+              Payment details not yet configured by the Tourism Office. Please
+              contact them directly.
             </Text>
           </Card>
         )}
@@ -132,7 +147,11 @@ export default function PaymentScreen() {
               })
             }
           />
-          <Button title="Cancel" variant="outline" onPress={() => router.back()} />
+          <Button
+            title="Cancel"
+            variant="outline"
+            onPress={() => router.back()}
+          />
         </View>
 
         <View style={{ height: 40 }} />
@@ -152,31 +171,91 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   topTitle: { fontSize: 17, fontWeight: "600", color: colors.darkText },
-  progressRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 24, gap: 0 },
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+    gap: 0,
+  },
   progressStepWrap: { alignItems: "center", gap: 4 },
-  progressDotActive: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primaryBlue },
-  progressDotInactive: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.grayLight },
-  progressTextActive: { fontSize: 11, fontWeight: "600", color: colors.primaryBlue },
+  progressDotActive: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primaryBlue,
+  },
+  progressDotInactive: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.grayLight,
+  },
+  progressTextActive: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.primaryBlue,
+  },
   progressTextInactive: { fontSize: 11, color: colors.gray },
-  progressLine: { width: 48, height: 2, backgroundColor: colors.grayLight, marginHorizontal: 8, marginBottom: 18 },
+  progressLine: {
+    width: 48,
+    height: 2,
+    backgroundColor: colors.grayLight,
+    marginHorizontal: 8,
+    marginBottom: 18,
+  },
   summaryCard: { padding: 16, marginBottom: 16, gap: 4 },
-  summaryTitle: { fontSize: 15, fontWeight: "700", color: colors.darkText, marginBottom: 8 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
+  summaryTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.darkText,
+    marginBottom: 8,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+  },
   summaryLabel: { fontSize: 13, color: colors.gray },
   summaryValue: { fontSize: 13, fontWeight: "600", color: colors.darkText },
   divider: { height: 1, backgroundColor: colors.grayLight, marginVertical: 6 },
   grandLabel: { fontSize: 15, fontWeight: "700", color: colors.darkText },
   grandValue: { fontSize: 18, fontWeight: "700", color: colors.primaryBlue },
-  payLabel: { fontSize: 13, fontWeight: "600", color: colors.darkText, marginBottom: 8 },
+  payLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.darkText,
+    marginBottom: 8,
+  },
   qrCard: { padding: 20, alignItems: "center", marginBottom: 16 },
-  qrTitle: { fontSize: 15, fontWeight: "700", color: colors.darkText, marginBottom: 12 },
+  qrTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.darkText,
+    marginBottom: 12,
+  },
   qrPlaceholder: {
-    width: 120, height: 120, borderRadius: 16, backgroundColor: "#EBF2FF",
-    alignItems: "center", justifyContent: "center", marginBottom: 8,
+    width: 120,
+    height: 120,
+    borderRadius: 16,
+    backgroundColor: "#EBF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
   },
   qrNote: { fontSize: 12, color: colors.gray },
   accountCard: { padding: 16, marginBottom: 16, gap: 4 },
-  accountRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+  accountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+  },
   accountLabel: { fontSize: 12, color: colors.gray },
-  accountValue: { fontSize: 15, fontWeight: "700", color: colors.darkText, marginLeft: 24 },
+  accountValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.darkText,
+    marginLeft: 24,
+  },
 });

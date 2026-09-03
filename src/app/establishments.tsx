@@ -1,58 +1,64 @@
 import { useRouter } from "expo-router";
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  SafeAreaView, Text, TouchableOpacity, StyleSheet, View,
-  ScrollView, ActivityIndicator,
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  View
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  ContentContainer,
+  EmptyState,
+  ErrorState,
+  EstablishmentCard,
+  ScreenHeader
+} from "../components";
 import { colors } from "../constants/colors";
-import { EstablishmentCard, ContentContainer } from "../components";
-
-const MOCK_ESTABLISHMENTS = [
-  { id: "1", image: undefined },
-  { id: "2", image: undefined },
-  { id: "3", image: undefined },
-  { id: "4", image: undefined },
-];
+import { supabase } from "../lib/supabase";
+import { EstablishmentRow } from "../types/supabase";
 
 export default function EstablishmentsScreen() {
   const router = useRouter();
+  const [establishments, setEstablishments] = useState<EstablishmentRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [establishments] = useState(MOCK_ESTABLISHMENTS);
+  const [error, setError] = useState(false);
+
+  const loadEstablishments = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    const { data, error: fetchError } = await supabase
+      .from("establishments")
+      .select("*")
+      .eq("accredited", true)
+      .order("name", { ascending: true });
+    if (fetchError) {
+      setError(true);
+    } else {
+      setEstablishments(data ?? []);
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+    loadEstablishments();
+  }, [loadEstablishments]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={colors.darkText} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Dive Establishments</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title="Dive Establishments" onBack={() => router.back()} />
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primaryBlue} />
         </View>
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.red} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => setError("")}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          message="Failed to load establishments."
+          onRetry={loadEstablishments}
+        />
       ) : establishments.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="business-outline" size={48} color={colors.grayLight} />
-          <Text style={styles.emptyText}>No establishments found</Text>
-        </View>
+        <EmptyState icon="map-outline" message="No establishments found" />
       ) : (
         <ScrollView
           style={styles.scroll}
@@ -61,7 +67,18 @@ export default function EstablishmentsScreen() {
           <ContentContainer maxWidth={900} style={styles.gridInner}>
             <View style={styles.grid}>
               {establishments.map((est) => (
-                <EstablishmentCard key={est.id} {...est} />
+                <EstablishmentCard
+                  key={est.id}
+                  name={est.name}
+                  location={est.location}
+                  accreditation={est.accreditation}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/establishment/[id]",
+                      params: { id: est.id },
+                    })
+                  }
+                />
               ))}
             </View>
           </ContentContainer>
@@ -73,13 +90,8 @@ export default function EstablishmentsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 12,
-  },
-  title: { fontSize: 20, fontWeight: "700", color: colors.darkText },
   scroll: { flex: 1, paddingHorizontal: 20 },
-  scrollContent: { paddingBottom: 40, gap: 12 },
+  scrollContent: { paddingTop: 12, paddingBottom: 40, gap: 12 },
   gridInner: { paddingHorizontal: 0, alignItems: "center" },
   grid: {
     flexDirection: "row",
@@ -88,9 +100,11 @@ const styles = StyleSheet.create({
     width: "100%",
     justifyContent: "center",
   },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 12 },
-  errorText: { fontSize: 14, color: colors.red, textAlign: "center" },
-  retryBtn: { borderRadius: 8, backgroundColor: colors.primaryBlue, paddingVertical: 10, paddingHorizontal: 24 },
-  retryText: { fontSize: 14, fontWeight: "600", color: colors.white },
-  emptyText: { fontSize: 14, color: colors.gray, textAlign: "center" },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 12,
+  },
 });

@@ -1,11 +1,13 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Checkbox } from "../components";
 import { OnboardingCard } from "../components/OnboardingCard";
 
 export default function Next5Page() {
   const router = useRouter();
   const [agreed, setAgreed] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   return (
     <>
@@ -15,58 +17,61 @@ export default function Next5Page() {
         onBack={() => router.push("/next4")}
         progressActive={4}
         footer={
-          <Pressable
-            style={styles.checkboxRow}
-            onPress={() => setAgreed((prev) => !prev)}
-            hitSlop={8}
-          >
-            <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-              {agreed && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.checkboxLabel}>
-              I have read and understood all diving guidelines and commit to
-              responsible diving in Mabini, Batangas.
-            </Text>
-          </Pressable>
+          <Checkbox
+            checked={agreed}
+            onToggle={() => setAgreed(!agreed)}
+            label="I have read and understood all diving guidelines and commit to responsible diving in Mabini, Batangas."
+            error={errors.agreed}
+          />
         }
       >
-        <View style={styles.copy}>
-          <Text style={styles.title}>YOUR{"\n"}RESPONSIBILITY</Text>
-          <Text style={styles.intro}>
-            By continuing, you agree to follow all Mabini Eco-Dive Regulations.
-          </Text>
-          <View style={styles.listBlock}>
-            <Text style={styles.listHeader}>Failure to comply may result in:</Text>
-            <View style={styles.bulletRow}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.bulletText}>Fines</Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.bulletText}>Restricted access</Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.bulletText}>Reporting to authorities</Text>
+        <>
+          <View style={styles.copy}>
+            <Text style={styles.title}>YOUR{"\n"}RESPONSIBILITY</Text>
+            <Text style={styles.intro}>
+              By continuing, you agree to follow all Mabini Eco-Dive
+              Regulations.
+            </Text>
+            <View style={styles.listBlock}>
+              <Text style={styles.listHeader}>
+                Failure to comply may result in:
+              </Text>
+              <View style={styles.bulletRow}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.bulletText}>Fines</Text>
+              </View>
+              <View style={styles.bulletRow}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.bulletText}>Restricted access</Text>
+              </View>
+              <View style={styles.bulletRow}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.bulletText}>Reporting to authorities</Text>
+              </View>
             </View>
           </View>
-        </View>
-        <View style={styles.bottomArea}>
-          <Pressable
-            style={[styles.button, !agreed && styles.buttonDisabled]}
-            disabled={!agreed}
-            onPress={() => router.push("/loginpage")}
-          >
-            <Text style={styles.buttonText}>Get Started</Text>
-          </Pressable>
-        </View>
+          <View style={styles.bottomArea}>
+            <Pressable
+              style={[styles.button, !agreed && styles.buttonDisabled]}
+              disabled={!agreed}
+              onPress={() => router.push("/loginpage")}
+            >
+              <Text style={styles.buttonText}>Get Started</Text>
+            </Pressable>
+          </View>
+        </>
       </OnboardingCard>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  copy: { gap: 12, alignItems: "center", paddingHorizontal: 12, paddingBottom: 0 },
+  copy: {
+    gap: 12,
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingBottom: 0,
+  },
   title: {
     fontSize: 30,
     fontWeight: "700",
@@ -105,7 +110,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   checkboxChecked: { backgroundColor: "#176FF2" },
-  checkmark: { color: "#ffffff", fontSize: 12, fontWeight: "700", lineHeight: 14 },
+  checkmark: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 14,
+  },
   checkboxLabel: {
     flex: 1,
     fontSize: 11,

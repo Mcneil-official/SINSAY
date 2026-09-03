@@ -9,7 +9,7 @@ export const colors = {
   white: "#FFFFFF",
   bg: "#FFFFFF",
   orange: "#F59E0B",
-  amber: "#F59E0B",
+  amberDark: "#D97706",
   green: "#10B981",
   red: "#EF4444",
   gray: "#6B7280",
@@ -19,6 +19,7 @@ export const colors = {
   cardBorder: "#E0E8F5",
   inputBorder: "#D1D5DB",
   starYellow: "#FFC531",
+  authBlue: "#176FF2",
 };
 
 export type ColorKey = keyof typeof colors;
