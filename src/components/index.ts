@@ -11,4 +11,6 @@ export { EstablishmentCard } from "./EstablishmentCard";
 export { Dropdown } from "./Dropdown";
 export { default as BottomNav } from "./BottomNav";
 export { SearchBar } from "./SearchBar";
+export { default as ContentContainer } from "./ContentContainer";
+export { OnboardingCard } from "./OnboardingCard";
 export type { SearchResult } from "./SearchBar";

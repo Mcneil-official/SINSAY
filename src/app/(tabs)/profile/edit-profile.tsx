@@ -13,7 +13,7 @@ import {
   Alert,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, TextInput } from "../../../components";
+import { Button, TextInput, ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 import { t, Locale } from "../../../lib/i18n";
@@ -98,6 +98,7 @@ export default function EditProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        <ContentContainer maxWidth={720}>
         <TextInput
           label={t("full_name", locale)}
           placeholder="Your full name"
@@ -140,6 +141,7 @@ export default function EditProfileScreen() {
         </View>
 
         <View style={{ height: 40 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -147,7 +149,7 @@ export default function EditProfileScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: 12, paddingBottom: 20, gap: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   backButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },

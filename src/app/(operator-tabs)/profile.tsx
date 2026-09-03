@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
+import { ContentContainer } from "../../components";
 
 interface ProfileRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -64,6 +65,7 @@ export default function OperatorProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <ContentContainer maxWidth={720}>
         <Text style={styles.headerTitle}>Profile</Text>
 
         <View style={styles.profileCard}>
@@ -96,6 +98,7 @@ export default function OperatorProfileScreen() {
         </View>
 
         <View style={{ height: 120 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -103,7 +106,7 @@ export default function OperatorProfileScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: 12, paddingBottom: 20 },
   headerTitle: { fontSize: 24, fontWeight: "700", color: colors.darkText, marginBottom: 20 },
   profileCard: {

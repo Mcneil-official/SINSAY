@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, Card } from "../../../components";
+import { Button, Card, ContentContainer } from "../../../components";
 import { supabase } from "../../../lib/supabase";
 import { PaymentConfigRow } from "../../../types/supabase";
 
@@ -53,7 +53,7 @@ export default function PaymentScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.container}>
+      <ContentContainer maxWidth={720} style={styles.container}>
         {/* Progress steps */}
         <View style={styles.progressRow}>
           <View style={styles.progressStepWrap}>
@@ -136,14 +136,14 @@ export default function PaymentScreen() {
         </View>
 
         <View style={{ height: 40 }} />
-      </View>
+      </ContentContainer>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",

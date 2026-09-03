@@ -5,6 +5,7 @@ import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity
 import { colors } from "../../../constants/colors";
 import { t, Locale } from "../../../lib/i18n";
 import { useAuth } from "../../../hooks/useAuth";
+import ContentContainer from "../../../components/ContentContainer";
 
 interface FaqItem {
   q: string;
@@ -81,11 +82,13 @@ export default function FaqScreen() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        {faqs.map((item, index) => (
-          <FaqRow key={index} item={item} />
-        ))}
+        <ContentContainer maxWidth={720}>
+          {faqs.map((item, index) => (
+            <FaqRow key={index} item={item} />
+          ))}
 
-        <View style={{ height: 40 }} />
+          <View style={{ height: 40 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -93,7 +96,7 @@ export default function FaqScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: 12, paddingBottom: 20, gap: 8 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   backButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },

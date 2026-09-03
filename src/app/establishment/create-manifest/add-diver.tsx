@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, TextInput, Card } from "../../../components";
+import { Button, TextInput, Card, ContentContainer } from "../../../components";
 import { supabase } from "../../../lib/supabase";
 
 interface SearchResult {
@@ -132,9 +132,10 @@ export default function AddDiverScreen() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.instructions}>
-          Search for a registered diver by name or Eco-Diver ID, or add a walk-in diver.
-        </Text>
+        <ContentContainer maxWidth={720}>
+          <Text style={styles.instructions}>
+            Search for a registered diver by name or Eco-Diver ID, or add a walk-in diver.
+          </Text>
 
         {/* Search */}
         <TextInput
@@ -211,6 +212,7 @@ export default function AddDiverScreen() {
         )}
 
         <View style={{ height: 60 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -218,7 +220,7 @@ export default function AddDiverScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: 8, paddingBottom: 20 },
   topBar: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../constants/colors";
-import { Button, StatCard, StatusBadge } from "../../components";
+import { Button, StatCard, StatusBadge, ContentContainer } from "../../components";
 import { useAuth } from "../../hooks/useAuth";
 import { useLayout } from "../../context/LayoutContext";
 import { supabase } from "../../lib/supabase";
@@ -38,7 +38,8 @@ function deriveStatus(diveDate: string): StatusDerived {
 export default function OperatorDashboardScreen() {
   const router = useRouter();
   const { user, isLoading: authLoading, unreadCount } = useAuth();
-  const { isDesktop } = useLayout();
+  const { isDesktop, isTablet } = useLayout();
+  const statsBasis = isDesktop ? "30%" : isTablet ? "48%" : "100%";
 
   const [establishmentName, setEstablishmentName] = useState<string>("");
 
@@ -195,6 +196,7 @@ export default function OperatorDashboardScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <ContentContainer maxWidth={900}>
         {/* Greeting */}
         <View style={styles.headerRow}>
           <View>
@@ -221,24 +223,30 @@ export default function OperatorDashboardScreen() {
           </View>
         ) : (
           <View style={styles.statsRow}>
-            <StatCard
-              icon={<Ionicons name="people" size={20} color={colors.primaryBlue} />}
-              value={statLoading ? "..." : String(todayDivers)}
-              label="Today's Divers"
-              delta={statLoading ? undefined : todayDelta}
-            />
-            <StatCard
-              icon={<Ionicons name="ticket" size={20} color={colors.primaryBlue} />}
-              value={statLoading ? "..." : String(remainingPasses ?? "?")}
-              label="Remaining Passes"
-              delta={statLoading ? undefined : purchasedPasses > 0 ? `of ${purchasedPasses} purchased` : undefined}
-            />
-            <StatCard
-              icon={<Ionicons name="document-text" size={20} color={colors.primaryBlue} />}
-              value={statLoading ? "..." : String(weekCount)}
-              label="Manifests Sent"
-              delta={statLoading ? undefined : "This week"}
-            />
+            <View style={[styles.statItem, { flexBasis: statsBasis }]}>
+              <StatCard
+                icon={<Ionicons name="people" size={20} color={colors.primaryBlue} />}
+                value={statLoading ? "..." : String(todayDivers)}
+                label="Today's Divers"
+                delta={statLoading ? undefined : todayDelta}
+              />
+            </View>
+            <View style={[styles.statItem, { flexBasis: statsBasis }]}>
+              <StatCard
+                icon={<Ionicons name="ticket" size={20} color={colors.primaryBlue} />}
+                value={statLoading ? "..." : String(remainingPasses ?? "?")}
+                label="Remaining Passes"
+                delta={statLoading ? undefined : purchasedPasses > 0 ? `of ${purchasedPasses} purchased` : undefined}
+              />
+            </View>
+            <View style={[styles.statItem, { flexBasis: statsBasis }]}>
+              <StatCard
+                icon={<Ionicons name="document-text" size={20} color={colors.primaryBlue} />}
+                value={statLoading ? "..." : String(weekCount)}
+                label="Manifests Sent"
+                delta={statLoading ? undefined : "This week"}
+              />
+            </View>
           </View>
         )}
 
@@ -320,6 +328,7 @@ export default function OperatorDashboardScreen() {
         )}
 
         <View style={{ height: 120 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -327,7 +336,7 @@ export default function OperatorDashboardScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: 12, paddingBottom: 20 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   greeting: { fontSize: 22, fontWeight: "700", color: colors.darkText },
@@ -346,6 +355,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: 10, fontWeight: "700", color: colors.white },
   statsRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 24, gap: 10 },
+  statItem: { flexGrow: 1 },
   warningBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "#FFF7E6", borderRadius: 12, padding: 12, marginTop: 16,

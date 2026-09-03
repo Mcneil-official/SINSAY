@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
+import { ContentContainer } from "../components";
 
 const notifIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   eco_dive_activated: "checkmark-circle",
@@ -83,11 +84,12 @@ export default function NotificationsScreen() {
           <Text style={styles.emptyText}>No notifications yet</Text>
         </View>
       ) : (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ContentContainer maxWidth={720} style={styles.container}>
+          <ScrollView
+            style={styles.containerInner}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
           {notifications.map((notif) => {
             const icon = notifIcons[notif.type] || "ellipse";
             const iconColor = notifColors[notif.type] || colors.gray;
@@ -112,7 +114,8 @@ export default function NotificationsScreen() {
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+          </ScrollView>
+          </ContentContainer>
       )}
     </SafeAreaView>
   );
@@ -145,6 +148,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  containerInner: {
+    flex: 1,
   },
   scrollContent: {
     paddingBottom: 120,

@@ -1,163 +1,41 @@
-import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useLayout } from "../context/LayoutContext";
+import { OnboardingCard } from "../components/OnboardingCard";
 
 export default function NextPage() {
   const router = useRouter();
-  const { isDesktop } = useLayout();
 
   return (
-    <View style={isDesktop ? styles.desktopRoot : styles.container}>
-      {!isDesktop && (
-        <>
-          <Image
-            source={require("../../assets/images/2.jpeg")}
-            style={styles.heroImage}
-            contentFit="cover"
-          />
-          <View pointerEvents="none" style={styles.oval} />
-        </>
-      )}
-
-      <View style={isDesktop ? styles.desktopCard : styles.mobileContent}>
-        <Stack.Screen options={{ headerShown: false }} />
-
-        {isDesktop && (
-          <View style={styles.desktopHeroSection}>
-            <Image
-              source={require("../../assets/images/2.jpeg")}
-              style={styles.desktopHeroImage}
-              contentFit="cover"
-            />
-          </View>
-        )}
-
-        {!isDesktop && (
-          <View style={styles.header}>
-            <Pressable
-              onPress={() => router.push("/")}
-              hitSlop={12}
-              style={styles.backButton}
-            >
-              <Text style={styles.backArrow}>‹</Text>
-            </Pressable>
-            <Image
-              source={require("../../assets/images/logo.png")}
-              style={styles.brand}
-              contentFit="contain"
-            />
-          </View>
-        )}
-
-        <View style={isDesktop ? styles.desktopCopyArea : styles.mobileContent}>
-          <View style={styles.copy}>
-            <Text style={styles.title}>WELCOME TO MABINI!</Text>
-            <Text style={styles.intro}>
-              Before you dive, there's something important.
-            </Text>
-            <Text style={styles.body}>
-              Mabini's waters are home to fragile marine life.{"\n"}
-              To protect it, all divers are required to follow these Eco-Dive
-              Regulations.
-            </Text>
-            <Text style={styles.closing}>
-              Let's keep our ocean alive — together.
-            </Text>
-          </View>
-
-          <View style={styles.bottomArea}>
-            <View style={styles.progressRow}>
-              <View style={[styles.dot, styles.activeDot]} />
-              <View style={styles.dot} />
-              <View style={styles.dot} />
-              <View style={styles.dot} />
-              <View style={styles.dot} />
-            </View>
-            <Pressable
-              style={styles.button}
-              onPress={() => router.push("/next2")}
-            >
-              <Text style={styles.buttonText}>Next</Text>
-            </Pressable>
-          </View>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <OnboardingCard
+        heroImage={require("../../assets/images/2.jpeg")}
+        onBack={() => router.push("/")}
+        progressActive={0}
+      >
+        <View style={styles.copy}>
+          <Text style={styles.title}>WELCOME TO MABINI!</Text>
+          <Text style={styles.intro}>Before you dive, there's something important.</Text>
+          <Text style={styles.body}>
+            Mabini's waters are home to fragile marine life.{"\n"}
+            To protect it, all divers are required to follow these Eco-Dive
+            Regulations.
+          </Text>
+          <Text style={styles.closing}>Let's keep our ocean alive — together.</Text>
         </View>
-      </View>
-    </View>
+        <View style={styles.bottomArea}>
+          <Pressable style={styles.button} onPress={() => router.push("/next2")}>
+            <Text style={styles.buttonText}>Next</Text>
+          </Pressable>
+        </View>
+      </OnboardingCard>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: "relative",
-    paddingHorizontal: 40,
-    paddingTop: 80,
-    paddingBottom: 32,
-    backgroundColor: "#f7f3ea",
-    overflow: "hidden",
-  },
-  heroImage: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 500,
-  },
-  header: {
-    position: "absolute",
-    top: 50,
-    left: 20,
-    right: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    zIndex: 3,
-  },
-  backButton: {
-    padding: 4,
-  },
-  backArrow: {
-    fontSize: 32,
-    lineHeight: 32,
-    color: "#1f1a17",
-    fontWeight: "400",
-  },
-  brand: {
-    width: 120,
-    height: 40,
-  },
-  oval: {
-    position: "absolute",
-    left: "-40%",
-    right: "-40%",
-    bottom: -60,
-    height: "72%",
-    backgroundColor: "#ffffff",
-    borderTopLeftRadius: 999,
-    borderTopRightRadius: 999,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    shadowOffset: {
-      width: 0,
-      height: -6,
-    },
-    elevation: 8,
-  },
-  mobileContent: {
-    flex: 1,
-    justifyContent: "flex-end",
-    gap: 30,
-    zIndex: 1,
-  },
-  copy: {
-    gap: 12,
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingBottom: 0,
-  },
+  copy: { gap: 12, alignItems: "center", paddingHorizontal: 12, paddingBottom: 0 },
   title: {
     fontSize: 30,
     fontWeight: "700",
@@ -165,43 +43,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.3,
   },
-  intro: {
-    fontSize: 15,
-    fontStyle: "italic",
-    color: "#3a342e",
-    textAlign: "center",
-  },
-  body: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#3a342e",
-    textAlign: "center",
-  },
-  closing: {
-    fontSize: 15,
-    fontStyle: "italic",
-    color: "#3a342e",
-    textAlign: "center",
-  },
-  bottomArea: {
-    gap: 16,
-  },
-  progressRow: {
-    flexDirection: "row",
-    alignSelf: "center",
-    alignItems: "center",
-    gap: 7,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 7,
-    backgroundColor: "#d2d2d2",
-  },
-  activeDot: {
-    width: 18,
-    backgroundColor: "#0f304f",
-  },
+  intro: { fontSize: 15, fontStyle: "italic", color: "#3a342e", textAlign: "center" },
+  body: { fontSize: 15, lineHeight: 22, color: "#3a342e", textAlign: "center" },
+  closing: { fontSize: 15, fontStyle: "italic", color: "#3a342e", textAlign: "center" },
+  bottomArea: { gap: 16 },
   button: {
     alignSelf: "stretch",
     backgroundColor: "#176FF2",
@@ -209,38 +54,5 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
   },
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  desktopRoot: {
-    flex: 1,
-    backgroundColor: "#f7f3ea",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  desktopCard: {
-    width: 480,
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  desktopHeroSection: {
-    width: "100%",
-    height: 200,
-  },
-  desktopHeroImage: {
-    width: "100%",
-    height: "100%",
-  },
-  desktopCopyArea: {
-    padding: 32,
-    gap: 24,
-  },
+  buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "600" },
 });

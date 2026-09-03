@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, TextInput, Dropdown, Card } from "../../../components";
+import { Button, TextInput, Dropdown, Card, ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
@@ -176,8 +176,9 @@ export default function CreateManifestStep1() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        {/* Dive Info */}
-        <Text style={styles.sectionTitle}>Dive Information</Text>
+        <ContentContainer maxWidth={720}>
+          {/* Dive Info */}
+          <Text style={styles.sectionTitle}>Dive Information</Text>
         <View style={{ gap: 12, marginBottom: 16 }}>
           <Dropdown label="Dive Type" placeholder="Select dive type" value={diveType} options={diveTypes} onSelect={setDiveType} />
           <Dropdown label="Dive Mode" placeholder="Select dive mode" value={diveMode} options={diveModes} onSelect={setDiveMode} />
@@ -274,6 +275,7 @@ export default function CreateManifestStep1() {
         <Button title={saving ? "Submitting..." : "Submit Manifest"} onPress={handleSubmit} disabled={!canSubmit} />
 
         <View style={{ height: 60 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -281,7 +283,7 @@ export default function CreateManifestStep1() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: 8, paddingBottom: 20 },
   topBar: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

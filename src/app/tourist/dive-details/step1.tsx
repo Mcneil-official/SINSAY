@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, TextInput, Dropdown } from "../../../components";
+import { Button, TextInput, Dropdown, ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
@@ -134,8 +134,9 @@ export default function DiveDetailsStep1() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Basic Information */}
-        <Text style={styles.sectionLabel}>Basic Information</Text>
+        <ContentContainer maxWidth={720}>
+          {/* Basic Information */}
+          <Text style={styles.sectionLabel}>Basic Information</Text>
         <View style={styles.divider} />
 
         <Dropdown
@@ -221,6 +222,7 @@ export default function DiveDetailsStep1() {
         <Button title={saving ? "Saving..." : "Continue"} onPress={handleContinue} disabled={saving} />
 
         <View style={{ height: 40 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -233,7 +235,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
   },
   scrollContent: {
     paddingTop: 12,

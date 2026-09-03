@@ -15,6 +15,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../constants/colors";
 import { EstablishmentRow } from "../../types/supabase";
+import { ContentContainer } from "../../components";
 
 export default function EstablishmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -62,6 +63,7 @@ export default function EstablishmentDetailScreen() {
             </TouchableOpacity>
           </View>
         ) : (
+          <ContentContainer maxWidth={720} paddingH={16}>
           <>
             <View style={styles.hero}>
               <View style={styles.heroOverlay}>
@@ -136,6 +138,7 @@ export default function EstablishmentDetailScreen() {
               )}
             </View>
           </>
+          </ContentContainer>
         )}
 
         <View style={{ height: 60 }} />
@@ -156,7 +159,6 @@ const styles = StyleSheet.create({
   hero: {
     height: 180,
     backgroundColor: colors.navy,
-    marginHorizontal: 16,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   accreditationText: { fontSize: 11, fontWeight: "700", color: colors.white },
-  contentSection: { paddingHorizontal: 20, paddingTop: 20 },
+  contentSection: { paddingTop: 20 },
   estName: { fontSize: 22, fontWeight: "700", color: colors.darkText },
   locationRow: {
     flexDirection: "row",

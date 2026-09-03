@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, TextInput, Dropdown, Card } from "../../../components";
+import { Button, TextInput, Dropdown, Card, ContentContainer } from "../../../components";
 import { generateDivePlan } from "../../../lib/gemini";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../hooks/useAuth";
@@ -129,8 +129,9 @@ export default function PlannerScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Trip Planner Card */}
-        <Card style={styles.plannerCard}>
+        <ContentContainer maxWidth={720}>
+          {/* Trip Planner Card */}
+          <Card style={styles.plannerCard}>
           <Text style={styles.plannerTitle}>DIVE TRIP PLANNER</Text>
 
           <TextInput
@@ -238,6 +239,7 @@ export default function PlannerScreen() {
         )}
 
         <View style={{ height: 120 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -250,7 +252,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
   },
   scrollContent: {
     paddingTop: 8,

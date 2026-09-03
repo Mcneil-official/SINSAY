@@ -14,6 +14,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../constants/colors";
 import { DiveSiteRow } from "../../types/supabase";
+import { ContentContainer } from "../../components";
 
 const difficultyColors: Record<string, string> = {
   Beginner: "#10B981",
@@ -68,6 +69,7 @@ export default function DiveSiteDetailScreen() {
             </TouchableOpacity>
           </View>
         ) : (
+          <ContentContainer maxWidth={720} paddingH={16}>
           <>
             <View style={styles.hero}>
               <View style={styles.heroOverlay}>
@@ -115,6 +117,7 @@ export default function DiveSiteDetailScreen() {
               )}
             </View>
           </>
+          </ContentContainer>
         )}
 
         <View style={{ height: 60 }} />
@@ -135,7 +138,6 @@ const styles = StyleSheet.create({
   hero: {
     height: 200,
     backgroundColor: colors.navy,
-    marginHorizontal: 16,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -158,7 +160,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   contentSection: {
-    paddingHorizontal: 20,
     paddingTop: 20,
   },
   titleRow: {

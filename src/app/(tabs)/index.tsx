@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../constants/colors";
-import { HeroCarousel, DiveSiteCard, EstablishmentCard, SearchBar } from "../../components";
+import { HeroCarousel, DiveSiteCard, EstablishmentCard, SearchBar, ContentContainer } from "../../components";
 import { SearchResult } from "../../components/SearchBar";
 import { useAuth } from "../../hooks/useAuth";
 import { useLayout } from "../../context/LayoutContext";
@@ -129,6 +129,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <ContentContainer maxWidth={900} paddingH={20}>
         {/* Greeting + notification bell */}
         <View style={styles.headerRow}>
           <View style={styles.headerTextWrap}>
@@ -307,6 +308,7 @@ export default function HomeScreen() {
         )}
 
         <View style={{ height: 120 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -319,7 +321,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
   },
   scrollContent: {
     paddingBottom: 20,
@@ -423,6 +424,7 @@ const styles = StyleSheet.create({
   },
   establishmentsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     marginTop: 16,
   },

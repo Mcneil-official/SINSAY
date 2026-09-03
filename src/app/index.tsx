@@ -12,9 +12,10 @@ import { useLayout } from "../context/LayoutContext";
 
 export default function Index() {
   const router = useRouter();
-  const { isDesktop } = useLayout();
+  const { isTablet, isDesktop } = useLayout();
+  const isWide = isTablet || isDesktop;
 
-  if (isDesktop) {
+  if (isWide) {
     return (
       <View style={styles.desktopRoot}>
         <View style={styles.desktopLeft}>

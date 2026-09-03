@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, Card } from "../../../components";
+import { Button, Card, ContentContainer } from "../../../components";
 import { supabase } from "../../../lib/supabase";
 import { PassPricingRow } from "../../../types/supabase";
 
@@ -67,7 +67,8 @@ export default function BuyPassSelectionScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Buy Dive Pass</Text>
+        <ContentContainer maxWidth={720}>
+          <Text style={styles.title}>Buy Dive Pass</Text>
         <Text style={styles.subtitle}>
           Purchase dive passes for your resort. Each pass is credited to your account and deducted
           when a manifest is submitted.
@@ -138,6 +139,7 @@ export default function BuyPassSelectionScreen() {
         )}
 
         <View style={{ height: 120 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -145,7 +147,7 @@ export default function BuyPassSelectionScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: 12, paddingBottom: 20 },
   title: { fontSize: 24, fontWeight: "700", color: colors.darkText },
   subtitle: { fontSize: 12, color: colors.gray, lineHeight: 18, marginTop: 6, marginBottom: 20 },

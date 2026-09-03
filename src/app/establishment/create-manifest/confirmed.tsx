@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, Card } from "../../../components";
+import { Button, Card, ContentContainer } from "../../../components";
 
 export default function ManifestConfirmedScreen() {
   const router = useRouter();
@@ -46,7 +46,7 @@ export default function ManifestConfirmedScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.container}>
+      <ContentContainer maxWidth={720} style={styles.container}>
         <View style={styles.checkWrap}>
           <Ionicons name="checkmark-circle" size={72} color="#16A34A" />
         </View>
@@ -117,14 +117,14 @@ export default function ManifestConfirmedScreen() {
             onPress={() => router.replace("/establishment/create-manifest/step1")}
           />
         </View>
-      </View>
+      </ContentContainer>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20, justifyContent: "center" },
+  container: { flex: 1, justifyContent: "center" },
   topBar: {
     position: "absolute",
     top: 60,

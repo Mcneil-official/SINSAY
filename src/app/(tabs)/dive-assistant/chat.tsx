@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { colors } from "../../../constants/colors";
 import { chatWithGemini } from "../../../lib/gemini";
+import { ContentContainer } from "../../../components";
 
 interface Message {
   id: string;
@@ -234,11 +235,15 @@ export default function ChatScreen() {
 
       {Platform.OS === "ios" ? (
         <KeyboardAvoidingView style={styles.flex} behavior="padding">
-          {chatContent}
+          <ContentContainer maxWidth={720} paddingH={0} style={styles.flexInner}>
+            {chatContent}
+          </ContentContainer>
         </KeyboardAvoidingView>
       ) : (
         <View style={styles.flex}>
-          {chatContent}
+          <ContentContainer maxWidth={720} paddingH={0} style={styles.flexInner}>
+            {chatContent}
+          </ContentContainer>
         </View>
       )}
     </SafeAreaView>
@@ -251,6 +256,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   flex: {
+    flex: 1,
+    paddingBottom: 100,
+  },
+  flexInner: {
     flex: 1,
     paddingBottom: 100,
   },

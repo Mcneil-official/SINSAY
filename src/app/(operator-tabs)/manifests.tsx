@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../constants/colors";
-import { Button, StatusBadge } from "../../components";
+import { Button, StatusBadge, ContentContainer } from "../../components";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 
@@ -76,7 +76,8 @@ export default function ManifestsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.headerRow}>
+        <ContentContainer maxWidth={720}>
+          <View style={styles.headerRow}>
           <Text style={styles.title}>Manifests</Text>
           <Button
             title="+ New"
@@ -115,6 +116,8 @@ export default function ManifestsScreen() {
           </View>
         )}
 
+          </ContentContainer>
+
         <View style={{ height: 120 }} />
       </ScrollView>
     </SafeAreaView>
@@ -123,7 +126,7 @@ export default function ManifestsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: 12, paddingBottom: 20 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   title: { fontSize: 24, fontWeight: "700", color: colors.darkText },

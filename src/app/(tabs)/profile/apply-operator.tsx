@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, TextInput, Dropdown, FileUpload } from "../../../components";
+import { Button, TextInput, Dropdown, FileUpload, ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 import { uploadFile } from "../../../lib/storage";
@@ -200,6 +200,7 @@ export default function ApplyOperatorScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        <ContentContainer maxWidth={720}>
         <TextInput
           label="Resort Name"
           placeholder="e.g. Anilao Beach Club"
@@ -309,6 +310,7 @@ export default function ApplyOperatorScreen() {
         </View>
 
         <View style={{ height: 40 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -316,7 +318,7 @@ export default function ApplyOperatorScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: 12, paddingBottom: 20, gap: 16 },
   headerRow: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   backButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },

@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, Card, TextInput, FileUpload } from "../../../components";
+import { Button, Card, TextInput, FileUpload, ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 import { uploadFile, validateFile } from "../../../lib/storage";
@@ -118,7 +118,7 @@ export default function UploadReceiptScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" />
-        <View style={styles.container}>
+        <ContentContainer maxWidth={720} style={styles.container}>
           <View style={styles.checkWrap}>
             <Ionicons name="checkmark-circle" size={72} color="#16A34A" />
           </View>
@@ -135,7 +135,7 @@ export default function UploadReceiptScreen() {
           <View style={{ gap: 10, marginTop: 20 }}>
             <Button title="Back to Dashboard" onPress={() => router.replace("/(operator-tabs)")} />
           </View>
-        </View>
+        </ContentContainer>
       </SafeAreaView>
     );
   }
@@ -151,7 +151,7 @@ export default function UploadReceiptScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.container}>
+      <ContentContainer maxWidth={720} style={styles.container}>
         {/* Progress steps */}
         <View style={styles.progressRow}>
           <View style={styles.progressStepWrap}>
@@ -206,14 +206,14 @@ export default function UploadReceiptScreen() {
         />
 
         <View style={{ height: 60 }} />
-      </View>
+      </ContentContainer>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1, paddingHorizontal: 20 },
+  container: { flex: 1 },
   topBar: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingVertical: 12,

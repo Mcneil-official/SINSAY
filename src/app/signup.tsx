@@ -12,10 +12,13 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../hooks/useAuth";
+import { useLayout } from "../context/LayoutContext";
 
 export default function LoginPage() {
   const router = useRouter();
   const { signUp } = useAuth();
+  const { isTablet, isDesktop } = useLayout();
+  const isWide = isTablet || isDesktop;
   const [activeTab, setActiveTab] = useState<"login" | "signup">("signup");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -44,7 +47,7 @@ export default function LoginPage() {
   return (
     <ImageBackground
       source={require("../../assets/images/1.png")}
-      style={styles.container}
+      style={[styles.container, isWide && styles.containerWide]}
     >
       <View style={styles.content}>
         <Stack.Screen options={{ headerShown: false }} />
@@ -98,10 +101,10 @@ export default function LoginPage() {
         </View>
       </View>
 
-      <View pointerEvents="none" style={styles.oval} />
+      <View pointerEvents="none" style={[styles.oval, isWide && styles.ovalWide]} />
 
       <View style={styles.footer}>
-        <View style={styles.bottomSection}>
+        <View style={[styles.bottomSection, isWide && styles.bottomSectionWide]}>
           <View style={styles.field}>
             <Text style={styles.label}>Full Name</Text>
             <TextInput
@@ -209,6 +212,9 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     backgroundColor: "#f7f3ea",
   },
+  containerWide: {
+    justifyContent: "center",
+  },
   content: {
     gap: 0,
   },
@@ -245,9 +251,23 @@ const styles = StyleSheet.create({
     },
     elevation: 8,
   },
+  ovalWide: {
+    left: "50%",
+    right: "auto",
+    bottom: 40,
+    top: 40,
+    width: 480,
+    marginLeft: -240,
+    borderRadius: 40,
+    height: "auto",
+  },
   bottomSection: {
     width: "100%",
     gap: 12,
+  },
+  bottomSectionWide: {
+    width: 420,
+    alignSelf: "center",
   },
   subtitle: {
     fontSize: 14,

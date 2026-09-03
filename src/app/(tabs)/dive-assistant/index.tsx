@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { Button } from "../../../components/Button";
+import ContentContainer from "../../../components/ContentContainer";
 import { colors } from "../../../constants/colors";
 
 export default function DiveAssistantScreen() {
@@ -23,8 +24,9 @@ export default function DiveAssistantScreen() {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Mascot illustration */}
-        <View style={styles.mascotWrap}>
+        <ContentContainer maxWidth={720}>
+          {/* Mascot illustration */}
+          <View style={styles.mascotWrap}>
           <View style={styles.mascotCircle}>
             <Image
               source={require("../../../../assets/robot.jpg")}
@@ -80,6 +82,7 @@ export default function DiveAssistantScreen() {
             Get a personalized dive itinerary
           </Text>
         </View>
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -92,7 +95,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 24,
   },
   scrollContent: {
     paddingTop: 48,

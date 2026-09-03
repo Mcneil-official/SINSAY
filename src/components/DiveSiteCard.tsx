@@ -17,6 +17,7 @@ interface DiveSiteCardProps {
   liked?: boolean;
   onPress?: () => void;
   onLike?: () => void;
+  fluid?: boolean;
 }
 
 export function DiveSiteCard({
@@ -27,12 +28,17 @@ export function DiveSiteCard({
   liked = false,
   onPress,
   onLike,
+  fluid = false,
 }: DiveSiteCardProps) {
   const isTall = index === 1;
 
   return (
     <TouchableOpacity
-      style={[styles.card, isTall ? styles.cardTall : styles.cardShort]}
+      style={[
+        styles.card,
+        isTall ? styles.cardTall : styles.cardShort,
+        fluid && styles.cardFluid,
+      ]}
       onPress={onPress}
       activeOpacity={0.85}
     >
@@ -77,6 +83,13 @@ const styles = StyleSheet.create({
     width: 190,
     height: 271,
     marginTop: -20,
+  },
+  cardFluid: {
+    flex: 1,
+    minWidth: 260,
+    maxWidth: 340,
+    height: 200,
+    marginTop: 0,
   },
   image: {
     width: "100%",

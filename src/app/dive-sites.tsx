@@ -6,7 +6,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
-import { DiveSiteCard } from "../components";
+import { DiveSiteCard, ContentContainer } from "../components";
+import { useLayout } from "../context/LayoutContext";
 
 const MOCK_SITES = [
   { id: "1", name: "Anilao Cove", rating: "4.5", image: undefined },
@@ -60,9 +61,13 @@ export default function DiveSitesScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
         >
-          {sites.map((site) => (
-            <DiveSiteCard key={site.id} {...site} />
-          ))}
+          <ContentContainer maxWidth={900} style={styles.gridInner}>
+            <View style={styles.grid}>
+              {sites.map((site, index) => (
+                <DiveSiteCard key={site.id} {...site} index={index} fluid />
+              ))}
+            </View>
+          </ContentContainer>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -78,6 +83,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "700", color: colors.darkText },
   scroll: { flex: 1, paddingHorizontal: 20 },
   scrollContent: { paddingBottom: 40, gap: 12 },
+  gridInner: { paddingHorizontal: 0, alignItems: "center" },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 14,
+    width: "100%",
+    justifyContent: "center",
+  },
   center: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 12 },
   errorText: { fontSize: 14, color: colors.red, textAlign: "center" },
   retryBtn: { borderRadius: 8, backgroundColor: colors.primaryBlue, paddingVertical: 10, paddingHorizontal: 24 },

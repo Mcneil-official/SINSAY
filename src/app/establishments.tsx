@@ -6,7 +6,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
-import { EstablishmentCard } from "../components";
+import { EstablishmentCard, ContentContainer } from "../components";
 
 const MOCK_ESTABLISHMENTS = [
   { id: "1", image: undefined },
@@ -58,9 +58,13 @@ export default function EstablishmentsScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
         >
-          {establishments.map((est) => (
-            <EstablishmentCard key={est.id} {...est} />
-          ))}
+          <ContentContainer maxWidth={900} style={styles.gridInner}>
+            <View style={styles.grid}>
+              {establishments.map((est) => (
+                <EstablishmentCard key={est.id} {...est} />
+              ))}
+            </View>
+          </ContentContainer>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -76,6 +80,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "700", color: colors.darkText },
   scroll: { flex: 1, paddingHorizontal: 20 },
   scrollContent: { paddingBottom: 40, gap: 12 },
+  gridInner: { paddingHorizontal: 0, alignItems: "center" },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 14,
+    width: "100%",
+    justifyContent: "center",
+  },
   center: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 12 },
   errorText: { fontSize: 14, color: colors.red, textAlign: "center" },
   retryBtn: { borderRadius: 8, backgroundColor: colors.primaryBlue, paddingVertical: 10, paddingHorizontal: 24 },
