@@ -15,7 +15,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../constants/colors";
 import { EstablishmentRow } from "../../types/supabase";
-import { ContentContainer } from "../../components";
+import { ContentContainer, ErrorState } from "../../components";
 
 export default function EstablishmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -43,26 +43,21 @@ export default function EstablishmentDetailScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.primaryBlue} />
-          </View>
-        ) : !est ? (
-          <View style={styles.center}>
-            <Ionicons name="alert-circle-outline" size={48} color={colors.red} />
-            <Text style={styles.errorText}>Establishment not found</Text>
-            <TouchableOpacity
-              style={styles.retryBtn}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.retryText}>Go Back</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primaryBlue} />
+        </View>
+      ) : !est ? (
+        <ErrorState
+          message="Establishment not found"
+          onRetry={() => router.back()}
+          retryLabel="Go Back"
+        />
+      ) : (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+        >
           <ContentContainer maxWidth={720} paddingH={16}>
           <>
             <View style={styles.hero}>
@@ -139,10 +134,9 @@ export default function EstablishmentDetailScreen() {
             </View>
           </>
           </ContentContainer>
-        )}
-
-        <View style={{ height: 60 }} />
-      </ScrollView>
+          <View style={{ height: 60 }} />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -215,7 +209,4 @@ const styles = StyleSheet.create({
     flex: 1, justifyContent: "center", alignItems: "center",
     paddingHorizontal: 32, gap: 12, marginTop: 80,
   },
-  errorText: { fontSize: 14, color: colors.red, textAlign: "center" },
-  retryBtn: { borderRadius: 8, backgroundColor: colors.primaryBlue, paddingVertical: 10, paddingHorizontal: 24 },
-  retryText: { fontSize: 14, fontWeight: "600", color: colors.white },
 });

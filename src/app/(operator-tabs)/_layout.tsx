@@ -1,12 +1,11 @@
-import React from "react";
-import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../../hooks/useAuth";
-import { useEffect } from "react";
+import { Tabs, useRouter } from "expo-router";
+import React, { useEffect } from "react";
 import BottomNav from "../../components/BottomNav";
-import SideNav from "../../components/SideNav";
 import DesktopHeader from "../../components/DesktopHeader";
+import SideNav from "../../components/SideNav";
 import { useLayout } from "../../context/LayoutContext";
+import { useAuth } from "../../hooks/useAuth";
 
 function OperatorGate() {
   const { isOperator, isLoading } = useAuth();
@@ -21,7 +20,13 @@ function OperatorGate() {
   return null;
 }
 
-const tabIcons: Record<string, { focused: keyof typeof Ionicons.glyphMap; unfocused: keyof typeof Ionicons.glyphMap }> = {
+const tabIcons: Record<
+  string,
+  {
+    focused: keyof typeof Ionicons.glyphMap;
+    unfocused: keyof typeof Ionicons.glyphMap;
+  }
+> = {
   index: { focused: "home", unfocused: "home-outline" },
   manifests: { focused: "document-text", unfocused: "document-text-outline" },
   "buy-pass": { focused: "cart", unfocused: "cart-outline" },
@@ -36,21 +41,26 @@ const tabLabels: Record<string, string> = {
 };
 
 export default function OperatorTabLayout() {
-  const { isDesktop } = useLayout();
+  const { isDesktop, sidebarWidth } = useLayout();
 
   return (
     <>
       <OperatorGate />
       {isDesktop && (
         <>
-          <DesktopHeader sidebarWidth={240} />
+          <DesktopHeader sidebarWidth={sidebarWidth} />
         </>
       )}
       <Tabs
         screenOptions={{ headerShown: false }}
         tabBar={(props) =>
           isDesktop ? (
-            <SideNav {...props} tabIcons={tabIcons} tabLabels={tabLabels} />
+            <SideNav
+              {...props}
+              tabIcons={tabIcons}
+              tabLabels={tabLabels}
+              width={sidebarWidth}
+            />
           ) : (
             <BottomNav {...props} tabIcons={tabIcons} tabLabels={tabLabels} />
           )

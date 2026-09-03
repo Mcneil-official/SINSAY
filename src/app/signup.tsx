@@ -11,15 +11,15 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useAuth } from "../hooks/useAuth";
 import { useLayout } from "../context/LayoutContext";
+import { useAuth } from "../hooks/useAuth";
 
 export default function LoginPage() {
   const router = useRouter();
   const { signUp } = useAuth();
   const { isTablet, isDesktop } = useLayout();
   const isWide = isTablet || isDesktop;
-  const [activeTab, setActiveTab] = useState<"login" | "signup">("signup");
+  const activeTab = "signup" as "login" | "signup"; // reflects this screen; navigation happens via router
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,41 +70,48 @@ export default function LoginPage() {
         <View style={styles.tabRow}>
           <Pressable
             style={styles.tabButton}
-            onPress={() => setActiveTab("login")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "login" && styles.tabTextActive,
-              ]}
-              onPress={() => router.push("/loginpage")}
-            >
-              Log In
-            </Text>
-            {activeTab === "login" && <View style={styles.tabUnderline} />}
-          </Pressable>
-          <Pressable
-            style={styles.tabButton}
-            onPress={() => setActiveTab("signup")}
+            onPress={() => router.push("/signup")}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === "signup" }}
           >
             <Text
               style={[
                 styles.tabText,
                 activeTab === "signup" && styles.tabTextActive,
               ]}
-              onPress={() => router.push("/signup")}
             >
               Sign Up
             </Text>
             {activeTab === "signup" && <View style={styles.tabUnderline} />}
           </Pressable>
+          <Pressable
+            style={styles.tabButton}
+            onPress={() => router.push("/loginpage")}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === "login" }}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "login" && styles.tabTextActive,
+              ]}
+            >
+              Log In
+            </Text>
+            {activeTab === "login" && <View style={styles.tabUnderline} />}
+          </Pressable>
         </View>
       </View>
 
-      <View pointerEvents="none" style={[styles.oval, isWide && styles.ovalWide]} />
+      <View
+        pointerEvents="none"
+        style={[styles.oval, isWide && styles.ovalWide]}
+      />
 
       <View style={styles.footer}>
-        <View style={[styles.bottomSection, isWide && styles.bottomSectionWide]}>
+        <View
+          style={[styles.bottomSection, isWide && styles.bottomSectionWide]}
+        >
           <View style={styles.field}>
             <Text style={styles.label}>Full Name</Text>
             <TextInput

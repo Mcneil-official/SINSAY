@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../constants/colors";
-import { Button, StatusBadge, ContentContainer } from "../../components";
+import { Button, StatusBadge, ContentContainer, EmptyState } from "../../components";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 
@@ -88,7 +88,7 @@ export default function ManifestsScreen() {
         {loading ? (
           <ActivityIndicator size="large" color={colors.primaryBlue} style={{ marginTop: 40 }} />
         ) : manifests.length === 0 ? (
-          <Text style={styles.emptyText}>No manifests yet.</Text>
+          <EmptyState icon="boat-outline" message="No manifests yet." />
         ) : (
           <View style={styles.list}>
             {manifests.map((m) => {
@@ -141,5 +141,4 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   rowTitle: { fontSize: 14, fontWeight: "600", color: colors.darkText },
   rowMeta: { fontSize: 11, color: colors.gray, marginTop: 2 },
-  emptyText: { fontSize: 14, color: colors.gray, textAlign: "center", marginTop: 40 },
 });

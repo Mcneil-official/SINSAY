@@ -1,61 +1,89 @@
 import { useRouter } from "expo-router";
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  SafeAreaView, Text, TouchableOpacity, StyleSheet, View,
-  ScrollView, ActivityIndicator,
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  View
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  ContentContainer,
+  DiveSiteCard,
+  EmptyState,
+  ErrorState,
+  ScreenHeader,
+} from "../components";
 import { colors } from "../constants/colors";
-import { DiveSiteCard, ContentContainer } from "../components";
-import { useLayout } from "../context/LayoutContext";
-
-const MOCK_SITES = [
-  { id: "1", name: "Anilao Cove", rating: "4.5", image: undefined },
-  { id: "2", name: "Sombrero Island", rating: "4.3", image: undefined },
-  { id: "3", name: "Sepoc Beach", rating: "4.7", image: undefined },
-  { id: "4", name: "Mainit", rating: "4.2", image: undefined },
-  { id: "5", name: "Tingloy", rating: "4.0", image: undefined },
-  { id: "6", name: "Arthur's Rock", rating: "4.6", image: undefined },
-];
+import { supabase } from "../lib/supabase";
+import { DiveSiteRow } from "../types/supabase";
 
 export default function DiveSitesScreen() {
   const router = useRouter();
+  const [sites, setSites] = useState<DiveSiteRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [sites] = useState(MOCK_SITES);
+  const [error, setError] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
+  const loadSites = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    const { data, error: fetchError } = await supabase
+      .from("dive_sites")
+      .select("*")
+      .order("name", { ascending: true });
+    if (fetchError) {
+      setError(true);
+    } else {
+      setSites(data ?? []);
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+    loadSites();
+  }, [loadSites]);
+
+  const handleToggleFavorite = useCallback(
+    async (diveSiteId: string) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const isFav = favoriteIds.has(diveSiteId);
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (isFav) next.delete(diveSiteId);
+        else next.add(diveSiteId);
+        return next;
+      });
+      if (isFav) {
+        await supabase
+          .from("tourist_favorites")
+          .delete()
+          .eq("tourist_id", user.id)
+          .eq("dive_site_id", diveSiteId);
+      } else {
+        await supabase
+          .from("tourist_favorites")
+          .insert({ tourist_id: user.id, dive_site_id: diveSiteId });
+      }
+    },
+    [favoriteIds],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={colors.darkText} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Dive Sites</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title="Dive Sites" onBack={() => router.back()} />
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primaryBlue} />
         </View>
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.red} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => setError("")}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState message="Failed to load dive sites." onRetry={loadSites} />
       ) : sites.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="map-outline" size={48} color={colors.grayLight} />
-          <Text style={styles.emptyText}>No dive sites found</Text>
-        </View>
+        <EmptyState icon="map-outline" message="No dive sites found" />
       ) : (
         <ScrollView
           style={styles.scroll}
@@ -64,7 +92,22 @@ export default function DiveSitesScreen() {
           <ContentContainer maxWidth={900} style={styles.gridInner}>
             <View style={styles.grid}>
               {sites.map((site, index) => (
-                <DiveSiteCard key={site.id} {...site} index={index} fluid />
+                <DiveSiteCard
+                  key={site.id}
+                  name={site.name}
+                  rating={site.rating ?? "0"}
+                  image={require("../../assets/dive-alley-palace.png")}
+                  index={index}
+                  liked={favoriteIds.has(site.id)}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/dive-site/[id]",
+                      params: { id: site.id },
+                    })
+                  }
+                  onLike={() => handleToggleFavorite(site.id)}
+                  fluid
+                />
               ))}
             </View>
           </ContentContainer>
@@ -76,13 +119,8 @@ export default function DiveSitesScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 12,
-  },
-  title: { fontSize: 20, fontWeight: "700", color: colors.darkText },
   scroll: { flex: 1, paddingHorizontal: 20 },
-  scrollContent: { paddingBottom: 40, gap: 12 },
+  scrollContent: { paddingTop: 12, paddingBottom: 40, gap: 12 },
   gridInner: { paddingHorizontal: 0, alignItems: "center" },
   grid: {
     flexDirection: "row",
@@ -91,9 +129,11 @@ const styles = StyleSheet.create({
     width: "100%",
     justifyContent: "center",
   },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 12 },
-  errorText: { fontSize: 14, color: colors.red, textAlign: "center" },
-  retryBtn: { borderRadius: 8, backgroundColor: colors.primaryBlue, paddingVertical: 10, paddingHorizontal: 24 },
-  retryText: { fontSize: 14, fontWeight: "600", color: colors.white },
-  emptyText: { fontSize: 14, color: colors.gray, textAlign: "center" },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 12,
+  },
 });

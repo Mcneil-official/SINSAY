@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -9,18 +10,27 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
+import {
+  Button,
+  Card,
+  ErrorState,
+  ProgressBar,
+  ScreenHeader,
+  StatusBadge,
+} from "../../../components";
 import { colors } from "../../../constants/colors";
-import { Button, ProgressBar, StatusBadge, Card } from "../../../components";
-import { useAuth } from "../../../hooks/useAuth";
+import { spacing } from "../../../constants/spacing";
+import { typography } from "../../../constants/typography";
 import { useLayout } from "../../../context/LayoutContext";
+import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
 export default function EcoDiveIDScreen() {
   const router = useRouter();
   const { user, profile, ecoId, isLoading, refreshProfile } = useAuth();
-  const { isDesktop } = useLayout();
+  const { isDesktop, isTablet } = useLayout();
+  const isWide = isDesktop || isTablet;
   const [completionPct, setCompletionPct] = useState<number | null>(null);
 
   useEffect(() => {
@@ -30,22 +40,34 @@ export default function EcoDiveIDScreen() {
   }, [isLoading, user, router]);
 
   useEffect(() => {
-    if (!isLoading && (ecoId?.status === "complete" || ecoId?.status === "active")) {
+    if (
+      !isLoading &&
+      (ecoId?.status === "complete" || ecoId?.status === "active")
+    ) {
       router.replace("/eco-dive-id/complete");
     }
   }, [isLoading, ecoId, router]);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("dive_profile_completion").select("completion_pct").eq("tourist_id", user.id).single().then(({ data }) => {
-      if (data) setCompletionPct(data.completion_pct);
-    });
+    supabase
+      .from("dive_profile_completion")
+      .select("completion_pct")
+      .eq("tourist_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setCompletionPct(data.completion_pct);
+      });
   }, [user, profile]);
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator size="large" color={colors.primaryBlue} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color={colors.primaryBlue}
+          style={{ marginTop: 40 }}
+        />
       </SafeAreaView>
     );
   }
@@ -53,14 +75,11 @@ export default function EcoDiveIDScreen() {
   if (!profile) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.red} />
-          <Text style={styles.errorText}>Unable to load profile data.</Text>
-          <Text style={styles.errorSubText}>Your account may not be fully set up. Please contact support or try again.</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => refreshProfile()}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          message="Unable to load profile data."
+          description="Your account may not be fully set up. Please contact support or try again."
+          onRetry={() => refreshProfile()}
+        />
       </SafeAreaView>
     );
   }
@@ -73,11 +92,13 @@ export default function EcoDiveIDScreen() {
     profile?.emergency_contact_number,
     profile?.dive_pass_type,
     profile?.type_of_dive,
-    ...(isCertified ? [
-      profile?.certification_level,
-      profile?.date_accredited,
-      profile?.renewal_date,
-    ] : []),
+    ...(isCertified
+      ? [
+          profile?.certification_level,
+          profile?.date_accredited,
+          profile?.renewal_date,
+        ]
+      : []),
   ].filter(Boolean).length;
 
   const localPct = Math.round((filledCount / totalFields) * 100);
@@ -87,23 +108,19 @@ export default function EcoDiveIDScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color={colors.darkText} />
-        </TouchableOpacity>
-        <View>
-          <Text style={styles.title}>Digital Diver ID</Text>
-        </View>
-      </View>
-      <Text style={styles.subtitle}>Your official dive identity in Mabini</Text>
+      <ScreenHeader
+        title="Digital Diver ID"
+        subtitle="Your official dive identity in Mabini"
+        onBack={() => router.back()}
+        size="large"
+      />
 
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {isDesktop ? (
+        {isWide ? (
           <View style={styles.desktopRow}>
             {/* Left column: ID Card */}
             <View style={styles.desktopLeft}>
@@ -115,8 +132,16 @@ export default function EcoDiveIDScreen() {
                   </View>
                   <StatusBadge label="Incomplete" variant="incomplete" />
                 </View>
-                <Text style={styles.idCardName}>{profile?.full_name || "Diver"}</Text>
-                <Text style={styles.idCardCode}>ECO-{new Date().getFullYear()}-{String(profile?.id?.charCodeAt(0) || Math.floor(Math.random() * 999)).padStart(6, "0")}</Text>
+                <Text style={styles.idCardName}>
+                  {profile?.full_name || "Diver"}
+                </Text>
+                <Text style={styles.idCardCode}>
+                  ECO-{new Date().getFullYear()}-
+                  {String(
+                    profile?.id?.charCodeAt(0) ||
+                      Math.floor(Math.random() * 999),
+                  ).padStart(6, "0")}
+                </Text>
               </View>
             </View>
             {/* Right column: Completion + Actions */}
@@ -128,7 +153,8 @@ export default function EcoDiveIDScreen() {
                 </View>
                 <ProgressBar progress={pct} showLabel={false} />
                 <Text style={styles.completionCaption}>
-                  Complete your diver profile to be eligible for dive activities.
+                  Complete your diver profile to be eligible for dive
+                  activities.
                 </Text>
               </View>
               <Button
@@ -140,15 +166,21 @@ export default function EcoDiveIDScreen() {
                 <View style={styles.infoBullets}>
                   <View style={styles.bulletRow}>
                     <Text style={styles.bulletDot}>•</Text>
-                    <Text style={styles.bulletText}>Ensures safe and verified diving activities</Text>
+                    <Text style={styles.bulletText}>
+                      Ensures safe and verified diving activities
+                    </Text>
                   </View>
                   <View style={styles.bulletRow}>
                     <Text style={styles.bulletDot}>•</Text>
-                    <Text style={styles.bulletText}>Required for inclusion in the dive manifest</Text>
+                    <Text style={styles.bulletText}>
+                      Required for inclusion in the dive manifest
+                    </Text>
                   </View>
                   <View style={styles.bulletRow}>
                     <Text style={styles.bulletDot}>•</Text>
-                    <Text style={styles.bulletText}>Supports marine conservation and monitoring</Text>
+                    <Text style={styles.bulletText}>
+                      Supports marine conservation and monitoring
+                    </Text>
                   </View>
                 </View>
               </Card>
@@ -165,8 +197,15 @@ export default function EcoDiveIDScreen() {
                 </View>
                 <StatusBadge label="Incomplete" variant="incomplete" />
               </View>
-              <Text style={styles.idCardName}>{profile?.full_name || "Diver"}</Text>
-              <Text style={styles.idCardCode}>ECO-{new Date().getFullYear()}-{String(profile?.id?.charCodeAt(0) || Math.floor(Math.random() * 999)).padStart(6, "0")}</Text>
+              <Text style={styles.idCardName}>
+                {profile?.full_name || "Diver"}
+              </Text>
+              <Text style={styles.idCardCode}>
+                ECO-{new Date().getFullYear()}-
+                {String(
+                  profile?.id?.charCodeAt(0) || Math.floor(Math.random() * 999),
+                ).padStart(6, "0")}
+              </Text>
             </View>
 
             {/* Profile Completion */}
@@ -227,10 +266,10 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.lg,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: spacing.lg,
   },
   headerRow: {
     flexDirection: "row",
@@ -258,11 +297,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   idCard: {
-    marginTop: 20,
+    marginTop: spacing.lg,
     height: 200,
     borderRadius: 24,
     backgroundColor: colors.navy,
-    padding: 20,
+    padding: spacing.lg,
     justifyContent: "space-between",
     overflow: "hidden",
   },
@@ -277,15 +316,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   ecoPillText: {
+    ...typography.overline,
     color: colors.white,
-    fontSize: 12,
-    fontWeight: "700",
     letterSpacing: 1,
   },
   idCardName: {
+    ...typography.h1,
     color: colors.white,
-    fontSize: 22,
-    fontWeight: "700",
   },
   idCardCode: {
     color: "rgba(255,255,255,0.7)",
@@ -294,8 +331,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   completionSection: {
-    marginTop: 24,
-    gap: 8,
+    marginTop: spacing.xl,
+    gap: spacing.sm,
   },
   completionHeader: {
     flexDirection: "row",
@@ -303,10 +340,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   completionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.gray,
-    letterSpacing: 0.5,
+    ...typography.overline,
   },
   completionPct: {
     fontSize: 14,
@@ -314,22 +348,20 @@ const styles = StyleSheet.create({
     color: colors.darkText,
   },
   completionCaption: {
-    fontSize: 12,
-    color: colors.gray,
+    ...typography.caption,
     lineHeight: 16,
   },
   infoBox: {
-    marginTop: 20,
-    padding: 16,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
   },
   infoTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#D97706",
-    marginBottom: 10,
+    ...typography.h3,
+    color: colors.amberDark,
+    marginBottom: spacing.md,
   },
   infoBullets: {
-    gap: 8,
+    gap: spacing.sm,
   },
   bulletRow: {
     flexDirection: "row",
@@ -341,26 +373,28 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   bulletText: {
+    ...typography.body,
     fontSize: 13,
-    color: colors.darkText,
     lineHeight: 18,
     flex: 1,
   },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 12 },
-  errorText: { fontSize: 14, color: colors.red, textAlign: "center" },
-  errorSubText: { fontSize: 13, color: colors.gray, textAlign: "center", marginTop: 8, paddingHorizontal: 24 },
-  retryBtn: { borderRadius: 8, backgroundColor: colors.primaryBlue, paddingVertical: 10, paddingHorizontal: 24 },
-  retryText: { fontSize: 14, fontWeight: "600", color: colors.white },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 12,
+  },
   desktopRow: {
     flexDirection: "row",
-    gap: 24,
-    marginTop: 12,
+    gap: spacing.xl,
+    marginTop: spacing.md,
   },
   desktopLeft: {
     flex: 1,
   },
   desktopRight: {
     flex: 1,
-    gap: 16,
+    gap: spacing.lg,
   },
 });

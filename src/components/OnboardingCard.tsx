@@ -7,6 +7,7 @@ interface OnboardingCardProps {
   heroImage: any;
   onBack: () => void;
   progressActive: number;
+  totalSteps?: number; // NEW — defaults to 5 to match next.tsx…next5.tsx
   children: React.ReactNode;
   footer?: React.ReactNode;
 }
@@ -15,11 +16,32 @@ export function OnboardingCard({
   heroImage,
   onBack,
   progressActive,
+  totalSteps = 5,
   children,
   footer,
 }: OnboardingCardProps) {
   const { isTablet, isDesktop } = useLayout();
   const isWide = isTablet || isDesktop;
+
+  // NEW — shared progress dots, works for both layouts
+  const progressDots = (
+    <View
+      style={styles.progressRow}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: totalSteps - 1, now: progressActive }}
+      accessibilityLabel={`Step ${progressActive + 1} of ${totalSteps}`}
+    >
+      {Array.from({ length: totalSteps }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.progressDot,
+            i === progressActive && styles.progressDotActive,
+          ]}
+        />
+      ))}
+    </View>
+  );
 
   if (isWide) {
     return (
@@ -35,9 +57,14 @@ export function OnboardingCard({
               contentFit="contain"
             />
           </View>
-          <Image source={heroImage} style={styles.cardHero} contentFit="cover" />
+          <Image
+            source={heroImage}
+            style={styles.cardHero}
+            contentFit="cover"
+          />
           <View pointerEvents="none" style={styles.cardOval} />
           <View style={styles.cardContent}>
+            {progressDots}
             {children}
             {footer}
           </View>
@@ -61,6 +88,7 @@ export function OnboardingCard({
       </View>
       <View pointerEvents="none" style={styles.oval} />
       <View style={styles.content}>
+        {progressDots}
         {children}
         {footer}
       </View>
@@ -96,7 +124,12 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   backButton: { padding: 4 },
-  backArrow: { fontSize: 32, lineHeight: 32, color: "#1f1a17", fontWeight: "400" },
+  backArrow: {
+    fontSize: 32,
+    lineHeight: 32,
+    color: "#1f1a17",
+    fontWeight: "400",
+  },
   brand: { width: 120, height: 40 },
   oval: {
     position: "absolute",
@@ -168,5 +201,21 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 32,
     gap: 20,
+  },
+  progressRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#E3DED5",
+  },
+  progressDotActive: {
+    width: 20,
+    backgroundColor: "#176FF2",
   },
 });

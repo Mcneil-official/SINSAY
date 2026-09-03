@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -9,15 +10,25 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
-import { colors } from "../../constants/colors";
-import { HeroCarousel, DiveSiteCard, EstablishmentCard, SearchBar, ContentContainer } from "../../components";
+import {
+  ContentContainer,
+  DiveSiteCard,
+  EstablishmentCard,
+  HeroCarousel,
+  SearchBar,
+  EmptyState, ErrorState,
+} from "../../components";
 import { SearchResult } from "../../components/SearchBar";
-import { useAuth } from "../../hooks/useAuth";
+import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
+import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
-import { DiveSiteRow, EstablishmentRow, AnnouncementRow } from "../../types/supabase";
+import {
+  AnnouncementRow,
+  DiveSiteRow,
+  EstablishmentRow,
+} from "../../types/supabase";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -44,76 +55,124 @@ export default function HomeScreen() {
   const allDiveSites = diveSites;
   const allEstablishments = establishments;
 
-  useEffect(() => {
+  const loadDiveSites = useCallback(() => {
     setDiveSitesLoading(true);
-    supabase.from("dive_sites").select("*").limit(10).then(({ data, error }) => {
-      setDiveSites(data ?? []);
-      setDiveSitesError(!!error);
-      setDiveSitesLoading(false);
-    });
+    setDiveSitesError(false);
+    supabase
+      .from("dive_sites")
+      .select("*")
+      .limit(10)
+      .then(({ data, error }) => {
+        setDiveSites(data ?? []);
+        setDiveSitesError(!!error);
+        setDiveSitesLoading(false);
+      });
+  }, []);
+
+  const loadEstablishments = useCallback(() => {
+    setEstablishmentsLoading(true);
+    setEstablishmentsError(false);
+    supabase
+      .from("establishments")
+      .select("*")
+      .eq("accredited", true)
+      .limit(10)
+      .then(({ data, error }) => {
+        setEstablishments(data ?? []);
+        setEstablishmentsError(!!error);
+        setEstablishmentsLoading(false);
+      });
   }, []);
 
   useEffect(() => {
-    setEstablishmentsLoading(true);
-    supabase.from("establishments").select("*").eq("accredited", true).limit(10).then(({ data, error }) => {
-      setEstablishments(data ?? []);
-      setEstablishmentsError(!!error);
-      setEstablishmentsLoading(false);
-    });
-  }, []);
+    loadDiveSites();
+    loadEstablishments();
+  }, [loadDiveSites, loadEstablishments]);
 
   useEffect(() => {
     setAnnouncementsLoading(true);
-    supabase.from("announcements").select("*").then(({ data }) => {
-      setAnnouncements(data ?? []);
-      setAnnouncementsLoading(false);
-    });
+    supabase
+      .from("announcements")
+      .select("*")
+      .then(({ data }) => {
+        setAnnouncements(data ?? []);
+        setAnnouncementsLoading(false);
+      });
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("tourist_favorites").select("dive_site_id").eq("tourist_id", user.id).then(({ data }) => {
-      setFavoriteIds(new Set((data ?? []).map((f) => f.dive_site_id)));
-    });
+    supabase
+      .from("tourist_favorites")
+      .select("dive_site_id")
+      .eq("tourist_id", user.id)
+      .then(({ data }) => {
+        setFavoriteIds(new Set((data ?? []).map((f) => f.dive_site_id)));
+      });
   }, [user]);
 
-  const handleToggleFavorite = useCallback(async (diveSiteId: string) => {
-    if (!user) return;
-    const isFav = favoriteIds.has(diveSiteId);
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (isFav) next.delete(diveSiteId);
-      else next.add(diveSiteId);
-      return next;
-    });
-    if (isFav) {
-      await supabase.from("tourist_favorites").delete().eq("tourist_id", user.id).eq("dive_site_id", diveSiteId);
-    } else {
-      await supabase.from("tourist_favorites").insert({ tourist_id: user.id, dive_site_id: diveSiteId });
-    }
-  }, [user, favoriteIds]);
+  const handleToggleFavorite = useCallback(
+    async (diveSiteId: string) => {
+      if (!user) return;
+      const isFav = favoriteIds.has(diveSiteId);
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (isFav) next.delete(diveSiteId);
+        else next.add(diveSiteId);
+        return next;
+      });
+      if (isFav) {
+        await supabase
+          .from("tourist_favorites")
+          .delete()
+          .eq("tourist_id", user.id)
+          .eq("dive_site_id", diveSiteId);
+      } else {
+        await supabase
+          .from("tourist_favorites")
+          .insert({ tourist_id: user.id, dive_site_id: diveSiteId });
+      }
+    },
+    [user, favoriteIds],
+  );
 
-  const handleSearch = useCallback((query: string) => {
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    setSearchLoading(true);
-    const q = query.toLowerCase();
-    const sites: SearchResult[] = allDiveSites
-      .filter((s) => s.name.toLowerCase().includes(q))
-      .map((s) => ({ id: s.id, type: "dive-site" as const, title: s.name, subtitle: s.rating ? `Rating: ${s.rating}` : undefined }));
-    const ests: SearchResult[] = allEstablishments
-      .filter((e) => e.name.toLowerCase().includes(q))
-      .map((e) => ({ id: e.id, type: "establishment" as const, title: e.name }));
-    setSearchResults([...sites, ...ests]);
-    setSearchLoading(false);
-  }, [allDiveSites, allEstablishments]);
+  const handleSearch = useCallback(
+    (query: string) => {
+      if (query.length < 2) {
+        setSearchResults([]);
+        return;
+      }
+      setSearchLoading(true);
+      const q = query.toLowerCase();
+      const sites: SearchResult[] = allDiveSites
+        .filter((s) => s.name.toLowerCase().includes(q))
+        .map((s) => ({
+          id: s.id,
+          type: "dive-site" as const,
+          title: s.name,
+          subtitle: s.rating ? `Rating: ${s.rating}` : undefined,
+        }));
+      const ests: SearchResult[] = allEstablishments
+        .filter((e) => e.name.toLowerCase().includes(q))
+        .map((e) => ({
+          id: e.id,
+          type: "establishment" as const,
+          title: e.name,
+        }));
+      setSearchResults([...sites, ...ests]);
+      setSearchLoading(false);
+    },
+    [allDiveSites, allEstablishments],
+  );
 
   if (authLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator size="large" color={colors.primaryBlue} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color={colors.primaryBlue}
+          style={{ marginTop: 40 }}
+        />
       </SafeAreaView>
     );
   }
@@ -130,101 +189,120 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <ContentContainer maxWidth={900} paddingH={20}>
-        {/* Greeting + notification bell */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerTextWrap}>
-            <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.subGreeting}>Welcome to Mabini, Batangas</Text>
-          </View>
-          <TouchableOpacity style={styles.bellButton} onPress={() => router.push("/notifications")}>
-            <Ionicons
-              name="notifications-outline"
-              size={20}
-              color={colors.darkText}
-            />
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Search bar */}
-        <SearchBar
-          placeholder="Search dive sites or establishments"
-          results={searchResults}
-          loading={searchLoading}
-          onSearch={handleSearch}
-          renderResult={(item) => (
+          {/* Greeting + notification bell */}
+          <View style={styles.headerRow}>
+            <View style={styles.headerTextWrap}>
+              <Text style={styles.greeting}>{greeting}</Text>
+              <Text style={styles.subGreeting}>
+                Welcome to Mabini, Batangas
+              </Text>
+            </View>
             <TouchableOpacity
-              key={item.id}
-              style={styles.searchResultRow}
-              onPress={() => {
-                if (item.type === "dive-site") {
-                  router.push({ pathname: "/dive-site/[id]", params: { id: item.id } });
-                } else {
-                  router.push({ pathname: "/establishment/[id]", params: { id: item.id } });
-                }
-              }}
+              style={styles.bellButton}
+              onPress={() => router.push("/notifications")}
             >
               <Ionicons
-                name={item.type === "dive-site" ? "water" : "business"}
-                size={18}
-                color={colors.primaryBlue}
+                name="notifications-outline"
+                size={20}
+                color={colors.darkText}
               />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.searchResultTitle}>{item.title}</Text>
-                {item.subtitle && (
-                  <Text style={styles.searchResultSub}>{item.subtitle}</Text>
-                )}
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.gray} />
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
+          </View>
+
+          {/* Search bar */}
+          <SearchBar
+            placeholder="Search dive sites or establishments"
+            results={searchResults}
+            loading={searchLoading}
+            onSearch={handleSearch}
+            renderResult={(item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.searchResultRow}
+                onPress={() => {
+                  if (item.type === "dive-site") {
+                    router.push({
+                      pathname: "/dive-site/[id]",
+                      params: { id: item.id },
+                    });
+                  } else {
+                    router.push({
+                      pathname: "/establishment/[id]",
+                      params: { id: item.id },
+                    });
+                  }
+                }}
+              >
+                <Ionicons
+                  name={item.type === "dive-site" ? "water" : "business"}
+                  size={18}
+                  color={colors.primaryBlue}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.searchResultTitle}>{item.title}</Text>
+                  {item.subtitle && (
+                    <Text style={styles.searchResultSub}>{item.subtitle}</Text>
+                  )}
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={colors.gray}
+                />
+              </TouchableOpacity>
+            )}
+          />
+
+          {/* Hero banner carousel */}
+          {announcementsLoading ? (
+            <View style={styles.heroPlaceholder}>
+              <ActivityIndicator size="small" color={colors.primaryBlue} />
+            </View>
+          ) : announcements.length > 0 ? (
+            <HeroCarousel
+              items={announcements.map((a) => ({
+                image: a.image_url
+                  ? { uri: a.image_url }
+                  : require("../../../assets/hero-banner.jpg"),
+                announcement: a.title,
+              }))}
+              onPress={() => {}}
+            />
+          ) : (
+            <HeroCarousel
+              items={[
+                {
+                  image: require("../../../assets/hero-banner.jpg"),
+                  announcement: "Welcome to Mabini",
+                },
+              ]}
+            />
           )}
-        />
 
-        {/* Hero banner carousel */}
-        {announcementsLoading ? (
-          <View style={styles.heroPlaceholder}>
-            <ActivityIndicator size="small" color={colors.primaryBlue} />
-          </View>
-        ) : announcements.length > 0 ? (
-          <HeroCarousel
-            items={announcements.map((a) => ({ image: a.image_url ? { uri: a.image_url } : require("../../../assets/hero-banner.jpg"), announcement: a.title }))}
-            onPress={() => {}}
-          />
-        ) : (
-          <HeroCarousel
-            items={[{ image: require("../../../assets/hero-banner.jpg"), announcement: "Welcome to Mabini" }]}
-          />
-        )}
-
-        {/* Popular Dive Sites */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Popular Dive Sites</Text>
-          <TouchableOpacity onPress={() => router.push("/dive-sites")}>
-            <Text style={styles.seeAll}>See all</Text>
-          </TouchableOpacity>
-        </View>
-
-        {diveSitesLoading ? (
-          <View style={styles.railPlaceholder}>
-            <ActivityIndicator size="small" color={colors.primaryBlue} />
-          </View>
-        ) : diveSitesError ? (
-          <View style={styles.railError}>
-            <Text style={styles.railErrorText}>Failed to load dive sites.</Text>
-            <TouchableOpacity onPress={() => { setDiveSitesLoading(true); setDiveSitesError(false); supabase.from("dive_sites").select("*").limit(10).then(({ data, error }) => { setDiveSites(data ?? []); setDiveSitesError(!!error); setDiveSitesLoading(false); }); }}>
-              <Text style={styles.retryLink}>Tap to retry</Text>
+          {/* Popular Dive Sites */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Popular Dive Sites</Text>
+            <TouchableOpacity onPress={() => router.push("/dive-sites")}>
+              <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
-        ) : diveSites.length === 0 ? (
-          <View style={styles.railEmpty}>
-            <Text style={styles.railEmptyText}>No dive sites available yet.</Text>
-          </View>
-        ) : (
-          isDesktop || isTablet ? (
+
+          {diveSitesLoading ? (
+            <View style={styles.railPlaceholder}>
+              <ActivityIndicator size="small" color={colors.primaryBlue} />
+            </View>
+          ) : diveSitesError ? (
+            <ErrorState message="Failed to load dive sites." onRetry={loadDiveSites} />
+          ) : diveSites.length === 0 ? (
+            <EmptyState icon="map-outline" message="No dive sites available yet." />
+          ) : isDesktop || isTablet ? (
             <View style={styles.gridRow}>
               {diveSites.slice(0, 6).map((site, index) => (
                 <DiveSiteCard
@@ -234,7 +312,12 @@ export default function HomeScreen() {
                   image={require("../../../assets/dive-alley-palace.png")}
                   index={index}
                   liked={favoriteIds.has(site.id)}
-                  onPress={() => router.push({ pathname: "/dive-site/[id]", params: { id: site.id } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/dive-site/[id]",
+                      params: { id: site.id },
+                    })
+                  }
                   onLike={() => handleToggleFavorite(site.id)}
                 />
               ))}
@@ -253,44 +336,50 @@ export default function HomeScreen() {
                   image={require("../../../assets/dive-alley-palace.png")}
                   index={index}
                   liked={favoriteIds.has(site.id)}
-                  onPress={() => router.push({ pathname: "/dive-site/[id]", params: { id: site.id } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/dive-site/[id]",
+                      params: { id: site.id },
+                    })
+                  }
                   onLike={() => handleToggleFavorite(site.id)}
                 />
               ))}
             </ScrollView>
-          ))}
+          )}
 
-        {/* Dive Establishments Near You */}
-        <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
-          <Text style={styles.sectionTitle}>Dive Establishments Near You</Text>
-          <TouchableOpacity onPress={() => router.push("/establishments")}>
-            <Text style={styles.seeAll}>See all</Text>
-          </TouchableOpacity>
-        </View>
-
-        {establishmentsLoading ? (
-          <View style={styles.railPlaceholder}>
-            <ActivityIndicator size="small" color={colors.primaryBlue} />
-          </View>
-        ) : establishmentsError ? (
-          <View style={styles.railError}>
-            <Text style={styles.railErrorText}>Failed to load establishments.</Text>
-            <TouchableOpacity onPress={() => { setEstablishmentsLoading(true); setEstablishmentsError(false); supabase.from("establishments").select("*").eq("accredited", true).limit(10).then(({ data, error }) => { setEstablishments(data ?? []); setEstablishmentsError(!!error); setEstablishmentsLoading(false); }); }}>
-              <Text style={styles.retryLink}>Tap to retry</Text>
+          {/* Dive Establishments Near You */}
+          <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+            <Text style={styles.sectionTitle}>
+              Dive Establishments Near You
+            </Text>
+            <TouchableOpacity onPress={() => router.push("/establishments")}>
+              <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
-        ) : establishments.length === 0 ? (
-          <View style={styles.railEmpty}>
-            <Text style={styles.railEmptyText}>No accredited establishments yet.</Text>
-          </View>
-        ) : (
-          isDesktop || isTablet ? (
+
+          {establishmentsLoading ? (
+            <View style={styles.railPlaceholder}>
+              <ActivityIndicator size="small" color={colors.primaryBlue} />
+            </View>
+          ) : establishmentsError ? (
+            <ErrorState message="Failed to load establishments." onRetry={loadEstablishments} />
+          ) : establishments.length === 0 ? (
+            <EmptyState icon="business-outline" message="No accredited establishments yet." />
+          ) : isDesktop || isTablet ? (
             <View style={styles.establishmentsGrid}>
               {establishments.slice(0, 4).map((item) => (
                 <EstablishmentCard
                   key={item.id}
-                  image={require("../../../assets/establishment-1.png")}
-                  onPress={() => router.push({ pathname: "/establishment/[id]", params: { id: item.id } })}
+                  name={item.name}
+                  location={item.location}
+                  accreditation={item.accreditation}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/establishment/[id]",
+                      params: { id: item.id },
+                    })
+                  }
                 />
               ))}
             </View>
@@ -299,15 +388,21 @@ export default function HomeScreen() {
               {establishments.slice(0, 4).map((item) => (
                 <EstablishmentCard
                   key={item.id}
-                  image={require("../../../assets/establishment-1.png")}
-                  onPress={() => router.push({ pathname: "/establishment/[id]", params: { id: item.id } })}
+                  name={item.name}
+                  location={item.location}
+                  accreditation={item.accreditation}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/establishment/[id]",
+                      params: { id: item.id },
+                    })
+                  }
                 />
               ))}
             </View>
-          )
-        )}
+          )}
 
-        <View style={{ height: 120 }} />
+          <View style={{ height: 120 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -447,29 +542,5 @@ const styles = StyleSheet.create({
     height: 100,
     alignItems: "center",
     justifyContent: "center",
-  },
-  railError: {
-    marginTop: 16,
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 20,
-  },
-  railErrorText: {
-    fontSize: 13,
-    color: colors.red,
-  },
-  retryLink: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.primaryBlue,
-  },
-  railEmpty: {
-    marginTop: 16,
-    alignItems: "center",
-    paddingVertical: 20,
-  },
-  railEmptyText: {
-    fontSize: 13,
-    color: colors.gray,
   },
 });

@@ -1,18 +1,26 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
+import {
+  Button,
+  Checkbox,
+  ContentContainer,
+  Dropdown,
+  ScreenHeader,
+  StepProgress,
+  TextInput,
+} from "../../../components";
 import { colors } from "../../../constants/colors";
-import { Button, TextInput, Dropdown, ContentContainer } from "../../../components";
+import { spacing } from "../../../constants/spacing";
+import { typography } from "../../../constants/typography";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
@@ -53,8 +61,10 @@ export default function DiveDetailsStep1() {
   useEffect(() => {
     if (profile) {
       if (profile.nationality) setNationality(profile.nationality);
-      if (profile.emergency_contact_name) setEmergencyName(profile.emergency_contact_name);
-      if (profile.emergency_contact_number) setEmergencyPhone(profile.emergency_contact_number);
+      if (profile.emergency_contact_name)
+        setEmergencyName(profile.emergency_contact_name);
+      if (profile.emergency_contact_number)
+        setEmergencyPhone(profile.emergency_contact_number);
       if (profile.dive_pass_type) setDivePassType(profile.dive_pass_type);
       if (profile.type_of_dive) setDiveType(profile.type_of_dive);
     }
@@ -87,16 +97,25 @@ export default function DiveDetailsStep1() {
         dive_pass_type: divePassType,
         type_of_dive: diveType,
       });
-      if (error) { setSaveError(error); setSaving(false); return; }
+      if (error) {
+        setSaveError(error);
+        setSaving(false);
+        return;
+      }
       if (diveType === "intro-fun") {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (user) {
-          await supabase.from("eco_dive_ids").upsert({
-            tourist_id: user.id,
-            status: "complete",
-            eco_id_number: `ECO-${new Date().getFullYear()}-${Date.now()}`,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: "tourist_id" });
+          await supabase.from("eco_dive_ids").upsert(
+            {
+              tourist_id: user.id,
+              status: "complete",
+              eco_id_number: `ECO-${new Date().getFullYear()}-${Date.now()}`,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "tourist_id" },
+          );
         }
       }
       await refreshProfile();
@@ -106,13 +125,20 @@ export default function DiveDetailsStep1() {
       } else {
         router.push("/(tabs)/eco-dive-id");
       }
-    } catch { setSaveError("Failed to save. Please try again."); setSaving(false); }
+    } catch {
+      setSaveError("Failed to save. Please try again.");
+      setSaving(false);
+    }
   };
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator size="large" color={colors.primaryBlue} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color={colors.primaryBlue}
+          style={{ marginTop: 40 }}
+        />
       </SafeAreaView>
     );
   }
@@ -121,12 +147,13 @@ export default function DiveDetailsStep1() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color={colors.darkText} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Dive Details</Text>
+      <ScreenHeader title="Dive Details" onBack={() => router.back()} />
+
+      <View style={{ paddingTop: spacing.md }}>
+        <StepProgress
+          steps={["Basic Info", "Certification"]}
+          currentIndex={0}
+        />
       </View>
 
       <ScrollView
@@ -137,91 +164,85 @@ export default function DiveDetailsStep1() {
         <ContentContainer maxWidth={720}>
           {/* Basic Information */}
           <Text style={styles.sectionLabel}>Basic Information</Text>
-        <View style={styles.divider} />
+          <View style={styles.divider} />
 
-        <Dropdown
-          label="Nationality"
-          placeholder="e.g Filipino"
-          value={nationality}
-          options={nationalityOptions}
-          onSelect={setNationality}
-          error={errors.nationality}
-        />
-
-        <View style={styles.twoCol}>
-          <View style={styles.twoColItem}>
-            <TextInput
-              label="Emergency Contact Name"
-              placeholder="Juan Dela Cruz"
-              value={emergencyName}
-              onChangeText={setEmergencyName}
-              error={errors.emergencyName}
-            />
-          </View>
-          <View style={styles.twoColItem}>
-            <TextInput
-              label="Phone Number"
-              placeholder="+63 9XXXXXXXXX"
-              value={emergencyPhone}
-              onChangeText={setEmergencyPhone}
-              keyboardType="phone-pad"
-              error={errors.emergencyPhone}
-            />
-          </View>
-        </View>
-
-        {/* Dive Pass */}
-        <View style={styles.sectionSpacer} />
-        <Text style={styles.sectionLabel}>Dive Pass & Type</Text>
-        <View style={styles.divider} />
-
-        <Dropdown
-          label="Type of Dive Pass"
-          placeholder="Select dive pass type"
-          value={divePassType}
-          options={divePassOptions}
-          onSelect={setDivePassType}
-          error={errors.divePassType}
-        />
-
-        <Dropdown
-          label="Type of Dive"
-          placeholder="Select dive type"
-          value={diveType}
-          options={diveTypeOptions}
-          onSelect={setDiveType}
-          error={errors.diveType}
-        />
-
-        {/* Data Privacy */}
-        <View style={styles.sectionSpacer} />
-        <Text style={styles.sectionLabel}>Data Privacy</Text>
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.checkboxRow}
-          onPress={() => setAgreed(!agreed)}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={agreed ? "checkbox" : "square-outline"}
-            size={20}
-            color={agreed ? colors.primaryBlue : colors.gray}
+          <Dropdown
+            label="Nationality"
+            placeholder="e.g Filipino"
+            value={nationality}
+            options={nationalityOptions}
+            onSelect={setNationality}
+            error={errors.nationality}
           />
-          <Text style={styles.checkboxLabel}>
-            I consent to the collection and processing of my personal data in accordance with the
-            Data Privacy Act of 2012.
-          </Text>
-        </TouchableOpacity>
-        {errors.agreed && <Text style={styles.errorText}>{errors.agreed}</Text>}
 
-        <View style={styles.spacer} />
+          <View style={styles.twoCol}>
+            <View style={styles.twoColItem}>
+              <TextInput
+                label="Emergency Contact Name"
+                placeholder="Juan Dela Cruz"
+                value={emergencyName}
+                onChangeText={setEmergencyName}
+                error={errors.emergencyName}
+              />
+            </View>
+            <View style={styles.twoColItem}>
+              <TextInput
+                label="Phone Number"
+                placeholder="+63 9XXXXXXXXX"
+                value={emergencyPhone}
+                onChangeText={setEmergencyPhone}
+                keyboardType="phone-pad"
+                error={errors.emergencyPhone}
+              />
+            </View>
+          </View>
 
-        {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
+          {/* Dive Pass */}
+          <View style={styles.sectionSpacer} />
+          <Text style={styles.sectionLabel}>Dive Pass & Type</Text>
+          <View style={styles.divider} />
 
-        <Button title={saving ? "Saving..." : "Continue"} onPress={handleContinue} disabled={saving} />
+          <Dropdown
+            label="Type of Dive Pass"
+            placeholder="Select dive pass type"
+            value={divePassType}
+            options={divePassOptions}
+            onSelect={setDivePassType}
+            error={errors.divePassType}
+          />
 
-        <View style={{ height: 40 }} />
+          <Dropdown
+            label="Type of Dive"
+            placeholder="Select dive type"
+            value={diveType}
+            options={diveTypeOptions}
+            onSelect={setDiveType}
+            error={errors.diveType}
+          />
+
+          {/* Data Privacy */}
+          <View style={styles.sectionSpacer} />
+          <Text style={styles.sectionLabel}>Data Privacy</Text>
+          <View style={styles.divider} />
+
+          <Checkbox
+            checked={agreed}
+            onToggle={() => setAgreed(!agreed)}
+            label="I consent to the collection and processing of my personal data in accordance with the Data Privacy Act of 2012."
+            error={errors.agreed}
+          />
+
+          <View style={styles.spacer} />
+
+          {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
+
+          <Button
+            title={saving ? "Saving..." : "Continue"}
+            onPress={handleContinue}
+            disabled={saving}
+          />
+
+          <View style={{ height: 40 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -237,8 +258,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 12,
-    paddingBottom: 20,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
   headerRow: {
     flexDirection: "row",
@@ -260,26 +281,24 @@ const styles = StyleSheet.create({
     color: colors.darkText,
   },
   sectionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.darkText,
-    marginBottom: 4,
+    ...typography.h3,
+    marginBottom: spacing.xs,
   },
   divider: {
     height: 1,
     backgroundColor: colors.grayLight,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   twoCol: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
+    gap: spacing.md,
+    marginTop: spacing.md,
   },
   twoColItem: {
     flex: 1,
   },
   sectionSpacer: {
-    marginTop: 20,
+    marginTop: spacing.lg,
   },
   checkboxRow: {
     flexDirection: "row",
@@ -293,11 +312,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   errorText: {
+    ...typography.caption,
     color: colors.red,
-    fontSize: 12,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   spacer: {
-    height: 24,
+    height: spacing.xl,
   },
 });
