@@ -2,8 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import BottomNav from "../../components/BottomNav";
-import DesktopHeader from "../../components/DesktopHeader";
-import SideNav from "../../components/SideNav";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -41,27 +39,15 @@ const tabLabels: Record<string, string> = {
 };
 
 export default function OperatorTabLayout() {
-  const { isDesktop, sidebarWidth } = useLayout();
+  const { isDesktop } = useLayout();
 
   return (
     <>
       <OperatorGate />
-      {isDesktop && (
-        <>
-          <DesktopHeader sidebarWidth={sidebarWidth} />
-        </>
-      )}
       <Tabs
         screenOptions={{ headerShown: false }}
         tabBar={(props) =>
-          isDesktop ? (
-            <SideNav
-              {...props}
-              tabIcons={tabIcons}
-              tabLabels={tabLabels}
-              width={sidebarWidth}
-            />
-          ) : (
+          isDesktop ? null : (
             <BottomNav {...props} tabIcons={tabIcons} tabLabels={tabLabels} />
           )
         }

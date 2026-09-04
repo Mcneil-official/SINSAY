@@ -13,6 +13,31 @@ export default function Next3Page() {
         heroImage={require("../../assets/images/4.jpeg")}
         onBack={() => router.push("/next2")}
         progressActive={2}
+        footer={
+          <View style={styles.bottomArea}>
+            <Pressable
+              style={styles.button}
+              onPress={() => router.push("/next4")}
+            >
+              <Text style={styles.buttonText}>Next</Text>
+            </Pressable>
+          </View>
+        }
+        desktop={{
+          title: "PROTECT\nTHE OCEAN",
+          intro: "What you bring, you take back",
+          features: [
+            {
+              icon: "trash-outline",
+              text: "No trash or waste disposal in the water",
+            },
+            { icon: "restaurant-outline", text: "Do not feed marine animals" },
+            { icon: "sunny-outline", text: "Use reef-safe sunscreen" },
+          ],
+          closing: "You are part of the conservation.",
+          ctaLabel: "Next",
+          onCta: () => router.push("/next4"),
+        }}
       >
         <View style={styles.copy}>
           <Text style={styles.title}>PROTECT THE OCEAN</Text>
@@ -23,18 +48,18 @@ export default function Next3Page() {
           </Text>
           <Text style={styles.closing}>You are part of the conservation.</Text>
         </View>
-        <View style={styles.bottomArea}>
-          <Pressable style={styles.button} onPress={() => router.push("/next4")}>
-            <Text style={styles.buttonText}>Next</Text>
-          </Pressable>
-        </View>
       </OnboardingCard>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  copy: { gap: 12, alignItems: "center", paddingHorizontal: 12, paddingBottom: 0 },
+  copy: {
+    gap: 12,
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingBottom: 0,
+  },
   title: {
     fontSize: 28,
     fontWeight: "700",
@@ -42,9 +67,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.3,
   },
-  intro: { fontSize: 15, fontStyle: "italic", color: "#3a342e", textAlign: "center" },
+  intro: {
+    fontSize: 15,
+    fontStyle: "italic",
+    color: "#3a342e",
+    textAlign: "center",
+  },
   body: { fontSize: 15, lineHeight: 22, color: "#3a342e", textAlign: "center" },
-  closing: { fontSize: 15, fontStyle: "italic", color: "#3a342e", textAlign: "center" },
+  closing: {
+    fontSize: 15,
+    fontStyle: "italic",
+    color: "#3a342e",
+    textAlign: "center",
+  },
   bottomArea: { gap: 16 },
   button: {
     alignSelf: "stretch",

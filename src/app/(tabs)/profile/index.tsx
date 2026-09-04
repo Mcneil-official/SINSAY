@@ -15,6 +15,7 @@ import {
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
 import { t, Locale } from "../../../lib/i18n";
+import ContentContainer from "../../../components/ContentContainer";
 
 interface ProfileRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -66,6 +67,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <ContentContainer maxWidth={720}>
         {/* Header */}
         <Text style={styles.headerTitle}>{t("profile_title", locale)}</Text>
 
@@ -195,6 +197,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ height: 120 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -207,7 +210,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
   },
   scrollContent: {
     paddingTop: 12,

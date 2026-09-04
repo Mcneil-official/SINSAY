@@ -1,13 +1,27 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Checkbox } from "../components";
 import { OnboardingCard } from "../components/OnboardingCard";
 
 export default function Next5Page() {
   const router = useRouter();
   const [agreed, setAgreed] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const consentCheckbox = (
+    <Pressable
+      style={styles.checkboxRow}
+      onPress={() => setAgreed((prev) => !prev)}
+      hitSlop={8}
+    >
+      <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+        {agreed && <Text style={styles.checkmark}>✓</Text>}
+      </View>
+      <Text style={styles.checkboxLabel}>
+        I have read and understood all diving guidelines and commit to
+        responsible diving in Mabini, Batangas.
+      </Text>
+    </Pressable>
+  );
 
   return (
     <>
@@ -16,50 +30,67 @@ export default function Next5Page() {
         heroImage={require("../../assets/images/6.jpeg")}
         onBack={() => router.push("/next4")}
         progressActive={4}
+        totalSteps={5}
+        desktop={{
+          title: "YOUR\nRESPONSIBILITY",
+          intro:
+            "By continuing, you agree to follow all Mabini Eco-Dive Regulations.",
+          listHeader: "Failure to comply may result in:",
+          listItems: ["Fines", "Restricted access", "Reporting to authorities"],
+          showProgress: false,
+          extraFooter: consentCheckbox,
+          ctaLabel: "Get Started",
+          ctaDisabled: !agreed,
+          onCta: () => router.push("/loginpage"),
+        }}
         footer={
-          <Checkbox
-            checked={agreed}
-            onToggle={() => setAgreed(!agreed)}
-            label="I have read and understood all diving guidelines and commit to responsible diving in Mabini, Batangas."
-            error={errors.agreed}
-          />
+          <Pressable
+            style={styles.checkboxRow}
+            onPress={() => setAgreed((prev) => !prev)}
+            hitSlop={8}
+          >
+            <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+              {agreed && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.checkboxLabel}>
+              I have read and understood all diving guidelines and commit to
+              responsible diving in Mabini, Batangas.
+            </Text>
+          </Pressable>
         }
       >
-        <>
-          <View style={styles.copy}>
-            <Text style={styles.title}>YOUR{"\n"}RESPONSIBILITY</Text>
-            <Text style={styles.intro}>
-              By continuing, you agree to follow all Mabini Eco-Dive
-              Regulations.
+        <View style={styles.copy}>
+          <Text style={styles.title}>YOUR{"\n"}RESPONSIBILITY</Text>
+          <Text style={styles.intro}>
+            By continuing, you agree to follow all Mabini Eco-Dive Regulations.
+          </Text>
+          <View style={styles.listBlock}>
+            <Text style={styles.listHeader}>
+              Failure to comply may result in:
             </Text>
-            <View style={styles.listBlock}>
-              <Text style={styles.listHeader}>
-                Failure to comply may result in:
-              </Text>
-              <View style={styles.bulletRow}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.bulletText}>Fines</Text>
-              </View>
-              <View style={styles.bulletRow}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.bulletText}>Restricted access</Text>
-              </View>
-              <View style={styles.bulletRow}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.bulletText}>Reporting to authorities</Text>
-              </View>
+            <View style={styles.bulletRow}>
+              <Text style={styles.bullet}>•</Text>
+              <Text style={styles.bulletText}>Fines</Text>
+            </View>
+            <View style={styles.bulletRow}>
+              <Text style={styles.bullet}>•</Text>
+              <Text style={styles.bulletText}>Restricted access</Text>
+            </View>
+            <View style={styles.bulletRow}>
+              <Text style={styles.bullet}>•</Text>
+              <Text style={styles.bulletText}>Reporting to authorities</Text>
             </View>
           </View>
-          <View style={styles.bottomArea}>
-            <Pressable
-              style={[styles.button, !agreed && styles.buttonDisabled]}
-              disabled={!agreed}
-              onPress={() => router.push("/loginpage")}
-            >
-              <Text style={styles.buttonText}>Get Started</Text>
-            </Pressable>
-          </View>
-        </>
+        </View>
+        <View style={styles.bottomArea}>
+          <Pressable
+            style={[styles.button, !agreed && styles.buttonDisabled]}
+            disabled={!agreed}
+            onPress={() => router.push("/loginpage")}
+          >
+            <Text style={styles.buttonText}>Get Started</Text>
+          </Pressable>
+        </View>
       </OnboardingCard>
     </>
   );

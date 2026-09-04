@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -59,7 +60,8 @@ export default function PaymentScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ContentContainer maxWidth={720} style={styles.container}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <ContentContainer maxWidth={720}>
         {/* Progress steps */}
         <StepProgress steps={["Payment", "Upload Receipt"]} currentIndex={0} />
 
@@ -155,7 +157,8 @@ export default function PaymentScreen() {
         </View>
 
         <View style={{ height: 40 }} />
-      </ContentContainer>
+        </ContentContainer>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -163,6 +166,7 @@ export default function PaymentScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
   container: { flex: 1 },
+  content: { paddingTop: 12, paddingBottom: 24 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",

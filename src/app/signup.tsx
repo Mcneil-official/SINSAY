@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   ImageBackground,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -51,7 +52,6 @@ export default function LoginPage() {
     >
       <View style={styles.content}>
         <Stack.Screen options={{ headerShown: false }} />
-
         <Pressable
           onPress={() => router.push("/next5")}
           hitSlop={12}
@@ -59,7 +59,6 @@ export default function LoginPage() {
         >
           <Text style={styles.backArrow}>‹</Text>
         </Pressable>
-
         <Image
           source={require("../../assets/images/logo.png")}
           style={styles.logo}
@@ -70,25 +69,7 @@ export default function LoginPage() {
         <View style={styles.tabRow}>
           <Pressable
             style={styles.tabButton}
-            onPress={() => router.push("/signup")}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === "signup" }}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "signup" && styles.tabTextActive,
-              ]}
-            >
-              Sign Up
-            </Text>
-            {activeTab === "signup" && <View style={styles.tabUnderline} />}
-          </Pressable>
-          <Pressable
-            style={styles.tabButton}
-            onPress={() => router.push("/loginpage")}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === "login" }}
+            onPress={() => router.replace("/loginpage")}
           >
             <Text
               style={[
@@ -100,6 +81,20 @@ export default function LoginPage() {
             </Text>
             {activeTab === "login" && <View style={styles.tabUnderline} />}
           </Pressable>
+          <Pressable
+            style={styles.tabButton}
+            onPress={() => router.replace("/signup")}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "signup" && styles.tabTextActive,
+              ]}
+            >
+              Sign Up
+            </Text>
+            {activeTab === "signup" && <View style={styles.tabUnderline} />}
+          </Pressable>
         </View>
       </View>
 
@@ -109,8 +104,14 @@ export default function LoginPage() {
       />
 
       <View style={styles.footer}>
-        <View
-          style={[styles.bottomSection, isWide && styles.bottomSectionWide]}
+        <ScrollView
+          style={styles.formScroll}
+          contentContainerStyle={[
+            styles.bottomSection,
+            isWide && styles.bottomSectionWide,
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <View style={styles.field}>
             <Text style={styles.label}>Full Name</Text>
@@ -204,7 +205,7 @@ export default function LoginPage() {
             />
             <Text style={styles.socialText}>Continue with Facebook</Text>
           </Pressable>
-        </View>
+        </ScrollView>
       </View>
     </ImageBackground>
   );
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: "83%",
+    height: "76%",
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 50,
     borderTopRightRadius: 50,
@@ -315,6 +316,10 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     gap: 10,
     zIndex: 1,
+    flex: 1,
+  },
+  formScroll: {
+    flex: 1,
   },
   field: {
     gap: 6,
