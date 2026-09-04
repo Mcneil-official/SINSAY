@@ -15,7 +15,7 @@ import {
   UIManager,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { StatusBadge, Card, ErrorState } from "../../../components";
+import { StatusBadge, Card, ErrorState, ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -114,6 +114,7 @@ export default function EcoDiveIDCompleteScreen() {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
       >
+        <ContentContainer maxWidth={720}>
         {/* Gradient ID Card — completed state */}
         <View style={styles.idCard}>
           <View style={styles.idCardTop}>
@@ -187,6 +188,7 @@ export default function EcoDiveIDCompleteScreen() {
         </Card>
 
         <View style={{ height: 120 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -235,6 +237,7 @@ function ActiveIDScreen({ profile, ecoId, router }: { profile: any; ecoId: any; 
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
       >
+        <ContentContainer maxWidth={720}>
         {/* Active ID Card */}
         <View style={activeStyles.idCard}>
           <View style={styles.idCardTop}>
@@ -288,6 +291,7 @@ function ActiveIDScreen({ profile, ecoId, router }: { profile: any; ecoId: any; 
         </Card>
 
         <View style={{ height: 120 }} />
+        </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -300,7 +304,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
   },
   scrollContent: {
     paddingBottom: 20,

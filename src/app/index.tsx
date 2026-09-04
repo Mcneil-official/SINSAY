@@ -2,7 +2,6 @@ import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
 import {
-  ImageBackground,
   Pressable,
   StyleSheet,
   Text,
@@ -17,32 +16,37 @@ export default function Index() {
 
   if (isWide) {
     return (
-      <View style={styles.desktopRoot}>
-        <View style={styles.desktopLeft}>
-          <Image
-            source={require("../../assets/images/1.png")}
-            style={styles.desktopHeroImage}
-            contentFit="cover"
-          />
-        </View>
-        <View style={styles.desktopRight}>
-          <Stack.Screen options={{ headerShown: false }} />
-          <Image
-            source={require("../../assets/images/logo.png")}
-            style={styles.logo}
-            contentFit="contain"
-          />
-          <Text style={styles.subtitle}>Tara, Sinsay na sa Mabini!</Text>
-          <View style={styles.desktopFooter}>
-            <Pressable
-              style={styles.button}
-              onPress={() => router.push("/next")}
-            >
-              <Text style={styles.buttonText}>Explore</Text>
-            </Pressable>
-            <Text style={styles.note}>
-              Before you explore, learn how to protect Mabini's marine ecosystem.
-            </Text>
+      <View style={styles.wideRoot}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.wideCard}>
+          <View style={styles.wideLeft}>
+            <Image
+              source={require("../../assets/images/logo.png")}
+              style={styles.wideLogo}
+              contentFit="contain"
+            />
+            <View style={styles.wideBody}>
+              <Text style={styles.wideSubtitle}>
+                Tara, Sinsay na sa Mabini!
+              </Text>
+              <Pressable
+                style={styles.wideCta}
+                onPress={() => router.push("/next")}
+              >
+                <Text style={styles.wideCtaText}>Explore</Text>
+              </Pressable>
+              <Text style={styles.wideNote}>
+                Before you explore, learn how to protect Mabini's marine
+                ecosystem.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.wideRight}>
+            <Image
+              source={require("../../assets/images/1.png")}
+              style={styles.wideImage}
+              contentFit="cover"
+            />
           </View>
         </View>
       </View>
@@ -50,10 +54,13 @@ export default function Index() {
   }
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/1.png")}
-      style={styles.container}
-    >
+    <View style={styles.container}>
+      <Image
+        source={require("../../assets/images/1.png")}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        pointerEvents="none"
+      />
       <View style={styles.content}>
         <Stack.Screen options={{ headerShown: false }} />
         <Image
@@ -66,10 +73,7 @@ export default function Index() {
 
       <View style={styles.footer}>
         <View style={styles.bottomSection}>
-          <Pressable
-            style={styles.button}
-            onPress={() => router.push("/next")}
-          >
+          <Pressable style={styles.button} onPress={() => router.push("/next")}>
             <Text style={styles.buttonText}>Explore</Text>
           </Pressable>
 
@@ -78,7 +82,7 @@ export default function Index() {
           </Text>
         </View>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -91,6 +95,7 @@ const styles = StyleSheet.create({
     paddingTop: 90,
     paddingBottom: 32,
     backgroundColor: "#f7f3ea",
+    overflow: "hidden",
   },
   content: {
     gap: 0,
@@ -159,4 +164,50 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 24,
   },
+  wideRoot: {
+    flex: 1,
+    backgroundColor: "#DCEBFB",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+  },
+  wideCard: {
+    flexDirection: "row",
+    width: "100%",
+    maxWidth: 1280,
+    height: "100%",
+    maxHeight: 780,
+    borderRadius: 32,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  wideLeft: {
+    width: "42%",
+    backgroundColor: "#fff",
+    borderTopRightRadius: 160,
+    borderBottomRightRadius: 160,
+    paddingHorizontal: 48,
+    paddingVertical: 40,
+    justifyContent: "space-between",
+    zIndex: 2,
+  },
+  wideLogo: { width: 160, height: 44 },
+  wideBody: { gap: 16, marginBottom: 24 },
+  wideSubtitle: { fontSize: 22, fontWeight: "700", color: "#000" },
+  wideCta: {
+    alignSelf: "stretch",
+    backgroundColor: "#176FF2",
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+  wideCtaText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  wideNote: { fontSize: 12, color: "#6B7280" },
+  wideRight: { flex: 1 },
+  wideImage: { width: "100%", height: "100%" },
 });

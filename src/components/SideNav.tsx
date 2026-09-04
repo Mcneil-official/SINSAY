@@ -7,8 +7,8 @@ import { useAuth } from "../hooks/useAuth";
 type TabRoute = { key: string; name: string };
 
 interface SideNavProps {
-  state: { index: number; routes: TabRoute[] };
-  navigation: any;
+  state?: { index: number; routes: TabRoute[] };
+  navigation?: any;
   tabIcons: Record<
     string,
     {
@@ -17,6 +17,8 @@ interface SideNavProps {
     }
   >;
   tabLabels: Record<string, string>;
+  activeTab?: string;
+  onSelect?: (name: string) => void;
   width?: number;
 }
 
@@ -25,9 +27,30 @@ export default function SideNav({
   navigation,
   tabIcons,
   tabLabels,
+  activeTab,
+  onSelect,
   width = 240,
 }: SideNavProps) {
   const { signOut } = useAuth();
+
+  const navRoutes = state?.routes ?? Object.keys(tabLabels).map((name) => ({ key: name, name }));
+
+  const handlePress = (name: string, index: number) => {
+    if (onSelect) {
+      onSelect(name);
+      return;
+    }
+    if (!navigation || !state) return;
+    const route = state.routes[index];
+    const event = navigation.emit?.({
+      type: "tabPress",
+      target: route.key,
+      canPreventDefault: true,
+    });
+    if (index !== state.index && !event?.defaultPrevented) {
+      navigation.navigate(name);
+    }
+  };
 
   return (
     <View style={[styles.sidebar, { width }]}>
@@ -37,27 +60,18 @@ export default function SideNav({
       </View>
 
       <View style={styles.navSection}>
-        {state.routes.map((route, index) => {
-          const isFocused = state.index === index;
+        {navRoutes.map((route, index) => {
           const name = route.name;
+          const isFocused = activeTab !== undefined
+            ? activeTab === name
+            : state?.index === index;
           const icon = tabIcons[name];
           const label = tabLabels[name] || name;
 
-          const onPress = () => {
-            const event = navigation.emit({
-              type: "tabPress",
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
-            }
-          };
-
           return (
             <TouchableOpacity
-              key={route.key}
-              onPress={onPress}
+              key={route.key ?? name}
+              onPress={() => handlePress(name, index)}
               style={[styles.navItem, isFocused && styles.navItemActive]}
               activeOpacity={0.7}
               accessibilityRole="tab"
