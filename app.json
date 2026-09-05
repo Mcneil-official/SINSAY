@@ -21,7 +21,7 @@
       "package": "com.mcneilofficialsteam.sinsay"
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "bundler": "metro",
       "favicon": "./assets/images/logo.png",
       "name": "SINSAY",

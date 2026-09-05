@@ -32,6 +32,16 @@ export default function NextPage() {
           ctaLabel: "Next",
           onCta: () => router.push("/next2"),
         }}
+        footer={
+          <View style={styles.bottomArea}>
+            <Pressable
+              style={styles.button}
+              onPress={() => router.push("/next2")}
+            >
+              <Text style={styles.buttonText}>Next</Text>
+            </Pressable>
+          </View>
+        }
       >
         <View style={styles.copy}>
           <Text style={styles.title}>WELCOME TO MABINI!</Text>
@@ -47,14 +57,6 @@ export default function NextPage() {
           <Text style={styles.closing}>
             Let's keep our ocean alive — together.
           </Text>
-        </View>
-        <View style={styles.bottomArea}>
-          <Pressable
-            style={styles.button}
-            onPress={() => router.push("/next2")}
-          >
-            <Text style={styles.buttonText}>Next</Text>
-          </Pressable>
         </View>
       </OnboardingCard>
     </>
