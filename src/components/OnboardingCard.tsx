@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React from "react";
+import React, { useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -109,11 +109,16 @@ export function OnboardingCard({
   desktop,
 }: OnboardingCardProps) {
   const { isTablet, isDesktop } = useLayout();
-  const { height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isWide = isTablet || isDesktop;
   const showProgress = desktop.showProgress ?? true;
   const heroHeight = Math.min(Math.max(screenHeight * 0.75, 260), 560);
+  const [contentHeight, setContentHeight] = useState(0);
+  const bottomPad = Math.max(insets.bottom, 16);
+  const contentGap = screenHeight < 700 || screenWidth < 450 ? 12 : 20;
+  const avail = Math.max(screenHeight * 0.58 - 60 - bottomPad, 200);
+  const scale = contentHeight > 0 ? Math.min(1, avail / contentHeight) : 1;
 
   if (isWide) {
     return (
@@ -219,7 +224,7 @@ export function OnboardingCard({
     );
   }
 
-  // ── MOBILE — unchanged from the previous fix ──
+  // ── MOBILE ──
   return (
     <View style={styles.container}>
       <Image
@@ -245,13 +250,30 @@ export function OnboardingCard({
       </View>
       <View pointerEvents="none" style={styles.oval} />
       <View
-        style={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) }]}
+        pointerEvents="box-none"
+        style={[styles.content, { height: avail + bottomPad }]}
       >
-        {children}
-        {showProgress && (
-          <MobileDots active={progressActive} total={totalSteps} />
-        )}
-        {footer}
+        <View
+          pointerEvents="box-none"
+          onLayout={(e) => setContentHeight(e.nativeEvent.layout.height)}
+          style={[
+            styles.contentInner,
+            {
+              bottom: bottomPad,
+              gap: contentGap,
+              transform: [
+                { translateY: (contentHeight * (1 - scale)) / 2 },
+                { scale },
+              ],
+            },
+          ]}
+        >
+          {children}
+          {showProgress && (
+            <MobileDots active={progressActive} total={totalSteps} />
+          )}
+          {footer}
+        </View>
       </View>
     </View>
   );
@@ -306,11 +328,17 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   content: {
-    flex: 1,
-    justifyContent: "flex-end",
-    gap: 20,
-    paddingTop: 60,
+    position: "absolute",
+    left: 40,
+    right: 40,
+    bottom: 0,
+    overflow: "hidden",
     zIndex: 1,
+  },
+  contentInner: {
+    position: "absolute",
+    left: 0,
+    right: 0,
   },
   dotsRow: {
     flexDirection: "row",
