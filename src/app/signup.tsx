@@ -4,7 +4,6 @@ import { Eye, EyeSlash } from "phosphor-react-native";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  ImageBackground,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,15 +11,13 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useLayout } from "../context/LayoutContext";
+import { AuthLayout } from "../components";
 import { useAuth } from "../hooks/useAuth";
+import { supabase } from "../lib/supabase";
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const router = useRouter();
   const { signUp } = useAuth();
-  const { isTablet, isDesktop } = useLayout();
-  const isWide = isTablet || isDesktop;
-  const activeTab = "signup" as "login" | "signup"; // reflects this screen; navigation happens via router
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,74 +39,26 @@ export default function LoginPage() {
       setError(authError);
       return;
     }
+    // Email confirmation is off: signUp returns a live session, so go
+    // straight home. If no session exists (confirmation still required),
+    // fall back to telling the user to confirm via email first.
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+      router.replace("/(tabs)");
+      return;
+    }
     setSuccess(true);
   }
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/1.png")}
-      style={[styles.container, isWide && styles.containerWide]}
-    >
-      <View style={styles.content}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <Pressable
-          onPress={() => router.push("/next5")}
-          hitSlop={12}
-          style={styles.backButton}
-        >
-          <Text style={styles.backArrow}>‹</Text>
-        </Pressable>
-        <Image
-          source={require("../../assets/images/logo.png")}
-          style={styles.logo}
-          contentFit="contain"
-        />
-        <Text style={styles.subtitle}>Tara, Sinsay na sa Mabini!</Text>
-
-        <View style={styles.tabRow}>
-          <Pressable
-            style={styles.tabButton}
-            onPress={() => router.replace("/loginpage")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "login" && styles.tabTextActive,
-              ]}
-            >
-              Log In
-            </Text>
-            {activeTab === "login" && <View style={styles.tabUnderline} />}
-          </Pressable>
-          <Pressable
-            style={styles.tabButton}
-            onPress={() => router.replace("/signup")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "signup" && styles.tabTextActive,
-              ]}
-            >
-              Sign Up
-            </Text>
-            {activeTab === "signup" && <View style={styles.tabUnderline} />}
-          </Pressable>
-        </View>
-      </View>
-
-      <View
-        pointerEvents="none"
-        style={[styles.oval, isWide && styles.ovalWide]}
-      />
-
-      <View style={styles.footer}>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <AuthLayout activeTab="signup">
         <ScrollView
           style={styles.formScroll}
-          contentContainerStyle={[
-            styles.bottomSection,
-            isWide && styles.bottomSectionWide,
-          ]}
+          contentContainerStyle={styles.formContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -170,7 +119,7 @@ export default function LoginPage() {
             </Text>
           )}
 
-          {error && <Text style={styles.errorText}>{error}</Text>}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <Pressable
             style={styles.button}
@@ -206,120 +155,17 @@ export default function LoginPage() {
             <Text style={styles.socialText}>Continue with Facebook</Text>
           </Pressable>
         </ScrollView>
-      </View>
-    </ImageBackground>
+      </AuthLayout>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 40,
-    paddingTop: 50,
-    paddingBottom: 32,
-    backgroundColor: "#f7f3ea",
-  },
-  containerWide: {
-    justifyContent: "center",
-  },
-  content: {
-    gap: 0,
-  },
-  backButton: {
-    padding: 0,
-  },
-  backArrow: {
-    fontSize: 32,
-    lineHeight: 32,
-    color: "#1f1a17",
-    fontWeight: "400",
-    left: -32,
-    top: -6,
-  },
-  logo: {
-    width: 250,
-    height: 60,
-  },
-  oval: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "76%",
-    backgroundColor: "#ffffff",
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    shadowOffset: {
-      width: 0,
-      height: -6,
-    },
-    elevation: 8,
-  },
-  ovalWide: {
-    left: "50%",
-    right: "auto",
-    bottom: 40,
-    top: 40,
-    width: 480,
-    marginLeft: -240,
-    borderRadius: 40,
-    height: "auto",
-  },
-  bottomSection: {
-    width: "100%",
-    gap: 12,
-  },
-  bottomSectionWide: {
-    width: 420,
-    alignSelf: "center",
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#000000",
-    textAlign: "center",
-    fontWeight: "700",
-    marginTop: -8,
-  },
-  tabRow: {
-    flexDirection: "row",
-    marginTop: 12,
-    gap: 32,
-    alignContent: "center",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tabButton: {
-    alignItems: "center",
-    gap: 8,
-    paddingBottom: 40,
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#9b9b9b",
-  },
-  tabTextActive: {
-    color: "#1f1a17",
-  },
-  tabUnderline: {
-    height: 2,
-    width: "100%",
-    backgroundColor: "#1f1a17",
-    borderRadius: 1,
-  },
-  footer: {
-    alignSelf: "stretch",
-    gap: 10,
-    zIndex: 1,
-    flex: 1,
-  },
   formScroll: {
     flex: 1,
+  },
+  formContent: {
+    gap: 12,
   },
   field: {
     gap: 6,
@@ -352,19 +198,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 14,
     color: "#1f1a17",
-  },
-  eyeIcon: {
-    fontSize: 16,
-  },
-  forgotWrap: {
-    alignSelf: "flex-end",
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  forgotText: {
-    fontSize: 13,
-    color: "#176FF2",
-    fontWeight: "500",
   },
   button: {
     alignSelf: "stretch",

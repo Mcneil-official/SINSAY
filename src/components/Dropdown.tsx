@@ -37,7 +37,7 @@ export function Dropdown({
 
   return (
     <View style={styles.wrapper}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label ? <Text style={styles.label}>{label}</Text> : null}
       <TouchableOpacity
         style={[styles.trigger, error && styles.triggerError]}
         onPress={() => setOpen(true)}
@@ -51,7 +51,7 @@ export function Dropdown({
         </Text>
         <Ionicons name="chevron-down" size={16} color={colors.gray} />
       </TouchableOpacity>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <Modal visible={open} transparent animationType="fade">
         <TouchableOpacity

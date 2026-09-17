@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import React from "react";
 import {
   SafeAreaView,
@@ -9,11 +8,11 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
+import { confirmDialog, showAlert } from "../../lib/confirm";
 import { ContentContainer } from "../../components";
 
 interface ProfileRowProps {
@@ -40,17 +39,17 @@ function ProfileRow({ icon, label, subtitle, onPress, destructive }: ProfileRowP
 }
 
 export default function OperatorProfileScreen() {
-  const router = useRouter();
   const { user, profile, signOut, isLoading } = useAuth();
 
-  const handleLogout = () => {
-    Alert.alert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: async () => {
-        await signOut();
-        router.replace("/loginpage");
-      }},
-    ]);
+  const handleLogout = async () => {
+    const confirmed = await confirmDialog(
+      "Log out",
+      "Are you sure you want to log out?",
+      { cancelText: "Cancel", confirmText: "Log out" },
+    );
+    if (!confirmed) return;
+    // Gate-owned navigation: OperatorGate redirects !user → /loginpage.
+    await signOut();
   };
 
   if (isLoading) {
@@ -76,25 +75,23 @@ export default function OperatorProfileScreen() {
             <Text style={styles.profileName}>{profile?.full_name || "Operator"}</Text>
             <Text style={styles.profileEmail}>{user?.email || ""}</Text>
           </View>
-          <TouchableOpacity style={styles.editPill}>
+          <View style={styles.editPill}>
             <Text style={styles.editPillText}>Edit Profile</Text>
-          </TouchableOpacity>
+          </View>
         </View>
 
         <Text style={styles.sectionLabel}>Account</Text>
         <View style={styles.sectionCard}>
-          <ProfileRow icon="settings-outline" label="My Account" subtitle="Manage resort settings" onPress={() => {}} />
-          <View style={styles.divider} />
-          <ProfileRow icon="arrow-back-outline" label="Switch to Tourist View" subtitle="Go back to diver experience" onPress={() => router.replace("/(tabs)")} />
+          <ProfileRow icon="settings-outline" label="My Account" subtitle="Manage resort settings" onPress={() => showAlert("My Account", "Operator account settings are coming soon.")} />
           <View style={styles.divider} />
           <ProfileRow icon="log-out-outline" label="Log out" subtitle="Secure your account" onPress={handleLogout} destructive />
         </View>
 
         <Text style={styles.sectionLabel}>More</Text>
         <View style={styles.sectionCard}>
-          <ProfileRow icon="help-circle-outline" label="Help & Support" subtitle="Get help" onPress={() => {}} />
+          <ProfileRow icon="help-circle-outline" label="Help & Support" subtitle="Get help" onPress={() => showAlert("Help & Support", "Operator help is coming soon. Contact tourism@sinsay.gov.ph for assistance.")} />
           <View style={styles.divider} />
-          <ProfileRow icon="document-text-outline" label="FAQ" subtitle="Frequently asked questions" onPress={() => {}} />
+          <ProfileRow icon="document-text-outline" label="FAQ" subtitle="Frequently asked questions" onPress={() => showAlert("FAQ", "Operator FAQ is coming soon.")} />
         </View>
 
         <View style={{ height: 120 }} />

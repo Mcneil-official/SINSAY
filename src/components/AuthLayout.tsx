@@ -1,12 +1,13 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
   ImageBackground,
   Pressable,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useLayout } from "../context/LayoutContext";
 
@@ -19,12 +20,14 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
   const router = useRouter();
   const { isTablet, isDesktop } = useLayout();
   const isWide = isTablet || isDesktop;
+  const { height: screenHeight } = useWindowDimensions();
+  const [contentBottom, setContentBottom] = useState<number | null>(null);
 
   const tabRow = (
     <View style={styles.tabRow} accessibilityRole="tablist">
       <Pressable
         style={styles.tabButton}
-        onPress={() => router.push("/loginpage")}
+        onPress={() => router.replace("/loginpage")}
         accessibilityRole="tab"
         accessibilityState={{ selected: activeTab === "login" }}
       >
@@ -40,7 +43,7 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
       </Pressable>
       <Pressable
         style={styles.tabButton}
-        onPress={() => router.push("/signup")}
+        onPress={() => router.replace("/signup")}
         accessibilityRole="tab"
         accessibilityState={{ selected: activeTab === "signup" }}
       >
@@ -101,7 +104,13 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
       source={require("../../assets/images/1.png")}
       style={styles.container}
     >
-      <View style={styles.content}>
+      <View
+        style={styles.content}
+        onLayout={(e) => {
+          const { y, height } = e.nativeEvent.layout;
+          setContentBottom(y + height);
+        }}
+      >
         <Pressable
           onPress={() => router.push("/next5")}
           hitSlop={12}
@@ -117,7 +126,21 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
         <Text style={styles.subtitle}>Tara, Sinsay na sa Mabini!</Text>
         {tabRow}
       </View>
-      <View pointerEvents="none" style={styles.oval} />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.oval,
+          {
+            height:
+              contentBottom == null
+                ? screenHeight * 0.74
+                : Math.min(
+                    Math.max(screenHeight - contentBottom + 20, 200),
+                    screenHeight * 0.74,
+                  ),
+          },
+        ]}
+      />
       <View style={styles.footer}>
         <View style={styles.bottomSection}>{children}</View>
       </View>
@@ -175,7 +198,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: "76%",
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 50,
     borderTopRightRadius: 50,
@@ -185,8 +207,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -6 },
     elevation: 8,
   },
-  footer: { alignSelf: "stretch", gap: 10, zIndex: 1 },
-  bottomSection: { width: "100%", gap: 12 },
+  footer: { alignSelf: "stretch", gap: 10, zIndex: 1, flex: 1 },
+  bottomSection: { width: "100%", gap: 12, flex: 1 },
 
   // ── desktop (new — matches reference) ──
   wideRoot: {
@@ -226,7 +248,7 @@ const styles = StyleSheet.create({
   wideBackLabel: { fontSize: 14, fontWeight: "600", color: "#16145A" },
   wideLogo: { width: 140, height: 36, alignSelf: "flex-start", marginTop: 4 },
   wideSubtitle: { fontSize: 14, fontWeight: "700", color: "#000" },
-  wideFormWrap: { marginTop: 8, gap: 12 },
+  wideFormWrap: { marginTop: 8, gap: 12, flex: 1 },
   wideRight: { flex: 1 },
   wideImage: { width: "100%", height: "100%" },
 });

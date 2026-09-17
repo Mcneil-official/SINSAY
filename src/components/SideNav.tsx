@@ -33,6 +33,11 @@ export default function SideNav({
 }: SideNavProps) {
   const { signOut } = useAuth();
 
+  const handleLogout = async () => {
+    // Gate-owned navigation: TouristGate/OperatorGate redirect !user → /loginpage.
+    await signOut();
+  };
+
   const navRoutes = state?.routes ?? Object.keys(tabLabels).map((name) => ({ key: name, name }));
 
   const handlePress = (name: string, index: number) => {
@@ -99,7 +104,7 @@ export default function SideNav({
 
       <TouchableOpacity
         style={styles.logoutButton}
-        onPress={signOut}
+        onPress={handleLogout}
         activeOpacity={0.7}
       >
         <Ionicons

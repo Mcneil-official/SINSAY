@@ -27,7 +27,7 @@ export function TextInput({
 }: TextInputProps) {
   return (
     <View style={styles.wrapper}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label ? <Text style={styles.label}>{label}</Text> : null}
       <View
         style={[
           styles.inputRow,
@@ -47,7 +47,7 @@ export function TextInput({
         />
         {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }

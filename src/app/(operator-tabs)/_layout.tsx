@@ -1,19 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
+import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
 
 function OperatorGate() {
-  const { isOperator, isLoading } = useAuth();
+  const { user, isOperator, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isOperator) {
+    if (isLoading) return;
+    if (!user) {
+      router.replace("/loginpage");
+    } else if (!isOperator) {
       router.replace("/(tabs)");
     }
-  }, [isLoading, isOperator, router]);
+  }, [isLoading, user, isOperator, router]);
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color={colors.primaryBlue} />
+      </View>
+    );
+  }
 
   return null;
 }

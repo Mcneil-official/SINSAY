@@ -4,7 +4,6 @@ import { Eye, EyeSlash } from "phosphor-react-native";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import { AuthLayout } from "../components";
 import { useAuth } from "../hooks/useAuth";
+import { showAlert } from "../lib/confirm";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,13 +30,13 @@ export default function LoginPage() {
     }
     setLoading(true);
     setError("");
-    const { error: authError } = await signIn(email, password);
+    const { error: authError, isOperator } = await signIn(email, password);
     setLoading(false);
     if (authError) {
       setError(authError);
       return;
     }
-    router.replace("/(tabs)");
+    router.replace(isOperator ? "/(operator-tabs)" : "/(tabs)");
   }
 
   return (
@@ -82,7 +82,7 @@ export default function LoginPage() {
 
         <Pressable
           onPress={() =>
-            Alert.alert(
+            showAlert(
               "Password Reset Coming Soon",
               "This feature isn't available yet. Contact tourism@sinsay.gov.ph for help accessing your account.",
             )
