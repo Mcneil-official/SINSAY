@@ -210,7 +210,7 @@ export default function UploadReceiptScreen() {
           confirmation.
         </Text>
 
-        {error && <Text style={styles.errorText}>{error}</Text>}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Button
           title={saving ? "Submitting..." : "Submit for Verification"}

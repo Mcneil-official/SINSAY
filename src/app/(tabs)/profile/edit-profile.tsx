@@ -10,11 +10,11 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { colors } from "../../../constants/colors";
 import { Button, TextInput, ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
+import { showAlert } from "../../../lib/confirm";
 import { supabase } from "../../../lib/supabase";
 import { t, Locale } from "../../../lib/i18n";
 
@@ -59,7 +59,7 @@ export default function EditProfileScreen() {
       });
       if (error) {
         setSaving(false);
-        Alert.alert(t("error", locale), error);
+        showAlert(t("error", locale), error);
         return;
       }
     }
@@ -68,10 +68,10 @@ export default function EditProfileScreen() {
       const { error } = await supabase.auth.updateUser({ email: email.trim() });
       if (error) {
         setSaving(false);
-        Alert.alert(t("error", locale), error.message);
+        showAlert(t("error", locale), error.message);
         return;
       }
-      Alert.alert(
+      showAlert(
         t("verification_sent", locale),
         t("verification_detail", locale)
       );

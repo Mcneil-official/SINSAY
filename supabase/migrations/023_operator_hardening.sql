@@ -1,9 +1,20 @@
--- 020_pass_ledger_dive_date.sql
--- 1. Add dive_date column to dive_manifests for deriving Active/Done status
-alter table public.dive_manifests add column if not exists dive_date date not null default CURRENT_DATE;
-update public.dive_manifests set dive_date = created_at::date where dive_date is null;
+-- 023_operator_hardening.sql
+-- P2 operator hardening: dedupe guard, rejection reason, ledger walk-in fix.
+-- Apply in Supabase SQL Editor (service role / postgres).
 
--- 2. Create pass ledger view: remaining = verified purchases − consumed via manifests
+-- 1. Prevent duplicate active applications: at most one pending OR approved
+-- per tourist. Rejected rows remain insertable so users can re-apply.
+create unique index if not exists idx_operator_apps_one_active
+  on public.operator_applications (tourist_id)
+  where status in ('pending', 'approved');
+
+-- 2. Rejection reason for full rejection UX (tourist profile + resubmit form).
+alter table public.operator_applications
+  add column if not exists rejection_reason text;
+
+-- 3. Ledger must not consume passes for walk-in divers.
+-- views cannot be ALTERed in place for the query body, so re-create then
+-- re-apply the security_invoker + grant from 020.
 create or replace view public.operator_pass_ledger as
 with verified_purchases as (
   select dpi.operator_id, coalesce(sum(dpi.total_passes), 0) as purchased_passes
@@ -15,7 +26,7 @@ with verified_purchases as (
 manifests_consumed as (
   select dm.operator_id, count(md.id) as consumed_passes
   from dive_manifests dm
-  left join manifest_divers md on md.manifest_id = dm.id
+  left join manifest_divers md on md.manifest_id = dm.id and md.is_walk_in = false
   group by dm.operator_id
 )
 select
@@ -26,13 +37,5 @@ select
 from verified_purchases vp
 full outer join manifests_consumed mc on mc.operator_id = vp.operator_id;
 
--- Scoping: run the view as the querying user so the existing
--- operator-scoped RLS on dive_pass_inventory / payment_transactions /
--- dive_manifests / manifest_divers (001/003/021) applies automatically.
--- Each operator's query then aggregates only their own rows = own ledger row.
--- (Requires Postgres 15+; Supabase provides it. Re-apply this ALTER after
--- any future CREATE OR REPLACE of this view.)
 alter view public.operator_pass_ledger set (security_invoker = true);
-
--- Views need an explicit SELECT grant (RLS/policies cannot be put on views).
 grant select on public.operator_pass_ledger to authenticated;

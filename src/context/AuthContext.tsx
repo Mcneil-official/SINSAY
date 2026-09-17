@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useEffect, useRef, useState, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { TouristRow, EcoDiveIDRow, OperatorApplicationRow, NotificationRow, TouristUpdate } from "../types/supabase";
@@ -15,7 +15,7 @@ interface AuthState {
   notifications: NotificationRow[];
   fetchNotifications: () => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ error?: string; isOperator?: boolean }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -52,6 +52,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  // Single-flight guard: concurrent fetchProfile calls (getSession +
+  // INITIAL_SESSION + signIn) race and last-writer-wins with stale nulls.
+  // Only the latest request may apply operatorApplication / profile state.
+  const fetchSeqRef = useRef(0);
+
+  const clearLocalAuthState = useCallback(() => {
+    setProfile(null);
+    setEcoId(null);
+    setOperatorApplication(null);
+    setNotifications([]);
+    setUnreadCount(0);
+  }, []);
 
   const isOperator = operatorApplication?.status === "approved";
 
@@ -87,7 +99,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUnreadCount(0);
   }, [user]);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string): Promise<boolean> => {
+    const seq = ++fetchSeqRef.current;
+    const isLatest = () => seq === fetchSeqRef.current;
     let { data } = await supabase
       .from("tourists")
       .select("*")
@@ -110,6 +124,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (retry) data = retry;
     }
 
+    if (!isLatest()) return false;
+
     if (data) setProfile(data);
 
     const { data: ecoData } = await supabase
@@ -117,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .select("*")
       .eq("tourist_id", userId)
       .single();
+    if (!isLatest()) return false;
     if (ecoData) setEcoId(ecoData);
     else setEcoId(null);
 
@@ -127,8 +144,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
+    if (!isLatest()) return false;
     if (opApp) setOperatorApplication(opApp);
     else setOperatorApplication(null);
+    return opApp?.status === "approved";
   }, []);
 
   const updateProfile = useCallback(async (updates: TouristUpdate) => {
@@ -165,11 +184,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq("tourist_id", session.user.id)
           .eq("is_read", false)
           .then(({ count }) => setUnreadCount(count ?? 0));
+      } else {
+        // SIGNED_OUT (or expired session): clear role-derived state
+        // synchronously so gates never see user=null + isOperator=true stale.
+        fetchSeqRef.current += 1;
+        setSession(null);
+        setUser(null);
+        clearLocalAuthState();
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+  }, [fetchProfile, clearLocalAuthState]);
 
   useEffect(() => {
     if (!user) return;
@@ -239,10 +265,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchNotifications, fetchUnreadCount]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
-    return {};
-  }, []);
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error: error.message };
+      let isOperator = false;
+      if (data.user) {
+        isOperator = await fetchProfile(data.user.id);
+      }
+      return { isOperator };
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchProfile]);
 
   const signUp = useCallback(
     async (email: string, password: string, fullName: string) => {
@@ -258,13 +293,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    // Clear local state BEFORE awaiting Supabase so gates see a consistent
+    // logged-out snapshot immediately; onAuthStateChange else-branch keeps
+    // this idempotent. Navigation is gate-owned (no router here).
+    fetchSeqRef.current += 1;
     setUser(null);
     setSession(null);
-    setProfile(null);
-    setNotifications([]);
-    setUnreadCount(0);
-  }, []);
+    clearLocalAuthState();
+    await supabase.auth.signOut();
+  }, [clearLocalAuthState]);
 
   const refreshProfile = useCallback(async () => {
     if (user) await fetchProfile(user.id);

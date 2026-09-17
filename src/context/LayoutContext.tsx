@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from "react";
+import React, { createContext, useContext, useDeferredValue, useMemo } from "react";
 import { useWindowDimensions } from "react-native";
 
 const MOBILE_BREAKPOINT = 640;
@@ -29,22 +29,27 @@ export const LayoutContext = createContext<LayoutState>(defaultState);
 export function LayoutProvider({ children }: { children: React.ReactNode }) {
   const { width } = useWindowDimensions();
 
+  // useWindowDimensions reports width=0 on the first web frame, then the
+  // real width — deriving isDesktop directly flips AppShell/BottomNav
+  // mobile→desktop after paint. Deferring the mode keeps all useLayout()
+  // consumers on one stable snapshot per resize.
+  const mode = useMemo<LayoutMode>(() => {
+    if (width >= DESKTOP_BREAKPOINT) return "desktop";
+    if (width >= MOBILE_BREAKPOINT) return "tablet";
+    return "mobile";
+  }, [width]);
+  const deferredMode = useDeferredValue(mode);
+
   const state = useMemo<LayoutState>(() => {
-    let mode: LayoutMode = "mobile";
-    if (width >= DESKTOP_BREAKPOINT) {
-      mode = "desktop";
-    } else if (width >= MOBILE_BREAKPOINT) {
-      mode = "tablet";
-    }
     return {
-      mode,
-      isMobile: mode === "mobile",
-      isTablet: mode === "tablet",
-      isDesktop: mode === "desktop",
+      mode: deferredMode,
+      isMobile: deferredMode === "mobile",
+      isTablet: deferredMode === "tablet",
+      isDesktop: deferredMode === "desktop",
       sidebarWidth: 240,
       headerHeight: 64,
     };
-  }, [width]);
+  }, [deferredMode]);
 
   return (
     <LayoutContext.Provider value={state}>{children}</LayoutContext.Provider>

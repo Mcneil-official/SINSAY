@@ -158,6 +158,7 @@ export interface OperatorApplicationRow {
   business_permit_url: string | null;
   pcss_url: string | null;
   status: "pending" | "approved" | "rejected";
+  rejection_reason: string | null;
   created_at: string;
   updated_at: string;
 }

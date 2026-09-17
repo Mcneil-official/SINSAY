@@ -9,11 +9,11 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
+import { confirmDialog } from "../../../lib/confirm";
 import { t, Locale } from "../../../lib/i18n";
 import ContentContainer from "../../../components/ContentContainer";
 
@@ -45,14 +45,15 @@ export default function ProfileScreen() {
   const { user, profile, operatorApplication, isOperator, signOut, isLoading, updateProfile } = useAuth();
   const locale: Locale = (profile?.language_preference as Locale) || "en";
 
-  const handleLogout = () => {
-    Alert.alert(t("logout_confirm_title", locale), t("logout_confirm_message", locale), [
-      { text: t("cancel", locale), style: "cancel" },
-      { text: t("confirm", locale), style: "destructive", onPress: async () => {
-        await signOut();
-        router.replace("/loginpage");
-      }},
-    ]);
+  const handleLogout = async () => {
+    const confirmed = await confirmDialog(
+      t("logout_confirm_title", locale),
+      t("logout_confirm_message", locale),
+      { cancelText: t("cancel", locale), confirmText: t("confirm", locale) },
+    );
+    if (!confirmed) return;
+    // Gate-owned navigation: TouristGate redirects !user → /loginpage.
+    await signOut();
   };
 
   if (isLoading) {
@@ -109,7 +110,8 @@ export default function ProfileScreen() {
                   operatorApplication.status === "approved"
                     ? t("operator_approved_sub", locale)
                     : operatorApplication.status === "rejected"
-                    ? t("operator_rejected_sub", locale)
+                    ? operatorApplication.rejection_reason ||
+                      t("operator_rejected_sub", locale)
                     : t("operator_pending_sub", locale)
                 }
                 onPress={() => {

@@ -45,10 +45,11 @@ export default function ApplyOperatorScreen() {
     null,
   );
   const [pcssUrl, setPcssUrl] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [uploading, setUploading] = useState<"permit" | "pcss" | null>(null);
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [agreed, setAgreed] = useState(false);
 
@@ -61,7 +62,7 @@ export default function ApplyOperatorScreen() {
   useEffect(() => {
     if (authLoading || !operatorApplication) return;
     if (operatorApplication.status === "approved") {
-      router.replace("/profile");
+      router.replace("/(operator-tabs)");
     }
   }, [authLoading, operatorApplication, router]);
 
@@ -73,7 +74,7 @@ export default function ApplyOperatorScreen() {
     if (!contactNumber.trim()) errs.contactNumber = "Required";
     if (!businessPermitUrl) errs.businessPermitUrl = "Upload required";
     if (!pcssUrl) errs.pcssUrl = "Upload required";
-    if (!confirmed) errs.confirmed = "You must confirm to proceed";
+    if (!agreed) errs.agreed = "You must confirm to proceed";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -86,13 +87,12 @@ export default function ApplyOperatorScreen() {
     folder: string,
   ) => {
     const uid = user?.id;
-    if (!uid) return;
+    if (!uid) return { path: null, error: "Not authenticated" };
     const { path, error } = await uploadFile(bucket, folder, file, uid);
     if (error) {
-      console.warn(error);
-      return null;
+      return { path: null, error };
     }
-    return path;
+    return { path, error: null };
   };
 
   const handleUploadPermit = async (
@@ -101,8 +101,10 @@ export default function ApplyOperatorScreen() {
       | { name: string; mimeType?: string; size?: number; uri: string },
   ) => {
     setUploading("permit");
-    const url = await handleUploadFile(file, "operator_uploads", "permits");
-    if (url) setBusinessPermitUrl(url);
+    setUploadError(null);
+    const { path: url, error } = await handleUploadFile(file, "operator_uploads", "permits");
+    if (error) setUploadError(error);
+    else if (url) setBusinessPermitUrl(url);
     setUploading(null);
   };
 
@@ -112,14 +114,17 @@ export default function ApplyOperatorScreen() {
       | { name: string; mimeType?: string; size?: number; uri: string },
   ) => {
     setUploading("pcss");
-    const url = await handleUploadFile(file, "operator_uploads", "pcss");
-    if (url) setPcssUrl(url);
+    setUploadError(null);
+    const { path: url, error } = await handleUploadFile(file, "operator_uploads", "pcss");
+    if (error) setUploadError(error);
+    else if (url) setPcssUrl(url);
     setUploading(null);
   };
 
   const handleSubmit = async () => {
     if (!validate() || !user) return;
     setSaving(true);
+    setSubmitError(null);
 
     const { error } = await supabase.from("operator_applications").insert({
       tourist_id: user.id,
@@ -136,6 +141,15 @@ export default function ApplyOperatorScreen() {
     setSaving(false);
     if (error) {
       console.warn("Submit failed", error);
+      // 23505 = idx_operator_apps_one_active partial unique violation:
+      // user already has a pending/approved application.
+      if ((error as { code?: string }).code === "23505") {
+        setSubmitError(
+          "You already have a pending or approved application. Please wait for review.",
+        );
+      } else {
+        setSubmitError(error.message);
+      }
       return;
     }
     setSubmitted(true);
@@ -232,6 +246,24 @@ export default function ApplyOperatorScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <ContentContainer maxWidth={720}>
+          {operatorApplication?.status === "rejected" && !submitted ? (
+            <View style={styles.rejectedBanner}>
+              <Ionicons name="close-circle" size={20} color={colors.red} />
+              <View style={styles.rejectedTextWrap}>
+                <Text style={styles.rejectedTitle}>
+                  Previous application not approved
+                </Text>
+                {operatorApplication.rejection_reason ? (
+                  <Text style={styles.rejectedReason}>
+                    Reason: {operatorApplication.rejection_reason}
+                  </Text>
+                ) : null}
+                <Text style={styles.rejectedHint}>
+                  Update your details below and resubmit.
+                </Text>
+              </View>
+            </View>
+          ) : null}
           <TextInput
             label="Resort Name"
             placeholder="e.g. Anilao Beach Club"
@@ -313,6 +345,10 @@ export default function ApplyOperatorScreen() {
             </View>
           </View>
 
+          {uploadError ? (
+            <Text style={styles.errorText}>{uploadError}</Text>
+          ) : null}
+
           {/* Confirmation */}
           <Checkbox
             checked={agreed}
@@ -323,6 +359,9 @@ export default function ApplyOperatorScreen() {
           />
 
           {/* Submit */}
+          {submitError ? (
+            <Text style={styles.errorText}>{submitError}</Text>
+          ) : null}
           <View style={styles.buttonWrap}>
             <Button
               title={saving ? "Submitting..." : "Submit Application"}
@@ -403,6 +442,20 @@ const styles = StyleSheet.create({
   },
   errorText: { fontSize: 11, color: colors.red },
   buttonWrap: { marginTop: 8 },
+  rejectedBanner: {
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 4,
+  },
+  rejectedTextWrap: { flex: 1, gap: 2 },
+  rejectedTitle: { fontSize: 13, fontWeight: "700", color: colors.red },
+  rejectedReason: { fontSize: 12, color: colors.darkText, lineHeight: 17 },
+  rejectedHint: { fontSize: 11, color: colors.gray },
   confirmContainer: {
     flex: 1,
     justifyContent: "center",
