@@ -65,6 +65,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUnreadCount(0);
   }, []);
 
+  const signOut = useCallback(async () => {
+    // Clear local state BEFORE awaiting Supabase so gates see a consistent
+    // logged-out snapshot immediately; onAuthStateChange else-branch keeps
+    // this idempotent. Navigation is gate-owned (no router here).
+    // Declared above the subscription effects: the operator-app channel
+    // calls it on refresh failure, so it must be initialized before the
+    // effect dependency arrays are evaluated (TDZ).
+    fetchSeqRef.current += 1;
+    setUser(null);
+    setSession(null);
+    clearLocalAuthState();
+    await supabase.auth.signOut();
+  }, [clearLocalAuthState]);
+
   const isOperator = operatorApplication?.status === "approved";
 
   const fetchNotifications = useCallback(async () => {
@@ -250,7 +264,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const updated = payload.new as OperatorApplicationRow;
             setOperatorApplication(updated);
             if (updated.status === "approved") {
-              await supabase.auth.refreshSession();
+              try {
+                const { error } = await supabase.auth.refreshSession();
+                if (error) throw error;
+              } catch (e) {
+                // Stale/rotated refresh token (HTTP 400 invalid_grant):
+                // purge the poisoned stored session so gates route cleanly
+                // to /loginpage instead of retrying a dead token.
+                console.warn("Post-approval session refresh failed, signing out:", e);
+                await signOut();
+              }
             }
           }
         }
@@ -262,7 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(notifChannel);
       supabase.removeChannel(opAppChannel);
     };
-  }, [user, fetchNotifications, fetchUnreadCount]);
+  }, [user, fetchNotifications, fetchUnreadCount, signOut]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
@@ -291,17 +314,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
-
-  const signOut = useCallback(async () => {
-    // Clear local state BEFORE awaiting Supabase so gates see a consistent
-    // logged-out snapshot immediately; onAuthStateChange else-branch keeps
-    // this idempotent. Navigation is gate-owned (no router here).
-    fetchSeqRef.current += 1;
-    setUser(null);
-    setSession(null);
-    clearLocalAuthState();
-    await supabase.auth.signOut();
-  }, [clearLocalAuthState]);
 
   const refreshProfile = useCallback(async () => {
     if (user) await fetchProfile(user.id);
