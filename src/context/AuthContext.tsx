@@ -335,10 +335,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchProfile]);
 
   const signInWithGoogle = useCallback(async () => {
-    // Web PWA: full-page redirect; this promise only resolves when the
-    // redirect can't start (otherwise the page navigates away).
+    // Web PWA: full-page redirect to /auth/callback; this promise only
+    // resolves when the redirect can't start (otherwise the page navigates
+    // away). The callback URL must be allowlisted in Supabase Auth → URL
+    // Configuration.
     const redirectTo =
-      typeof window !== "undefined" ? window.location.origin : undefined;
+      typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: redirectTo ? { redirectTo } : undefined,

@@ -16,6 +16,7 @@ const PRE_AUTH_PATHS = new Set([
   "/next5",
   "/signup",
   "/loginpage",
+  "/auth/callback",
 ]);
 
 function normalizePath(pathname: string): string {
