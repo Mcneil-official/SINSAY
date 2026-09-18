@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -9,12 +10,11 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
-import { supabase } from "../../lib/supabase";
-import { colors } from "../../constants/colors";
-import { DiveSiteRow } from "../../types/supabase";
 import { ContentContainer, ErrorState } from "../../components";
+import { colors } from "../../constants/colors";
+import { supabase } from "../../lib/supabase";
+import { DiveSiteRow } from "../../types/supabase";
 
 const difficultyColors: Record<string, string> = {
   Beginner: "#10B981",
@@ -32,10 +32,15 @@ export default function DiveSiteDetailScreen() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    supabase.from("dive_sites").select("*").eq("id", id).single().then(({ data, error }) => {
-      if (!error && data) setSite(data);
-      setLoading(false);
-    });
+    supabase
+      .from("dive_sites")
+      .select("*")
+      .eq("id", id)
+      .single()
+      .then(({ data, error }) => {
+        if (!error && data) setSite(data);
+        setLoading(false);
+      });
   }, [id]);
 
   return (
@@ -65,53 +70,62 @@ export default function DiveSiteDetailScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           <ContentContainer maxWidth={720} paddingH={16}>
-          <>
-            <View style={styles.hero}>
-              <View style={styles.heroOverlay}>
-                <Ionicons name="water" size={40} color={colors.white} />
+            <>
+              <View style={styles.hero}>
+                <View style={styles.heroOverlay}>
+                  <Ionicons name="water" size={40} color={colors.white} />
+                </View>
+                <TouchableOpacity
+                  style={styles.heartBtn}
+                  onPress={() => setLiked(!liked)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={liked ? "heart" : "heart-outline"}
+                    size={20}
+                    color={liked ? colors.heartRed : colors.white}
+                  />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.heartBtn}
-                onPress={() => setLiked(!liked)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons
-                  name={liked ? "heart" : "heart-outline"}
-                  size={20}
-                  color={liked ? colors.heartRed : colors.white}
-                />
-              </TouchableOpacity>
-            </View>
 
-            <View style={styles.contentSection}>
-              <View style={styles.titleRow}>
-                <Text style={styles.siteName}>{site.name}</Text>
-                {site.rating && (
-                  <View style={styles.ratingPill}>
-                    <Ionicons name="star" size={14} color={colors.starYellow} />
-                    <Text style={styles.ratingText}>{site.rating}</Text>
+              <View style={styles.contentSection}>
+                <View style={styles.titleRow}>
+                  <Text style={styles.siteName}>{site.name}</Text>
+                  {site.rating && (
+                    <View style={styles.ratingPill}>
+                      <Ionicons
+                        name="star"
+                        size={14}
+                        color={colors.starYellow}
+                      />
+                      <Text style={styles.ratingText}>{site.rating}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {site.difficulty && (
+                  <View style={styles.difficultyRow}>
+                    <View
+                      style={[
+                        styles.difficultyBadge,
+                        {
+                          backgroundColor:
+                            difficultyColors[site.difficulty] || colors.gray,
+                        },
+                      ]}
+                    >
+                      <Text style={styles.difficultyText}>
+                        {site.difficulty}
+                      </Text>
+                    </View>
                   </View>
                 )}
+
+                {site.description && (
+                  <Text style={styles.description}>{site.description}</Text>
+                )}
               </View>
-
-              {site.difficulty && (
-                <View style={styles.difficultyRow}>
-                  <View
-                    style={[
-                      styles.difficultyBadge,
-                      { backgroundColor: difficultyColors[site.difficulty] || colors.gray },
-                    ]}
-                  >
-                    <Text style={styles.difficultyText}>{site.difficulty}</Text>
-                  </View>
-                </View>
-              )}
-
-              {site.description && (
-                <Text style={styles.description}>{site.description}</Text>
-              )}
-            </View>
-          </>
+            </>
           </ContentContainer>
           <View style={{ height: 60 }} />
         </ScrollView>
@@ -125,8 +139,11 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
   header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   title: { fontSize: 17, fontWeight: "600", color: colors.darkText },
   hero: {
@@ -203,7 +220,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   center: {
-    flex: 1, justifyContent: "center", alignItems: "center",
-    paddingHorizontal: 32, gap: 12, marginTop: 80,
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 12,
+    marginTop: 80,
   },
 });

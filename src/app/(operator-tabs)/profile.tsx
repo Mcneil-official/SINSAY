@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   SafeAreaView,
@@ -39,7 +40,8 @@ function ProfileRow({ icon, label, subtitle, onPress, destructive }: ProfileRowP
 }
 
 export default function OperatorProfileScreen() {
-  const { user, profile, signOut, isLoading } = useAuth();
+  const { user, profile, signOut, isLoading, setViewAsTourist } = useAuth();
+  const router = useRouter();
 
   const handleLogout = async () => {
     const confirmed = await confirmDialog(
@@ -75,9 +77,26 @@ export default function OperatorProfileScreen() {
             <Text style={styles.profileName}>{profile?.full_name || "Operator"}</Text>
             <Text style={styles.profileEmail}>{user?.email || ""}</Text>
           </View>
-          <View style={styles.editPill}>
+          <TouchableOpacity
+            style={styles.editPill}
+            activeOpacity={0.7}
+            onPress={() => showAlert("Edit Profile", "Operator profile editing is coming soon.")}
+          >
             <Text style={styles.editPillText}>Edit Profile</Text>
-          </View>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.sectionLabel}>Establishment</Text>
+        <View style={styles.sectionCard}>
+          <ProfileRow
+            icon="people-outline"
+            label="Switch to Tourist View"
+            subtitle="Browse the app as a diver"
+            onPress={() => {
+              setViewAsTourist(true);
+              router.replace("/(tabs)");
+            }}
+          />
         </View>
 
         <Text style={styles.sectionLabel}>Account</Text>

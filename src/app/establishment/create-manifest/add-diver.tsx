@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   SafeAreaView,
@@ -24,12 +24,14 @@ interface SearchResult {
 
 export default function AddDiverScreen() {
   const router = useRouter();
+  const { draft } = useLocalSearchParams<{ draft?: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [showWalkInForm, setShowWalkInForm] = useState(false);
   const [walkInName, setWalkInName] = useState("");
   const [walkInContact, setWalkInContact] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
 
   const doSearch = useCallback(async (q: string) => {
     if (q.length < 2) {
@@ -37,18 +39,21 @@ export default function AddDiverScreen() {
       return;
     }
     setSearching(true);
+    setSearchError(false);
     try {
-      const { data: tourists } = await supabase
+      const { data: tourists, error: tErr } = await supabase
         .from("tourists")
         .select("id, full_name")
         .ilike("full_name", `%${q}%`)
         .limit(10);
+      if (tErr) throw tErr;
 
-      const { data: ecoIds } = await supabase
+      const { data: ecoIds, error: eErr } = await supabase
         .from("eco_dive_ids")
         .select("tourist_id, eco_id_number, status")
         .ilike("eco_id_number", `%${q}%`)
         .limit(10);
+      if (eErr) throw eErr;
 
       const merged: SearchResult[] = [];
       const added = new Set<string>();
@@ -56,6 +61,19 @@ export default function AddDiverScreen() {
       for (const t of tourists || []) {
         merged.push({ name: t.full_name, ecoId: "", verified: false, touristId: t.id });
         added.add(t.id);
+      }
+
+      // Batch-fetch names for eco-ID hits not already matched, instead of
+      // one query per row (each of which could silently render "Unknown").
+      const unmatched = (ecoIds || []).filter((e) => !added.has(e.tourist_id));
+      const nameById = new Map<string, string>();
+      if (unmatched.length > 0) {
+        const { data: names, error: nErr } = await supabase
+          .from("tourists")
+          .select("id, full_name")
+          .in("id", unmatched.map((e) => e.tourist_id));
+        if (nErr) throw nErr;
+        for (const n of names || []) nameById.set(n.id, n.full_name);
       }
 
       for (const e of ecoIds || []) {
@@ -66,13 +84,8 @@ export default function AddDiverScreen() {
             existing.verified = e.status === "complete";
           }
         } else {
-          const { data: tData } = await supabase
-            .from("tourists")
-            .select("full_name")
-            .eq("id", e.tourist_id)
-            .single();
           merged.push({
-            name: tData?.full_name || "Unknown",
+            name: nameById.get(e.tourist_id) || "Unknown",
             ecoId: e.eco_id_number,
             verified: e.status === "complete",
             touristId: e.tourist_id,
@@ -81,7 +94,9 @@ export default function AddDiverScreen() {
       }
       setResults(merged);
     } catch (e) {
+      console.warn("Diver search failed:", e);
       setResults([]);
+      setSearchError(true);
     }
     setSearching(false);
   }, []);
@@ -92,9 +107,12 @@ export default function AddDiverScreen() {
   }, [searchQuery, doSearch]);
 
   const handleSelectDiver = (diver: SearchResult) => {
-    router.push({
+    // Replace (not push): avoids stacking Step1 → AddDiver → Step1 …
+    // The draft is echoed back so the in-progress form is preserved.
+    router.replace({
       pathname: "/establishment/create-manifest/step1",
       params: {
+        ...(draft ? { draft } : {}),
         addDiver: JSON.stringify({
           name: diver.name,
           ecoId: diver.ecoId,
@@ -107,9 +125,10 @@ export default function AddDiverScreen() {
 
   const handleAddWalkIn = () => {
     if (!walkInName.trim()) return;
-    router.push({
+    router.replace({
       pathname: "/establishment/create-manifest/step1",
       params: {
+        ...(draft ? { draft } : {}),
         addDiver: JSON.stringify({
           name: walkInName.trim(),
           ecoId: "",
@@ -153,7 +172,10 @@ export default function AddDiverScreen() {
             <Text style={styles.sectionLabelText}>Registered Divers</Text>
           </View>
         )}
-        {results.length === 0 && searchQuery.length >= 2 && !searching && (
+        {searchError && searchQuery.length >= 2 && !searching && (
+          <Text style={styles.searchErrorText}>Search failed. Check your connection and try again.</Text>
+        )}
+        {results.length === 0 && searchQuery.length >= 2 && !searching && !searchError && (
           <Text style={styles.noResultsText}>No results for '{searchQuery}'. Try a different name or add a walk-in.</Text>
         )}
         <View style={{ gap: 6, marginTop: 4 }}>
@@ -204,9 +226,13 @@ export default function AddDiverScreen() {
               keyboardType="phone-pad"
             />
             <View style={styles.walkInActions}>
-              <Button title="Cancel" variant="outline" onPress={() => setShowWalkInForm(false)} />
+              <View style={{ flex: 1 }}>
+                <Button title="Cancel" variant="outline" onPress={() => setShowWalkInForm(false)} />
+              </View>
               <View style={{ width: 10 }} />
-              <Button title="Add Diver" onPress={handleAddWalkIn} disabled={!walkInName.trim()} />
+              <View style={{ flex: 1 }}>
+                <Button title="Add Diver" onPress={handleAddWalkIn} disabled={!walkInName.trim()} />
+              </View>
             </View>
           </Card>
         )}
@@ -231,6 +257,7 @@ const styles = StyleSheet.create({
   sectionLabel: { marginTop: 16 },
   sectionLabelText: { fontSize: 13, fontWeight: "600", color: colors.gray, textTransform: "uppercase", letterSpacing: 0.5 },
   noResultsText: { fontSize: 13, color: colors.gray, textAlign: "center", marginTop: 16 },
+  searchErrorText: { fontSize: 13, color: colors.red, textAlign: "center", marginTop: 16 },
   diverRow: {
     flexDirection: "row", alignItems: "center", backgroundColor: colors.white,
     borderRadius: 12, padding: 12, gap: 10,

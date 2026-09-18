@@ -120,15 +120,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 const handleSelect = (name: string) => {
   if (isOperator) {
     if (name === "index") router.push("/(operator-tabs)");
-    else if (name === "manifests") router.push("/manifests");
-    else if (name === "buy-pass") router.push("/buy-pass");
-    else if (name === "profile") router.push("/profile");
+    else if (name === "manifests") router.push("/(operator-tabs)/manifests");
+    else if (name === "buy-pass") router.push("/(operator-tabs)/buy-pass");
+    else if (name === "profile") router.push("/(operator-tabs)/profile");
     return;
   }
   if (name === "index") router.push("/");
-  else if (name === "eco-dive-id") router.push("/eco-dive-id");
-  else if (name === "dive-assistant") router.push("/dive-assistant");
-  else if (name === "profile") router.push("/profile");
+  else if (name === "eco-dive-id") router.push("/(tabs)/eco-dive-id");
+  else if (name === "dive-assistant") router.push("/(tabs)/dive-assistant");
+  else if (name === "profile") router.push("/(tabs)/profile");
 };
 
   return (

@@ -169,7 +169,7 @@ export type OperatorApplicationUpdate = Partial<OperatorApplicationInsert>;
 export interface DivePassInventoryRow {
   id: string;
   operator_id: string;
-  pass_type: "single" | "multi";
+  pass_type: "single" | "multi" | "annual";
   pass_label: string;
   total_passes: number;
   remaining_passes: number;
@@ -331,6 +331,8 @@ export interface PassPricingRow {
   description: string | null;
   sort_order: number;
   created_at: string;
+  // 'one_day' | 'annual' (pre-026 rows backfilled as 'bulk')
+  code: string | null;
 }
 
 export type PassPricingInsert = Partial<PassPricingRow> & Pick<PassPricingRow, "label" | "passes" | "price">;

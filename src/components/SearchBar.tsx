@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
-  TextInput,
-  Text,
   ActivityIndicator,
   StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { colors } from "../constants/colors";
 
@@ -45,7 +45,12 @@ export function SearchBar({
   return (
     <View style={styles.wrapper}>
       <View style={styles.inputRow}>
-        <Ionicons name="search" size={16} color={colors.gray} style={{ marginRight: 8 }} />
+        <Ionicons
+          name="search"
+          size={16}
+          color={colors.gray}
+          style={{ marginRight: 8 }}
+        />
         <TextInput
           style={styles.input}
           placeholder={placeholder}
@@ -67,7 +72,11 @@ export function SearchBar({
       {query.length > 0 && (
         <View style={styles.resultsContainer}>
           {loading && (
-            <ActivityIndicator size="small" color={colors.primaryBlue} style={{ padding: 12 }} />
+            <ActivityIndicator
+              size="small"
+              color={colors.primaryBlue}
+              style={{ padding: 12 }}
+            />
           )}
           {!loading && results.length === 0 && (
             <Text style={styles.emptyText}>

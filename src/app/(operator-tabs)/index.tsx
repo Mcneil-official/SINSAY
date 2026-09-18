@@ -36,11 +36,24 @@ interface ManifestItem {
 type StatusDerived = "active" | "done";
 
 function deriveStatus(diveDate: string): StatusDerived {
+  if (!diveDate) return "active";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const dd = new Date(diveDate);
+  if (isNaN(dd.getTime())) return "active";
   dd.setHours(0, 0, 0, 0);
   return dd < today ? "done" : "active";
+}
+
+function formatDiveDate(diveDate: string): string {
+  if (!diveDate) return "—";
+  const dd = new Date(diveDate);
+  if (isNaN(dd.getTime())) return "—";
+  return dd.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export default function OperatorDashboardScreen() {
@@ -67,23 +80,31 @@ export default function OperatorDashboardScreen() {
 
   useEffect(() => {
     if (!user) return;
-    loadEstablishment();
-    loadStats();
-    loadManifests();
+    void loadEstablishment();
+    void loadStats();
+    void loadManifests();
   }, [user]);
 
   const loadEstablishment = async () => {
-    const { data } = await supabase
-      .from("operator_applications")
-      .select("resort_name")
-      .eq("tourist_id", user!.id)
-      .eq("status", "approved")
-      .single();
-    if (data?.resort_name) setEstablishmentName(data.resort_name);
-    else
+    try {
+      const { data, error } = await supabase
+        .from("operator_applications")
+        .select("resort_name")
+        .eq("tourist_id", user!.id)
+        .eq("status", "approved")
+        .maybeSingle();
+      if (error) throw error;
+      if (data?.resort_name) setEstablishmentName(data.resort_name);
+      else
+        setEstablishmentName(
+          user?.user_metadata?.full_name?.split(" ")[0] || "Operator",
+        );
+    } catch (e) {
+      console.warn("Establishment load error", e);
       setEstablishmentName(
         user?.user_metadata?.full_name?.split(" ")[0] || "Operator",
       );
+    }
   };
 
   const loadStats = useCallback(async () => {
@@ -98,48 +119,55 @@ export default function OperatorDashboardScreen() {
       todayEnd.setDate(todayEnd.getDate() + 1);
 
       // Today's and yesterday's diver counts
-      const { data: todayMf } = await supabase
+      // NOTE: every query checks its own { error } — RLS denials don't throw,
+      // so without these checks a blocked read would silently render as 0.
+      const { data: todayMf, error: todayErr } = await supabase
         .from("dive_manifests")
         .select("id")
         .eq("operator_id", user!.id)
         .gte("created_at", todayStart.toISOString())
         .lt("created_at", todayEnd.toISOString());
+      if (todayErr) throw todayErr;
 
       if (todayMf && todayMf.length > 0) {
         const ids = todayMf.map((m: { id: string }) => m.id);
-        const { count: td } = await supabase
+        const { count: td, error: tdErr } = await supabase
           .from("manifest_divers")
           .select("id", { count: "exact", head: true })
           .in("manifest_id", ids);
+        if (tdErr) throw tdErr;
         setTodayDivers(td || 0);
       } else {
         setTodayDivers(0);
       }
 
-      const { data: yesterdayMf } = await supabase
+      const { data: yesterdayMf, error: yErr } = await supabase
         .from("dive_manifests")
         .select("id")
         .eq("operator_id", user!.id)
         .gte("created_at", yesterdayStart.toISOString())
         .lt("created_at", todayStart.toISOString());
+      if (yErr) throw yErr;
 
       if (yesterdayMf && yesterdayMf.length > 0) {
         const ids = yesterdayMf.map((m: { id: string }) => m.id);
-        const { count: yd } = await supabase
+        const { count: yd, error: ydErr } = await supabase
           .from("manifest_divers")
           .select("id", { count: "exact", head: true })
           .in("manifest_id", ids);
+        if (ydErr) throw ydErr;
         setYesterdayDivers(yd || 0);
       } else {
         setYesterdayDivers(0);
       }
 
       // Pass ledger
-      const { data: ledger } = await supabase
+      const { data: ledger, error: ledgerErr } = await supabase
         .from("operator_pass_ledger")
         .select("remaining_passes, purchased_passes")
         .eq("operator_id", user!.id)
-        .single();
+        .maybeSingle();
+      if (ledgerErr) throw ledgerErr;
       setRemainingPasses(ledger?.remaining_passes ?? 0);
       setPurchasedPasses(ledger?.purchased_passes ?? 0);
 
@@ -147,11 +175,12 @@ export default function OperatorDashboardScreen() {
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       weekStart.setHours(0, 0, 0, 0);
-      const { count: wc } = await supabase
+      const { count: wc, error: wcErr } = await supabase
         .from("dive_manifests")
         .select("id", { count: "exact", head: true })
         .eq("operator_id", user!.id)
         .gte("created_at", weekStart.toISOString());
+      if (wcErr) throw wcErr;
       setWeekCount(wc || 0);
     } catch (e) {
       console.warn("Stats load error", e);
@@ -164,20 +193,22 @@ export default function OperatorDashboardScreen() {
     setManifestLoading(true);
     setManifestError(false);
     try {
-      const { data: mfData } = await supabase
+      const { data: mfData, error: mfErr } = await supabase
         .from("dive_manifests")
         .select("id, boat_name, location, dive_date")
         .eq("operator_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(10);
+      if (mfErr) throw mfErr;
 
       if (mfData) {
         const withCounts = await Promise.all(
           mfData.map(async (m) => {
-            const { count } = await supabase
+            const { count, error: cErr } = await supabase
               .from("manifest_divers")
               .select("id", { count: "exact", head: true })
               .eq("manifest_id", m.id);
+            if (cErr) throw cErr;
             return { ...m, diver_count: count || 0 } as ManifestItem;
           }),
         );
@@ -335,7 +366,7 @@ export default function OperatorDashboardScreen() {
           {/* Create Manifest */}
           <View style={styles.createWrap}>
             <Button
-              title="+ Create Dive Manifest"
+              title="Create Dive Manifest"
               onPress={() =>
                 router.push("/establishment/create-manifest/step1")
               }
@@ -379,12 +410,9 @@ export default function OperatorDashboardScreen() {
                     key={m.id}
                     style={styles.manifestRow}
                     activeOpacity={0.7}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/(operator-tabs)/manifests",
-                        params: { id: m.id },
-                      })
-                    }
+                    // No manifest-detail route exists yet: rows open the full
+                    // manifests list instead of dropping a dead `id` param.
+                    onPress={() => router.push("/(operator-tabs)/manifests")}
                   >
                     <View style={styles.manifestIcon}>
                       <Ionicons
@@ -396,12 +424,8 @@ export default function OperatorDashboardScreen() {
                     <View style={styles.manifestInfo}>
                       <Text style={styles.manifestTitle}>{m.boat_name}</Text>
                       <Text style={styles.manifestMeta}>
-                        {new Date(m.dive_date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}{" "}
-                        · {m.diver_count} divers · {m.location}
+                        {formatDiveDate(m.dive_date)} · {m.diver_count} divers ·{" "}
+                        {m.location}
                       </Text>
                     </View>
                     <StatusBadge

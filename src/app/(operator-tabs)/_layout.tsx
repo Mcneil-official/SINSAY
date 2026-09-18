@@ -53,6 +53,7 @@ const tabLabels: Record<string, string> = {
 
 export default function OperatorTabLayout() {
   const { isDesktop } = useLayout();
+  const router = useRouter();
 
   return (
     <>
@@ -61,7 +62,15 @@ export default function OperatorTabLayout() {
         screenOptions={{ headerShown: false }}
         tabBar={(props) =>
           isDesktop ? null : (
-            <BottomNav {...props} tabIcons={tabIcons} tabLabels={tabLabels} />
+            <BottomNav
+              {...props}
+              tabIcons={tabIcons}
+              tabLabels={tabLabels}
+              centerIcon="add"
+              onCenterPress={() =>
+                router.push("/establishment/create-manifest/step1")
+              }
+            />
           )
         }
       >

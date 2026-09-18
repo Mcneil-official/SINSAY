@@ -25,8 +25,9 @@ import { supabase } from "../../../lib/supabase";
 
 export default function UploadReceiptScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-  const { passLabel, passCount, quantity, total } = useLocalSearchParams<{
+  const { user, isLoading: authLoading } = useAuth();
+  const { passId, passLabel, passCount, quantity, total } = useLocalSearchParams<{
+    passId?: string;
     passLabel?: string;
     passCount?: string;
     quantity?: string;
@@ -38,11 +39,77 @@ export default function UploadReceiptScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Server-truth pricing: route params are display hints only and must never
+  // be trusted for the DB insert (deep-links can be tampered with).
+  const [unitPrice, setUnitPrice] = useState<number | null>(null);
+  const [passesPerPack, setPassesPerPack] = useState<number | null>(null);
+  const [passCode, setPassCode] = useState<string | null>(null);
+  const [priceLoading, setPriceLoading] = useState(true);
+  const [priceError, setPriceError] = useState(false);
 
-  const totalNum = Number(total) || 0;
-  const totalPasses = (Number(quantity) || 1) * (Number(passCount) || 1);
+  useEffect(() => {
+    if (!passId) {
+      setPriceLoading(false);
+      setPriceError(true);
+      return;
+    }
+    (async () => {
+      try {
+        const { data, error: priceFetchError } = await supabase
+          .from("pass_pricing")
+          .select("price, passes, code")
+          .eq("id", passId)
+          .maybeSingle();
+        if (priceFetchError) throw priceFetchError;
+        if (!data) {
+          setPriceError(true);
+          return;
+        }
+        setUnitPrice(Number(data.price));
+        setPassesPerPack(Number(data.passes));
+        setPassCode((data as { code?: string }).code ?? null);
+      } catch (e) {
+        console.warn("Failed to verify pass pricing:", e);
+        setPriceError(true);
+      } finally {
+        setPriceLoading(false);
+      }
+    })();
+  }, [passId]);
+
+  const qty = Math.max(1, Number(quantity) || 1);
+  // Unit-priced rows (passes = 1: one-day / annual) sell a custom count that
+  // arrives in the passCount param; pack rows (passes > 1) multiply by qty.
+  // Server clamps the same 1–50 bounds the selection screen enforces.
+  const rawCustomCount = Number(passCount) || 0;
+  const customCountValid =
+    Number.isInteger(rawCustomCount) && rawCustomCount >= 1 && rawCustomCount <= 50;
+  const isUnitRow = passesPerPack === 1;
+  const verifiedPasses =
+    passesPerPack !== null
+      ? isUnitRow
+        ? rawCustomCount
+        : passesPerPack * qty
+      : (Number(quantity) || 1) * (Number(passCount) || 1);
+  const verifiedTotal =
+    unitPrice !== null
+      ? unitPrice * (isUnitRow ? rawCustomCount : qty)
+      : Number(total) || 0;
+  const verifiedPassType =
+    passCode === "annual"
+      ? "annual"
+      : passesPerPack !== null && passesPerPack > 1
+        ? "multi"
+        : "single";
+  const pricingReady =
+    !priceLoading &&
+    !priceError &&
+    unitPrice !== null &&
+    passesPerPack !== null &&
+    verifiedTotal > 0 &&
+    (!isUnitRow || customCountValid);
   const canSubmit =
-    referenceNumber.length >= 6 && receiptFile !== null && !saving;
+    referenceNumber.trim().length >= 6 && receiptFile !== null && !saving && pricingReady;
 
   const handlePickFile = (
     file:
@@ -63,40 +130,45 @@ export default function UploadReceiptScreen() {
     setSaving(true);
     setError("");
 
+    let receiptPath: string | null = null;
+    let inventoryId: string | null = null;
     try {
       // 1. Upload receipt to storage
-      const { path: receiptPath, error: uploadError } = await uploadFile(
+      const { path: uploadedPath, error: uploadError } = await uploadFile(
         "operator_uploads",
         "receipts",
         receiptFile,
         user.id,
       );
 
-      if (uploadError || !receiptPath) {
+      if (uploadError || !uploadedPath) {
         setError(uploadError || "Upload failed. Please try again.");
         setSaving(false);
         return;
       }
+      receiptPath = uploadedPath;
 
-      // 2. Create dive pass inventory
+      // 2. Create dive pass inventory (server-verified amounts only)
       const { data: inventory, error: invError } = await supabase
         .from("dive_pass_inventory")
         .insert({
           operator_id: user.id,
-          pass_type: "single",
+          pass_type: verifiedPassType,
           pass_label: passLabel || "",
-          total_passes: totalPasses,
-          remaining_passes: totalPasses,
-          amount: totalNum,
+          total_passes: verifiedPasses,
+          remaining_passes: verifiedPasses,
+          amount: verifiedTotal,
         })
         .select("id")
         .single();
 
       if (invError || !inventory) {
-        setError("Failed to create inventory record.");
+        await supabase.storage.from("operator_uploads").remove([receiptPath]);
+        setError(invError ? `Failed to create inventory record: ${invError.message}` : "Failed to create inventory record.");
         setSaving(false);
         return;
       }
+      inventoryId = inventory.id;
 
       // 3. Create payment transaction
       const { error: txError } = await supabase
@@ -104,61 +176,76 @@ export default function UploadReceiptScreen() {
         .insert({
           operator_id: user.id,
           dive_pass_inventory_id: inventory.id,
-          amount: totalNum,
+          amount: verifiedTotal,
           reference_number: referenceNumber.trim(),
           receipt_url: receiptPath,
           status: "pending",
         });
 
       if (txError) {
-        setError("Failed to save payment record.");
+        // Roll back the partial write: inventory row + storage object.
+        await supabase.from("dive_pass_inventory").delete().eq("id", inventory.id);
+        await supabase.storage.from("operator_uploads").remove([receiptPath]);
+        setError(`Failed to save payment record: ${txError.message}`);
         setSaving(false);
         return;
       }
 
       setSubmitted(true);
     } catch (e) {
-      setError("Something went wrong. Please try again.");
+      console.error("Receipt submit failed:", e);
+      // Best-effort rollback of anything created before the throw.
+      if (inventoryId) {
+        await supabase.from("dive_pass_inventory").delete().eq("id", inventoryId);
+      }
+      if (receiptPath) {
+        await supabase.storage.from("operator_uploads").remove([receiptPath]);
+      }
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     }
     setSaving(false);
   };
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       router.replace("/loginpage");
     }
-  }, [user, router]);
+  }, [authLoading, user, router]);
 
   if (submitted) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" />
-        <ContentContainer maxWidth={720} style={styles.container}>
-          <View style={styles.checkWrap}>
-            <Ionicons name="checkmark-circle" size={72} color="#16A34A" />
-          </View>
-          <Text style={styles.heading}>Receipt Submitted</Text>
-          <Text style={styles.subtext}>
-            Your payment is now pending verification.{"\n"}You will be notified
-            once confirmed.
-          </Text>
-          <Card style={styles.infoCard}>
-            <Ionicons
-              name="information-circle"
-              size={18}
-              color={colors.primaryBlue}
-            />
-            <Text style={styles.infoText}>
-              Verification typically takes 15-30 minutes during business hours.
+        <ScrollView style={styles.container} contentContainerStyle={styles.successContent}>
+          <ContentContainer maxWidth={720}>
+            <View style={styles.checkWrap}>
+              <Ionicons name="checkmark-circle" size={72} color="#16A34A" />
+            </View>
+            <Text style={styles.heading}>Receipt Submitted</Text>
+            <Text style={styles.subtext}>
+              Your payment is now pending verification.{"\n"}You will be notified
+              once confirmed.
             </Text>
-          </Card>
-          <View style={{ gap: 10, marginTop: 20 }}>
-            <Button
-              title="Back to Dashboard"
-              onPress={() => router.replace("/(operator-tabs)")}
-            />
-          </View>
-        </ContentContainer>
+            <Card style={styles.infoCard}>
+              <Ionicons
+                name="information-circle"
+                size={18}
+                color={colors.primaryBlue}
+              />
+              <Text style={styles.infoText}>
+                Verification typically takes 15-30 minutes during business hours.
+              </Text>
+            </Card>
+            <View style={{ gap: 10, marginTop: 20 }}>
+              <Button
+                title="Back to Dashboard"
+                onPress={() => router.replace("/(operator-tabs)")}
+              />
+            </View>
+            <View style={{ height: 110 }} />
+          </ContentContainer>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -179,14 +266,23 @@ export default function UploadReceiptScreen() {
         {/* Progress steps */}
         <StepProgress steps={["Payment", "Upload Receipt"]} currentIndex={1} />
 
-        {/* Amount recap */}
+        {/* Amount recap (server-verified once pricing loads) */}
         <Card style={styles.amountCard}>
           <Text style={styles.amountLabel}>Amount to Pay</Text>
-          <Text style={styles.amountValue}>₱ {totalNum.toLocaleString()}</Text>
+          <Text style={styles.amountValue}>₱ {verifiedTotal.toLocaleString()}</Text>
           <Text style={styles.amountDetail}>
-            {passLabel} · Qty: {quantity} ({totalPasses} total passes)
+            {passLabel} · Qty: {qty} ({verifiedPasses} total passes)
           </Text>
         </Card>
+
+        {priceLoading && (
+          <Text style={styles.verifyText}>Verifying pricing…</Text>
+        )}
+        {priceError && (
+          <Text style={styles.errorText}>
+            Couldn&apos;t verify pricing for this pass. Please go back and reselect it.
+          </Text>
+        )}
 
         {/* File upload */}
         <FileUpload
@@ -199,7 +295,7 @@ export default function UploadReceiptScreen() {
         {/* Reference Number */}
         <View style={{ marginTop: 8 }}>
           <TextInput
-            label="GCash Reference No."
+            label="Payment Reference No."
             placeholder="e.g. GCF202606150001"
             value={referenceNumber}
             onChangeText={setReferenceNumber}
@@ -213,12 +309,13 @@ export default function UploadReceiptScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Button
-          title={saving ? "Submitting..." : "Submit for Verification"}
+          title="Submit for Verification"
           onPress={handleSubmit}
           disabled={!canSubmit}
+          loading={saving}
         />
 
-        <View style={{ height: 60 }} />
+        <View style={{ height: 110 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -229,6 +326,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
   container: { flex: 1 },
   content: { paddingTop: 12, paddingBottom: 24 },
+  successContent: { flexGrow: 1, justifyContent: "center", paddingTop: 24, paddingBottom: 24 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -237,42 +335,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   topTitle: { fontSize: 17, fontWeight: "600", color: colors.darkText },
-  progressRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
-    gap: 0,
-  },
-  progressStepWrap: { alignItems: "center", gap: 4 },
-  progressDotDone: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#16A34A",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  progressDotActive: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primaryBlue,
-  },
-  progressTextDone: { fontSize: 11, fontWeight: "600", color: "#16A34A" },
-  progressTextActive: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.primaryBlue,
-  },
-  progressLine: {
-    width: 48,
-    height: 2,
-    backgroundColor: colors.grayLight,
-    marginHorizontal: 8,
-    marginBottom: 18,
-  },
-  progressLineActive: { backgroundColor: colors.primaryBlue },
   amountCard: { padding: 16, alignItems: "center", marginBottom: 20 },
   amountLabel: { fontSize: 13, color: colors.gray },
   amountValue: {
@@ -282,6 +344,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   amountDetail: { fontSize: 11, color: colors.gray, marginTop: 6 },
+  verifyText: { fontSize: 12, color: colors.gray, textAlign: "center", marginBottom: 12 },
   hint: { fontSize: 11, color: colors.gray, marginTop: 6, marginBottom: 24 },
   checkWrap: { alignItems: "center", marginBottom: 16 },
   heading: {

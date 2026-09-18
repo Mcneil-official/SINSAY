@@ -10,6 +10,11 @@ interface AuthState {
   ecoId: EcoDiveIDRow | null;
   operatorApplication: OperatorApplicationRow | null;
   isOperator: boolean;
+  // Lets an approved operator browse the tourist stack (the FAQ promises a
+  // "switch back" from the Operator Profile tab). Gates respect it — without
+  // this, TouristGate would bounce them straight back to operator tabs.
+  viewAsTourist: boolean;
+  setViewAsTourist: (v: boolean) => void;
   isLoading: boolean;
   unreadCount: number;
   notifications: NotificationRow[];
@@ -29,6 +34,8 @@ const defaultAuthState: AuthState = {
   ecoId: null,
   operatorApplication: null,
   isOperator: false,
+  viewAsTourist: false,
+  setViewAsTourist: () => {},
   isLoading: true,
   unreadCount: 0,
   notifications: [],
@@ -49,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<TouristRow | null>(null);
   const [ecoId, setEcoId] = useState<EcoDiveIDRow | null>(null);
   const [operatorApplication, setOperatorApplication] = useState<OperatorApplicationRow | null>(null);
+  const [viewAsTourist, setViewAsTourist] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
@@ -61,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
     setEcoId(null);
     setOperatorApplication(null);
+    setViewAsTourist(false);
     setNotifications([]);
     setUnreadCount(0);
   }, []);
@@ -328,6 +337,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ecoId,
         operatorApplication,
         isOperator,
+        viewAsTourist,
+        setViewAsTourist,
         isLoading,
         unreadCount,
         notifications,

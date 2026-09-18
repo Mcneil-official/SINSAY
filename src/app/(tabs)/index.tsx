@@ -14,21 +14,34 @@ import {
 import {
   ContentContainer,
   DiveSiteCard,
+  EmptyState,
+  ErrorState,
   EstablishmentCard,
   HeroCarousel,
   SearchBar,
-  EmptyState, ErrorState,
 } from "../../components";
 import { SearchResult } from "../../components/SearchBar";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
+import { showAlert } from "../../lib/confirm";
 import { supabase } from "../../lib/supabase";
 import {
   AnnouncementRow,
   DiveSiteRow,
   EstablishmentRow,
 } from "../../types/supabase";
+
+const categoryOptions: {
+  key: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { key: "all", label: "All Dives", icon: "compass-outline" },
+  { key: "Beginner", label: "Beginner", icon: "sunny-outline" },
+  { key: "Intermediate", label: "Intermediate", icon: "water-outline" },
+  { key: "Advanced", label: "Advanced", icon: "flash-outline" },
+];
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -41,6 +54,7 @@ export default function HomeScreen() {
   const [diveSites, setDiveSites] = useState<DiveSiteRow[]>([]);
   const [diveSitesLoading, setDiveSitesLoading] = useState(true);
   const [diveSitesError, setDiveSitesError] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("all");
 
   const [establishments, setEstablishments] = useState<EstablishmentRow[]>([]);
   const [establishmentsLoading, setEstablishmentsLoading] = useState(true);
@@ -54,6 +68,10 @@ export default function HomeScreen() {
 
   const allDiveSites = diveSites;
   const allEstablishments = establishments;
+  const filteredDiveSites =
+    activeCategory === "all"
+      ? diveSites
+      : diveSites.filter((s) => s.difficulty === activeCategory);
 
   const loadDiveSites = useCallback(() => {
     setDiveSitesLoading(true);
@@ -189,31 +207,55 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <ContentContainer maxWidth={900} paddingH={20}>
-          {/* Greeting + notification bell */}
+          {/* Greeting + avatar + notification bell + filter */}
           <View style={styles.headerRow}>
-            <View style={styles.headerTextWrap}>
-              <Text style={styles.greeting}>{greeting}</Text>
-              <Text style={styles.subGreeting}>
-                Welcome to Mabini, Batangas
-              </Text>
+            <View style={styles.headerLeft}>
+              <View style={styles.avatarCircle}>
+                <Ionicons name="person" size={20} color={colors.white} />
+              </View>
+              <View style={styles.headerTextWrap}>
+                <Text style={styles.greeting}>{greeting} 🌊</Text>
+                <Text style={styles.subGreeting}>Let's dive now</Text>
+              </View>
             </View>
-            <TouchableOpacity
-              style={styles.bellButton}
-              onPress={() => router.push("/notifications")}
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={20}
-                color={colors.darkText}
-              />
-              {unreadCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => router.push("/notifications")}
+                accessibilityRole="button"
+                accessibilityLabel="Notifications"
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={20}
+                  color={colors.darkText}
+                />
+                {unreadCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() =>
+                  showAlert(
+                    "Filters",
+                    "Advanced search filters are coming soon.",
+                  )
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Filters"
+              >
+                <Ionicons
+                  name="options-outline"
+                  size={20}
+                  color={colors.darkText}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Search bar */}
@@ -260,6 +302,42 @@ export default function HomeScreen() {
             )}
           />
 
+          {/* Category filter pills */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryRow}
+          >
+            {categoryOptions.map((cat) => {
+              const isActive = activeCategory === cat.key;
+              return (
+                <TouchableOpacity
+                  key={cat.key}
+                  style={[
+                    styles.categoryPill,
+                    isActive && styles.categoryPillActive,
+                  ]}
+                  onPress={() => setActiveCategory(cat.key)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={cat.icon}
+                    size={16}
+                    color={isActive ? colors.white : colors.primaryBlue}
+                  />
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      isActive && styles.categoryTextActive,
+                    ]}
+                  >
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
           {/* Hero banner carousel */}
           {announcementsLoading ? (
             <View style={styles.heroPlaceholder}>
@@ -273,6 +351,8 @@ export default function HomeScreen() {
                   : require("../../../assets/hero-banner.jpg"),
                 announcement: a.title,
               }))}
+              ctaLabel="Find Trip"
+              onCtaPress={() => router.push("/dive-sites")}
               onPress={() => {}}
             />
           ) : (
@@ -280,9 +360,11 @@ export default function HomeScreen() {
               items={[
                 {
                   image: require("../../../assets/hero-banner.jpg"),
-                  announcement: "Welcome to Mabini",
+                  announcement: "Let's Make Our\nOcean Come Alive",
                 },
               ]}
+              ctaLabel="Find Trip"
+              onCtaPress={() => router.push("/dive-sites")}
             />
           )}
 
@@ -299,12 +381,23 @@ export default function HomeScreen() {
               <ActivityIndicator size="small" color={colors.primaryBlue} />
             </View>
           ) : diveSitesError ? (
-            <ErrorState message="Failed to load dive sites." onRetry={loadDiveSites} />
+            <ErrorState
+              message="Failed to load dive sites."
+              onRetry={loadDiveSites}
+            />
           ) : diveSites.length === 0 ? (
-            <EmptyState icon="map-outline" message="No dive sites available yet." />
+            <EmptyState
+              icon="map-outline"
+              message="No dive sites available yet."
+            />
+          ) : filteredDiveSites.length === 0 ? (
+            <EmptyState
+              icon="funnel-outline"
+              message="No dive sites match this filter."
+            />
           ) : isDesktop || isTablet ? (
             <View style={styles.gridRow}>
-              {diveSites.slice(0, 6).map((site, index) => (
+              {filteredDiveSites.slice(0, 6).map((site, index) => (
                 <DiveSiteCard
                   key={site.id}
                   name={site.name}
@@ -328,7 +421,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.diveSitesRow}
             >
-              {diveSites.slice(0, 6).map((site, index) => (
+              {filteredDiveSites.slice(0, 6).map((site, index) => (
                 <DiveSiteCard
                   key={site.id}
                   name={site.name}
@@ -363,9 +456,15 @@ export default function HomeScreen() {
               <ActivityIndicator size="small" color={colors.primaryBlue} />
             </View>
           ) : establishmentsError ? (
-            <ErrorState message="Failed to load establishments." onRetry={loadEstablishments} />
+            <ErrorState
+              message="Failed to load establishments."
+              onRetry={loadEstablishments}
+            />
           ) : establishments.length === 0 ? (
-            <EmptyState icon="business-outline" message="No accredited establishments yet." />
+            <EmptyState
+              icon="business-outline"
+              message="No accredited establishments yet."
+            />
           ) : isDesktop || isTablet ? (
             <View style={styles.establishmentsGrid}>
               {establishments.slice(0, 4).map((item) => (
@@ -423,24 +522,44 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginTop: 12,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryBlue,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTextWrap: {
     alignItems: "flex-start",
     flex: 1,
   },
   greeting: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "700",
-    color: "#000",
+    color: colors.navy,
   },
   subGreeting: {
-    fontSize: 16,
-    color: "#000",
-    marginTop: 6,
+    fontSize: 13,
+    color: colors.primaryBlue,
+    marginTop: 2,
+    fontWeight: "500",
   },
-  bellButton: {
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  iconButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -488,6 +607,34 @@ const styles = StyleSheet.create({
     color: colors.gray,
     marginTop: 2,
   },
+  categoryRow: {
+    gap: 10,
+    paddingVertical: 4,
+    marginTop: 16,
+  },
+  categoryPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: colors.accentBlue,
+    borderRadius: 100,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    backgroundColor: colors.white,
+  },
+  categoryPillActive: {
+    backgroundColor: colors.primaryBlue,
+    borderColor: colors.primaryBlue,
+  },
+  categoryText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.primaryBlue,
+  },
+  categoryTextActive: {
+    color: colors.white,
+  },
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -495,8 +642,8 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 19,
+    fontWeight: "700",
     color: colors.darkText,
     flexShrink: 1,
     paddingRight: 8,
@@ -531,7 +678,7 @@ const styles = StyleSheet.create({
   },
   heroPlaceholder: {
     marginTop: 16,
-    height: 154,
+    height: 190,
     borderRadius: 24,
     backgroundColor: colors.grayLight,
     alignItems: "center",

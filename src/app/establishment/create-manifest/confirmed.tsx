@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   StatusBar,
@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { colors } from "../../../constants/colors";
 import { Button, Card, ContentContainer } from "../../../components";
+import { useAuth } from "../../../hooks/useAuth";
+import { supabase } from "../../../lib/supabase";
 
 export default function ManifestConfirmedScreen() {
   const router = useRouter();
@@ -23,8 +25,30 @@ export default function ManifestConfirmedScreen() {
     remainingBalance?: string;
   }>();
 
-  const now = new Date();
-  const formattedDate = now.toLocaleDateString("en-US", {
+  const { user } = useAuth();
+  // Re-fetch the ledger for the displayed balance: the remainingBalance
+  // param is client-computed from a possibly-stale ledger value.
+  const [balance, setBalance] = useState<string | undefined>(remainingBalance);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("operator_pass_ledger")
+          .select("remaining_passes")
+          .eq("operator_id", user.id)
+          .maybeSingle();
+        if (data && data.remaining_passes !== null && data.remaining_passes !== undefined) {
+          setBalance(String(data.remaining_passes));
+        }
+      } catch {
+        // Keep the param fallback on failure.
+      }
+    })();
+  }, [user]);
+
+  const now = new Date();  const formattedDate = now.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -39,7 +63,9 @@ export default function ManifestConfirmedScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        {/* Explicit dashboard target: this screen is reached via replace, so
+            router.back() would pop past it to add-diver or the dashboard. */}
+        <TouchableOpacity onPress={() => router.replace("/(operator-tabs)")} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={colors.darkText} />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Manifest Submitted</Text>
@@ -99,12 +125,12 @@ export default function ManifestConfirmedScreen() {
             <Text style={styles.creditsValue}>{diverCount || "0"} passes</Text>
           </View>
         </Card>
-        {remainingBalance !== undefined && (
+        {balance !== undefined && (
           <Card style={styles.creditsCard}>
             <Ionicons name="wallet-outline" size={20} color="#16A34A" />
             <View style={{ flex: 1 }}>
               <Text style={styles.creditsLabel}>Remaining Balance</Text>
-              <Text style={[styles.creditsValue, { color: "#16A34A" }]}>{remainingBalance} passes</Text>
+              <Text style={[styles.creditsValue, { color: "#16A34A" }]}>{balance} passes</Text>
             </View>
           </Card>
         )}

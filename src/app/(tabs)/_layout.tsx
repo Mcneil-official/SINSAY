@@ -56,6 +56,7 @@ const tabLabels: Record<string, string> = {
 
 export default function TabLayout() {
   const { isDesktop } = useLayout();
+  const router = useRouter();
 
   return (
     <>
@@ -66,7 +67,13 @@ export default function TabLayout() {
         }}
         tabBar={(props) =>
           isDesktop ? null : (
-            <BottomNav {...props} tabIcons={tabIcons} tabLabels={tabLabels} />
+            <BottomNav
+              {...props}
+              tabIcons={tabIcons}
+              tabLabels={tabLabels}
+              centerIcon="chatbubble-ellipses"
+              onCenterPress={() => router.push("/dive-assistant/chat")}
+            />
           )
         }
       >

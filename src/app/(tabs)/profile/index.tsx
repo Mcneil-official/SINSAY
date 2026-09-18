@@ -42,7 +42,7 @@ function ProfileRow({ icon, label, subtitle, onPress, destructive }: ProfileRowP
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, profile, operatorApplication, isOperator, signOut, isLoading, updateProfile } = useAuth();
+  const { user, profile, operatorApplication, isOperator, signOut, isLoading, updateProfile, setViewAsTourist } = useAuth();
   const locale: Locale = (profile?.language_preference as Locale) || "en";
 
   const handleLogout = async () => {
@@ -115,7 +115,11 @@ export default function ProfileScreen() {
                     : t("operator_pending_sub", locale)
                 }
                 onPress={() => {
-                  if (isOperator) router.replace("/(operator-tabs)");
+                  if (isOperator) {
+                    // Clear a tourist-view override so the gate doesn't fight us.
+                    setViewAsTourist(false);
+                    router.replace("/(operator-tabs)");
+                  }
                 }}
               />
             </View>

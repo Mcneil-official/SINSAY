@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -23,31 +24,63 @@ import { PaymentConfigRow } from "../../../types/supabase";
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const { passId, passLabel, passCount, quantity, total } =
+  const { passId, passLabel, passCount, quantity, total, unitPrice } =
     useLocalSearchParams<{
       passId?: string;
       passLabel?: string;
       passCount?: string;
       quantity?: string;
       total?: string;
+      unitPrice?: string;
     }>();
 
   const [config, setConfig] = useState<PaymentConfigRow | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("payment_config")
-      .select("*")
-      .limit(1)
-      .single()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("payment_config")
+          .select("*")
+          .limit(1)
+          .single();
         if (data) setConfig(data);
+      } catch (e) {
+        // Empty table (.single() PGRST116) or network failure both land here;
+        // the "not configured" card below covers either case.
+        console.warn("Failed to load payment config:", e);
+      } finally {
         setLoading(false);
-      });
+      }
+    })();
   }, []);
 
   const totalNum = Number(total) || 0;
+  const unitNum = Number(unitPrice) || 0;
+  const countNum = Number(passCount) || 0;
+  // Deep-link guard: this screen is meaningless without an order.
+  const hasOrder = !!passId && !!passLabel && totalNum > 0;
+
+  if (!hasOrder) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+            <Ionicons name="chevron-back" size={24} color={colors.darkText} />
+          </TouchableOpacity>
+          <Text style={styles.topTitle}>Payment</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={styles.centerWrap}>
+          <Text style={styles.centerTitle}>No order found</Text>
+          <Text style={styles.centerSub}>Please select a dive pass first.</Text>
+          <Button title="Back to Passes" onPress={() => router.back()} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -78,6 +111,14 @@ export default function PaymentScreen() {
               {quantity} × {passCount} passes
             </Text>
           </View>
+          {unitNum > 0 && countNum > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Rate</Text>
+              <Text style={styles.summaryValue}>
+                {countNum} × ₱ {unitNum.toLocaleString()}
+              </Text>
+            </View>
+          )}
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.grandLabel}>Total</Text>
@@ -119,13 +160,21 @@ export default function PaymentScreen() {
             {config.qr_code_url && (
               <Card style={styles.qrCard}>
                 <Text style={styles.qrTitle}>Scan to Pay</Text>
-                <View style={styles.qrPlaceholder}>
-                  <Ionicons
-                    name="qr-code"
-                    size={80}
-                    color={colors.primaryBlue}
+                {config.qr_code_url.startsWith("http") ? (
+                  <Image
+                    source={{ uri: config.qr_code_url }}
+                    style={styles.qrImage}
+                    resizeMode="contain"
                   />
-                </View>
+                ) : (
+                  <View style={styles.qrPlaceholder}>
+                    <Ionicons
+                      name="qr-code"
+                      size={80}
+                      color={colors.primaryBlue}
+                    />
+                  </View>
+                )}
                 <Text style={styles.qrNote}>Scan via GCash or Maya</Text>
               </Card>
             )}
@@ -145,7 +194,7 @@ export default function PaymentScreen() {
             onPress={() =>
               router.push({
                 pathname: "/(operator-tabs)/buy-pass/upload",
-                params: { passLabel, passCount, quantity, total },
+                params: { passId, passLabel, passCount, quantity, total, unitPrice },
               })
             }
           />
@@ -156,7 +205,7 @@ export default function PaymentScreen() {
           />
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 110 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -175,39 +224,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   topTitle: { fontSize: 17, fontWeight: "600", color: colors.darkText },
-  progressRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
-    gap: 0,
-  },
-  progressStepWrap: { alignItems: "center", gap: 4 },
-  progressDotActive: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primaryBlue,
-  },
-  progressDotInactive: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.grayLight,
-  },
-  progressTextActive: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.primaryBlue,
-  },
-  progressTextInactive: { fontSize: 11, color: colors.gray },
-  progressLine: {
-    width: 48,
-    height: 2,
-    backgroundColor: colors.grayLight,
-    marginHorizontal: 8,
-    marginBottom: 18,
-  },
+  centerWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 8 },
+  centerTitle: { fontSize: 17, fontWeight: "700", color: colors.darkText, textAlign: "center" },
+  centerSub: { fontSize: 13, color: colors.gray, textAlign: "center", marginBottom: 12 },
   summaryCard: { padding: 16, marginBottom: 16, gap: 4 },
   summaryTitle: {
     fontSize: 15,
@@ -247,6 +266,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
+  qrImage: { width: 180, height: 180, borderRadius: 12, marginBottom: 8 },
   qrNote: { fontSize: 12, color: colors.gray },
   accountCard: { padding: 16, marginBottom: 16, gap: 4 },
   accountRow: {
