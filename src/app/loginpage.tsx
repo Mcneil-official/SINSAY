@@ -16,11 +16,12 @@ import { showAlert } from "../lib/confirm";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handleLogin() {
@@ -37,6 +38,19 @@ export default function LoginPage() {
       return;
     }
     router.replace(isOperator ? "/(operator-tabs)" : "/(tabs)");
+  }
+
+  async function handleGoogleLogin() {
+    setGoogleLoading(true);
+    setError("");
+    // Web PWA: redirects to Google; on return the session restores via
+    // onAuthStateChange and the gates route by role. This only resolves
+    // when the redirect can't start (e.g. provider not enabled).
+    const { error: authError } = await signInWithGoogle();
+    setGoogleLoading(false);
+    if (authError) {
+      setError(authError);
+    }
   }
 
   return (
@@ -112,25 +126,23 @@ export default function LoginPage() {
           <View style={styles.dividerLine} />
         </View>
 
-        <View style={[styles.socialButton, styles.socialButtonDisabled]}>
-          <Image
-            source={require("../../assets/images/search.png")}
-            style={styles.socialIcon}
-          />
-          <Text style={styles.socialTextDisabled}>
-            Continue with Google (coming soon)
-          </Text>
-        </View>
-
-        <View style={[styles.socialButton, styles.socialButtonDisabled]}>
-          <Image
-            source={require("../../assets/images/facebook.png")}
-            style={styles.socialIcon}
-          />
-          <Text style={styles.socialTextDisabled}>
-            Continue with Facebook (coming soon)
-          </Text>
-        </View>
+        <Pressable
+          style={styles.socialButton}
+          onPress={handleGoogleLogin}
+          disabled={googleLoading || loading}
+        >
+          {googleLoading ? (
+            <ActivityIndicator color="#1f1a17" />
+          ) : (
+            <>
+              <Image
+                source={require("../../assets/images/search.png")}
+                style={styles.socialIcon}
+              />
+              <Text style={styles.socialText}>Continue with Google</Text>
+            </>
+          )}
+        </Pressable>
       </AuthLayout>
     </>
   );
@@ -196,6 +208,7 @@ const styles = StyleSheet.create({
   },
   socialButtonDisabled: { opacity: 0.5 },
   socialIcon: { width: 20, height: 20 },
+  socialText: { fontSize: 13, fontWeight: "600", color: "#1f1a17" },
   socialTextDisabled: { fontSize: 13, fontWeight: "600", color: "#9b9b9b" },
   errorText: { color: "#EF4444", fontSize: 13, textAlign: "center" },
 });

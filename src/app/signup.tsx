@@ -17,14 +17,27 @@ import { supabase } from "../lib/supabase";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  async function handleGoogleSignup() {
+    setGoogleLoading(true);
+    setError("");
+    // OAuth signup is first-time OAuth login: Google supplies the name, so
+    // the name field above doesn't apply. Same redirect flow as login.
+    const { error: authError } = await signInWithGoogle();
+    setGoogleLoading(false);
+    if (authError) {
+      setError(authError);
+    }
+  }
 
   async function handleRegister() {
     if (!fullName || !email || !password) {
@@ -139,20 +152,22 @@ export default function SignUpPage() {
             <View style={styles.dividerLine} />
           </View>
 
-          <Pressable style={styles.socialButton} onPress={() => {}}>
-            <Image
-              source={require("../../assets/images/search.png")}
-              style={styles.socialIcon}
-            />
-            <Text style={styles.socialText}>Continue with Google</Text>
-          </Pressable>
-
-          <Pressable style={styles.socialButton} onPress={() => {}}>
-            <Image
-              source={require("../../assets/images/facebook.png")}
-              style={styles.socialIcon}
-            />
-            <Text style={styles.socialText}>Continue with Facebook</Text>
+          <Pressable
+            style={styles.socialButton}
+            onPress={handleGoogleSignup}
+            disabled={googleLoading || loading}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color="#1f1a17" />
+            ) : (
+              <>
+                <Image
+                  source={require("../../assets/images/search.png")}
+                  style={styles.socialIcon}
+                />
+                <Text style={styles.socialText}>Continue with Google</Text>
+              </>
+            )}
           </Pressable>
         </ScrollView>
       </AuthLayout>

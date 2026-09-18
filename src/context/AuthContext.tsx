@@ -22,6 +22,11 @@ interface AuthState {
   markAllNotificationsRead: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error?: string; isOperator?: boolean }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error?: string }>;
+  // Google OAuth (web PWA): triggers a full-page redirect to Google; the
+  // session is picked up by getSession/onAuthStateChange on return and the
+  // gates route by role. Never throws — returns { error } (e.g. provider
+  // not enabled) when the redirect can't start.
+  signInWithGoogle: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (updates: TouristUpdate) => Promise<{ error?: string }>;
@@ -43,6 +48,7 @@ const defaultAuthState: AuthState = {
   markAllNotificationsRead: async () => {},
   signIn: async () => ({}),
   signUp: async () => ({}),
+  signInWithGoogle: async () => ({}),
   signOut: async () => {},
   refreshProfile: async () => {},
   updateProfile: async () => ({}),
@@ -328,6 +334,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) await fetchProfile(user.id);
   }, [user, fetchProfile]);
 
+  const signInWithGoogle = useCallback(async () => {
+    // Web PWA: full-page redirect; this promise only resolves when the
+    // redirect can't start (otherwise the page navigates away).
+    const redirectTo =
+      typeof window !== "undefined" ? window.location.origin : undefined;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: redirectTo ? { redirectTo } : undefined,
+    });
+    if (error) return { error: error.message };
+    return {};
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -346,6 +365,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         markAllNotificationsRead,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
         refreshProfile,
         updateProfile,
