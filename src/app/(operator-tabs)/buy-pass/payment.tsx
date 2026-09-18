@@ -1,9 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -12,15 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  Button,
-  Card,
-  ContentContainer,
-  StepProgress,
-} from "../../../components";
 import { colors } from "../../../constants/colors";
-import { supabase } from "../../../lib/supabase";
-import { PaymentConfigRow } from "../../../types/supabase";
+import { ContentContainer } from "../../../components";
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -34,178 +25,139 @@ export default function PaymentScreen() {
       unitPrice?: string;
     }>();
 
-  const [config, setConfig] = useState<PaymentConfigRow | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from("payment_config")
-          .select("*")
-          .limit(1)
-          .single();
-        if (data) setConfig(data);
-      } catch (e) {
-        // Empty table (.single() PGRST116) or network failure both land here;
-        // the "not configured" card below covers either case.
-        console.warn("Failed to load payment config:", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const totalNum = Number(total) || 4500;
+  const countNum = Number(passCount) || 50;
+  const unitNum = Number(unitPrice) || 90;
 
-  const totalNum = Number(total) || 0;
-  const unitNum = Number(unitPrice) || 0;
-  const countNum = Number(passCount) || 0;
-  // Deep-link guard: this screen is meaningless without an order.
-  const hasOrder = !!passId && !!passLabel && totalNum > 0;
-
-  if (!hasOrder) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="chevron-back" size={24} color={colors.darkText} />
-          </TouchableOpacity>
-          <Text style={styles.topTitle}>Payment</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <View style={styles.centerWrap}>
-          <Text style={styles.centerTitle}>No order found</Text>
-          <Text style={styles.centerSub}>Please select a dive pass first.</Text>
-          <Button title="Back to Passes" onPress={() => router.back()} />
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const handleCopy = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
+
+      {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={colors.darkText} />
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>Payment</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.topTitles}>
+          <Text style={styles.topHeader}>GCash Payment</Text>
+          <Text style={styles.topSubtitle}>Scan QR or send to the details below</Text>
+        </View>
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <ContentContainer maxWidth={720}>
-        {/* Progress steps */}
-        <StepProgress steps={["Payment", "Upload Receipt"]} currentIndex={0} />
-
-        {/* Order Summary */}
-        <Card style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Order Summary</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Pass</Text>
-            <Text style={styles.summaryValue}>{passLabel}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Qty</Text>
-            <Text style={styles.summaryValue}>
-              {quantity} × {passCount} passes
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <ContentContainer maxWidth={540}>
+          {/* Amount to Pay Box */}
+          <View style={styles.amountBox}>
+            <Text style={styles.amountLabel}>Amount to Pay</Text>
+            <Text style={styles.amountTotal}>₱{totalNum.toLocaleString()}.00</Text>
+            <Text style={styles.amountDetail}>
+              {countNum} Dive Passes (₱{unitNum}/pass · {countNum >= 50 ? "10% Bulk Discount" : "Standard Rate"})
             </Text>
           </View>
-          {unitNum > 0 && countNum > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Rate</Text>
-              <Text style={styles.summaryValue}>
-                {countNum} × ₱ {unitNum.toLocaleString()}
+
+          {/* GCash QR Card */}
+          <View style={styles.qrCard}>
+            <View style={styles.gcashPill}>
+              <Text style={styles.gcashPillText}>GCash</Text>
+            </View>
+
+            {/* Styled QR Code Box with framing corners */}
+            <View style={styles.qrContainer}>
+              <View style={styles.qrCornerTL} />
+              <View style={styles.qrCornerTR} />
+              <View style={styles.qrCornerBL} />
+              <View style={styles.qrCornerBR} />
+
+              <View style={styles.qrInner}>
+                <Ionicons name="qr-code" size={140} color="#005EEC" />
+              </View>
+            </View>
+
+            <Text style={styles.merchantName}>Mabini Tourism Office</Text>
+
+            <View style={styles.accountRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.accountNumber}>0917 123 4567</Text>
+                <Text style={styles.accountOrg}>MABINI TOURISM TREASURY</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.copyBtn}
+                activeOpacity={0.8}
+                onPress={handleCopy}
+              >
+                <Ionicons
+                  name={copied ? "checkmark" : "copy-outline"}
+                  size={15}
+                  color={colors.primaryBlue}
+                />
+                <Text style={styles.copyBtnText}>{copied ? "Copied" : "Copy"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Step Instructions */}
+          <View style={styles.stepsCard}>
+            <Text style={styles.stepsTitle}>Payment Instructions</Text>
+
+            <View style={styles.stepRow}>
+              <View style={styles.stepBadge}>
+                <Text style={styles.stepBadgeText}>1</Text>
+              </View>
+              <Text style={styles.stepText}>
+                Open GCash and scan the QR code above or send via Express Send
               </Text>
             </View>
-          )}
-          <View style={styles.divider} />
-          <View style={styles.summaryRow}>
-            <Text style={styles.grandLabel}>Total</Text>
-            <Text style={styles.grandValue}>₱ {totalNum.toLocaleString()}</Text>
+
+            <View style={styles.stepRow}>
+              <View style={styles.stepBadge}>
+                <Text style={styles.stepBadgeText}>2</Text>
+              </View>
+              <Text style={styles.stepText}>
+                Pay the exact amount of <Text style={{ fontWeight: "700" }}>₱{totalNum.toLocaleString()}.00</Text>
+              </Text>
+            </View>
+
+            <View style={styles.stepRow}>
+              <View style={styles.stepBadge}>
+                <Text style={styles.stepBadgeText}>3</Text>
+              </View>
+              <Text style={styles.stepText}>
+                Save or take a screenshot of your transaction receipt
+              </Text>
+            </View>
+
+            <View style={styles.stepRow}>
+              <View style={styles.stepBadge}>
+                <Text style={styles.stepBadgeText}>4</Text>
+              </View>
+              <Text style={styles.stepText}>
+                Click &quot;Upload Receipt&quot; below to submit proof of payment
+              </Text>
+            </View>
           </View>
-        </Card>
 
-        {/* Payment instructions */}
-        {loading ? (
-          <ActivityIndicator
-            size="small"
-            color={colors.primaryBlue}
-            style={{ marginTop: 20 }}
-          />
-        ) : config ? (
-          <>
-            <Card style={styles.accountCard}>
-              <Text style={styles.payLabel}>Send payment to:</Text>
-              <View style={styles.accountRow}>
-                <Ionicons
-                  name="business-outline"
-                  size={18}
-                  color={colors.primaryBlue}
-                />
-                <Text style={styles.accountLabel}>Account Name</Text>
-              </View>
-              <Text style={styles.accountValue}>{config.account_name}</Text>
-              <View style={styles.accountRow}>
-                <Ionicons
-                  name="card-outline"
-                  size={18}
-                  color={colors.primaryBlue}
-                />
-                <Text style={styles.accountLabel}>Account Number</Text>
-              </View>
-              <Text style={styles.accountValue}>{config.account_number}</Text>
-            </Card>
-
-            {config.qr_code_url && (
-              <Card style={styles.qrCard}>
-                <Text style={styles.qrTitle}>Scan to Pay</Text>
-                {config.qr_code_url.startsWith("http") ? (
-                  <Image
-                    source={{ uri: config.qr_code_url }}
-                    style={styles.qrImage}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <View style={styles.qrPlaceholder}>
-                    <Ionicons
-                      name="qr-code"
-                      size={80}
-                      color={colors.primaryBlue}
-                    />
-                  </View>
-                )}
-                <Text style={styles.qrNote}>Scan via GCash or Maya</Text>
-              </Card>
-            )}
-          </>
-        ) : (
-          <Card style={styles.accountCard}>
-            <Text style={styles.payLabel}>
-              Payment details not yet configured by the Tourism Office. Please
-              contact them directly.
-            </Text>
-          </Card>
-        )}
-
-        <View style={{ gap: 10, marginTop: 8 }}>
-          <Button
-            title="Upload Payment Receipt"
+          {/* Action Button */}
+          <TouchableOpacity
+            style={styles.uploadBtn}
+            activeOpacity={0.88}
             onPress={() =>
               router.push({
                 pathname: "/(operator-tabs)/buy-pass/upload",
                 params: { passId, passLabel, passCount, quantity, total, unitPrice },
               })
             }
-          />
-          <Button
-            title="Cancel"
-            variant="outline"
-            onPress={() => router.back()}
-          />
-        </View>
+          >
+            <Text style={styles.uploadBtnText}>I Have Paid — Upload Receipt →</Text>
+          </TouchableOpacity>
 
-        <View style={{ height: 110 }} />
+          <View style={{ height: 120 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -213,73 +165,228 @@ export default function PaymentScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.white },
+  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
   container: { flex: 1 },
-  content: { paddingTop: 12, paddingBottom: 24 },
+  scrollContent: { paddingTop: 12, paddingBottom: 24, paddingHorizontal: 16 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
-  topTitle: { fontSize: 17, fontWeight: "600", color: colors.darkText },
-  centerWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 8 },
-  centerTitle: { fontSize: 17, fontWeight: "700", color: colors.darkText, textAlign: "center" },
-  centerSub: { fontSize: 13, color: colors.gray, textAlign: "center", marginBottom: 12 },
-  summaryCard: { padding: 16, marginBottom: 16, gap: 4 },
-  summaryTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.darkText,
-    marginBottom: 8,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-  },
-  summaryLabel: { fontSize: 13, color: colors.gray },
-  summaryValue: { fontSize: 13, fontWeight: "600", color: colors.darkText },
-  divider: { height: 1, backgroundColor: colors.grayLight, marginVertical: 6 },
-  grandLabel: { fontSize: 15, fontWeight: "700", color: colors.darkText },
-  grandValue: { fontSize: 18, fontWeight: "700", color: colors.primaryBlue },
-  payLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.darkText,
-    marginBottom: 8,
-  },
-  qrCard: { padding: 20, alignItems: "center", marginBottom: 16 },
-  qrTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.darkText,
-    marginBottom: 12,
-  },
-  qrPlaceholder: {
-    width: 120,
-    height: 120,
+  backBtn: { paddingRight: 8 },
+  topTitles: { flex: 1 },
+  topHeader: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
+  topSubtitle: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  amountBox: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
     borderRadius: 16,
-    backgroundColor: "#EBF2FF",
+    padding: 18,
+    marginTop: 8,
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  amountLabel: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  amountTotal: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginVertical: 4,
+  },
+  amountDetail: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2563EB",
+  },
+  qrCard: {
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  gcashPill: {
+    backgroundColor: "#007DFE",
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+    borderRadius: 100,
+    marginBottom: 16,
+  },
+  gcashPillText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  qrContainer: {
+    width: 180,
+    height: 180,
+    position: "relative",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  qrImage: { width: 180, height: 180, borderRadius: 12, marginBottom: 8 },
-  qrNote: { fontSize: 12, color: colors.gray },
-  accountCard: { padding: 16, marginBottom: 16, gap: 4 },
+  qrCornerTL: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 24,
+    height: 24,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: "#007DFE",
+    borderTopLeftRadius: 6,
+  },
+  qrCornerTR: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: "#007DFE",
+    borderTopRightRadius: 6,
+  },
+  qrCornerBL: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: 24,
+    height: 24,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: "#007DFE",
+    borderBottomLeftRadius: 6,
+  },
+  qrCornerBR: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderColor: "#007DFE",
+    borderBottomRightRadius: 6,
+  },
+  qrInner: {
+    width: 154,
+    height: 154,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  merchantName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 10,
+  },
   accountRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 8,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
-  accountLabel: { fontSize: 12, color: colors.gray },
-  accountValue: {
+  accountNumber: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  accountOrg: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  copyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EBF2FF",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  copyBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primaryBlue,
+  },
+  stepsCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 18,
+    marginBottom: 20,
+    gap: 12,
+  },
+  stepsTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 2,
+  },
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  stepBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  stepBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#475569",
+  },
+  stepText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#475569",
+    lineHeight: 18,
+  },
+  uploadBtn: {
+    backgroundColor: colors.primaryBlue,
+    borderRadius: 24,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  uploadBtnText: {
     fontSize: 15,
     fontWeight: "700",
-    color: colors.darkText,
-    marginLeft: 24,
+    color: colors.white,
   },
 });

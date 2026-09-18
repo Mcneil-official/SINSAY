@@ -41,19 +41,18 @@ const tabIcons: Record<
   index: { focused: "home", unfocused: "home-outline" },
   manifests: { focused: "document-text", unfocused: "document-text-outline" },
   "buy-pass": { focused: "cart", unfocused: "cart-outline" },
-  profile: { focused: "person", unfocused: "person-outline" },
+  profile: { focused: "person-circle", unfocused: "person-circle-outline" },
 };
 
 const tabLabels: Record<string, string> = {
   index: "Home",
-  manifests: "Manifests",
-  "buy-pass": "Buy Pass",
+  manifests: "Dive Manifesto",
+  "buy-pass": "Buy Dive Pass",
   profile: "Profile",
 };
 
 export default function OperatorTabLayout() {
   const { isDesktop } = useLayout();
-  const router = useRouter();
 
   return (
     <>
@@ -66,10 +65,6 @@ export default function OperatorTabLayout() {
               {...props}
               tabIcons={tabIcons}
               tabLabels={tabLabels}
-              centerIcon="add"
-              onCenterPress={() =>
-                router.push("/establishment/create-manifest/step1")
-              }
             />
           )
         }

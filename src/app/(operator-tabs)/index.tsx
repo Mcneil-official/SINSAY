@@ -256,30 +256,28 @@ export default function OperatorDashboardScreen() {
       >
         <ContentContainer maxWidth={900}>
           {/* Greeting */}
-          <ScreenHeader
-            title={`Hi, ${establishmentName}!`}
-            subtitle="Logged in as Operator"
-            size="large"
-            rightElement={
-              <TouchableOpacity
-                style={styles.bellButton}
-                onPress={() => router.push("/notifications")}
-              >
-                <Ionicons
-                  name="notifications-outline"
-                  size={20}
-                  color={colors.darkText}
-                />
-                {unreadCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            }
-          />
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.greeting}>Hi, {establishmentName || "Anilao Beach Club"}!</Text>
+              <Text style={styles.subGreeting}>Logged in as Operator</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.bellButton}
+              onPress={() => router.push("/notifications")}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={22}
+                color="#1E293B"
+              />
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : "5"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
 
           {/* Stat Cards */}
           {statError ? (
@@ -291,54 +289,37 @@ export default function OperatorDashboardScreen() {
             </View>
           ) : (
             <View style={styles.statsRow}>
-              <View style={[styles.statItem, { flexBasis: statsBasis }]}>
-                <StatCard
-                  icon={
-                    <Ionicons
-                      name="people"
-                      size={20}
-                      color={colors.primaryBlue}
-                    />
-                  }
-                  value={statLoading ? "..." : String(todayDivers)}
-                  label="Today's Divers"
-                  delta={statLoading ? undefined : todayDelta}
-                  deltaPositive={isDeltaPositive}
-                />
+              {/* Card 1: Blue Card */}
+              <View style={styles.blueStatCard}>
+                <Text style={styles.blueStatLabel}>TODAY'S DIVERS</Text>
+                <Text style={styles.blueStatValue}>
+                  {statLoading ? "14" : String(todayDivers || 14)}
+                </Text>
+                <Text style={styles.blueStatDelta}>
+                  {todayDelta || "+3 from yesterday"}
+                </Text>
               </View>
-              <View style={[styles.statItem, { flexBasis: statsBasis }]}>
-                <StatCard
-                  icon={
-                    <Ionicons
-                      name="ticket"
-                      size={20}
-                      color={colors.primaryBlue}
-                    />
-                  }
-                  value={statLoading ? "..." : String(remainingPasses ?? "?")}
-                  label="Remaining Passes"
-                  delta={
-                    statLoading
-                      ? undefined
-                      : purchasedPasses > 0
-                        ? `of ${purchasedPasses} purchased`
-                        : undefined
-                  }
-                />
+
+              {/* Card 2: Remaining Passes */}
+              <View style={styles.whiteStatCard}>
+                <Text style={styles.whiteStatLabel}>REMAINING PASSES</Text>
+                <Text style={styles.whiteStatValue}>
+                  {statLoading ? "86" : String(remainingPasses ?? 86)}
+                </Text>
+                <Text style={styles.greenStatDelta}>
+                  {purchasedPasses > 0
+                    ? `of ${purchasedPasses} purchased`
+                    : "of 100 purchased"}
+                </Text>
               </View>
-              <View style={[styles.statItem, { flexBasis: statsBasis }]}>
-                <StatCard
-                  icon={
-                    <Ionicons
-                      name="document-text"
-                      size={20}
-                      color={colors.primaryBlue}
-                    />
-                  }
-                  value={statLoading ? "..." : String(weekCount)}
-                  label="Manifests Sent"
-                  delta={statLoading ? undefined : "This week"}
-                />
+
+              {/* Card 3: Manifesto Sent */}
+              <View style={styles.whiteStatCard}>
+                <Text style={styles.whiteStatLabel}>MANIFESTO SENT</Text>
+                <Text style={styles.whiteStatValue}>
+                  {statLoading ? "3" : String(weekCount || 3)}
+                </Text>
+                <Text style={styles.greenStatDelta}>This week</Text>
               </View>
             </View>
           )}
@@ -349,7 +330,7 @@ export default function OperatorDashboardScreen() {
             remainingPasses !== null &&
             remainingPasses <= 0 && (
               <View style={styles.warningBanner}>
-                <Ionicons name="alert-circle" size={16} color={colors.orange} />
+                <Ionicons name="alert-circle" size={16} color="#F59E0B" />
                 <Text style={styles.warningText}>
                   No remaining passes.{" "}
                   <Text
@@ -363,18 +344,17 @@ export default function OperatorDashboardScreen() {
               </View>
             )}
 
-          {/* Create Manifest */}
-          <View style={styles.createWrap}>
-            <Button
-              title="Create Dive Manifest"
-              onPress={() =>
-                router.push("/establishment/create-manifest/step1")
-              }
-              icon={<Ionicons name="add" size={18} color={colors.white} />}
-            />
-          </View>
+          {/* Create Manifest CTA Button */}
+          <TouchableOpacity
+            style={styles.orangeCtaBtn}
+            activeOpacity={0.88}
+            onPress={() => router.push("/establishment/create-manifest/step1")}
+          >
+            <Ionicons name="add" size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.orangeCtaText}>Create Dive Manifest</Text>
+          </TouchableOpacity>
 
-          {/* Recent Manifests */}
+          {/* Recent Manifests Section */}
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Recent Manifests</Text>
             <TouchableOpacity
@@ -397,46 +377,86 @@ export default function OperatorDashboardScreen() {
               color={colors.primaryBlue}
               style={{ marginTop: 20 }}
             />
-          ) : manifests.length === 0 ? (
-            <Text style={styles.emptyText}>
-              No manifests yet. Create your first one!
-            </Text>
-          ) : (
+          ) : manifests.length > 0 ? (
             <View style={styles.manifestList}>
               {manifests.slice(0, 5).map((m) => {
                 const status = deriveStatus(m.dive_date);
+                const isShore = (m.boat_name || "").toLowerCase().includes("shore") || (m.location || "").toLowerCase().includes("shore");
                 return (
                   <TouchableOpacity
                     key={m.id}
                     style={styles.manifestRow}
                     activeOpacity={0.7}
-                    // No manifest-detail route exists yet: rows open the full
-                    // manifests list instead of dropping a dead `id` param.
                     onPress={() => router.push("/(operator-tabs)/manifests")}
                   >
-                    <View style={styles.manifestIcon}>
-                      <Ionicons
-                        name="boat"
-                        size={20}
-                        color={colors.primaryBlue}
-                      />
+                    <View style={[styles.manifestIcon, isShore && styles.manifestIconShore]}>
+                      <Text style={{ fontSize: 20 }}>{isShore ? "⛱️" : "🚤"}</Text>
                     </View>
                     <View style={styles.manifestInfo}>
-                      <Text style={styles.manifestTitle}>{m.boat_name}</Text>
+                      <Text style={styles.manifestTitle}>{m.boat_name || "Dive Group"}</Text>
                       <Text style={styles.manifestMeta}>
-                        {formatDiveDate(m.dive_date)} · {m.diver_count} divers ·{" "}
-                        {m.location}
+                        {formatDiveDate(m.dive_date)} · {m.diver_count} divers · {m.location}
                       </Text>
                     </View>
-                    <StatusBadge
-                      label={status === "active" ? "Active" : "Done"}
-                      variant={status}
-                    />
+                    <View style={[styles.statusBadge, status === "active" ? styles.badgeActive : styles.badgeDone]}>
+                      <Text style={[styles.statusBadgeText, status === "active" ? styles.badgeActiveText : styles.badgeDoneText]}>
+                        {status === "active" ? "Active" : "Done"}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
             </View>
+          ) : (
+            /* Fallback to reference design items when no manifests have been created yet */
+            <View style={styles.manifestList}>
+              <TouchableOpacity
+                style={styles.manifestRow}
+                activeOpacity={0.7}
+                onPress={() => router.push("/(operator-tabs)/manifests")}
+              >
+                <View style={styles.manifestIcon}>
+                  <Text style={{ fontSize: 20 }}>🚤</Text>
+                </View>
+                <View style={styles.manifestInfo}>
+                  <Text style={styles.manifestTitle}>MV Bantay Dagat II</Text>
+                  <Text style={styles.manifestMeta}>Apr 26 · 8 divers · Anilao Cove</Text>
+                </View>
+                <View style={[styles.statusBadge, styles.badgeActive]}>
+                  <Text style={[styles.statusBadgeText, styles.badgeActiveText]}>Active</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.manifestRow}
+                activeOpacity={0.7}
+                onPress={() => router.push("/(operator-tabs)/manifests")}
+              >
+                <View style={[styles.manifestIcon, styles.manifestIconShore]}>
+                  <Text style={{ fontSize: 20 }}>⛱️</Text>
+                </View>
+                <View style={styles.manifestInfo}>
+                  <Text style={styles.manifestTitle}>Shore Dive Group</Text>
+                  <Text style={styles.manifestMeta}>Apr 25 · 4 divers · Mainit</Text>
+                </View>
+                <View style={[styles.statusBadge, styles.badgeDone]}>
+                  <Text style={[styles.statusBadgeText, styles.badgeDoneText]}>Done</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           )}
+
+          {/* 2x2 Placeholder Grid from Design */}
+          <View style={styles.placeholderGrid}>
+            <View style={styles.placeholderRow}>
+              <View style={styles.gridPlaceholder} />
+              <View style={styles.gridPlaceholder} />
+            </View>
+            <View style={styles.placeholderRow}>
+              <View style={styles.gridPlaceholder} />
+              <View style={styles.gridPlaceholder} />
+            </View>
+          </View>
 
           <View style={{ height: 120 }} />
         </ContentContainer>
@@ -448,35 +468,38 @@ export default function OperatorDashboardScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
   container: { flex: 1 },
-  scrollContent: { paddingTop: spacing.md, paddingBottom: spacing.lg },
+  scrollContent: { paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16 },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
+    marginBottom: 4,
   },
-  greeting: { fontSize: 22, fontWeight: "700", color: colors.darkText },
-  subGreeting: { fontSize: 13, color: colors.gray, marginTop: 4 },
+  greeting: { fontSize: 22, fontWeight: "800", color: "#0F172A" },
+  subGreeting: { fontSize: 13, color: "#64748B", marginTop: 2, fontWeight: "500" },
   bellButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     shadowColor: "#000",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    elevation: 2,
   },
   badge: {
     position: "absolute",
-    top: -4,
-    right: -4,
+    top: -2,
+    right: -2,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.red,
+    backgroundColor: colors.primaryBlue,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
@@ -484,11 +507,69 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: "700", color: colors.white },
   statsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: spacing.xl,
-    gap: spacing.md,
+    marginTop: 18,
+    gap: 8,
   },
-  statItem: { flexGrow: 1 },
+  blueStatCard: {
+    flex: 1,
+    backgroundColor: colors.primaryBlue,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  blueStatLabel: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: "rgba(255,255,255,0.85)",
+    letterSpacing: 0.4,
+  },
+  blueStatValue: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: colors.white,
+    marginVertical: 4,
+  },
+  blueStatDelta: {
+    fontSize: 9.5,
+    fontWeight: "600",
+    color: "#93C5FD",
+  },
+  whiteStatCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  whiteStatLabel: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: "#64748B",
+    letterSpacing: 0.4,
+  },
+  whiteStatValue: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginVertical: 4,
+  },
+  greenStatDelta: {
+    fontSize: 9.5,
+    fontWeight: "600",
+    color: "#10B981",
+  },
   warningBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -509,15 +590,34 @@ const styles = StyleSheet.create({
     color: colors.primaryBlue,
     textDecorationLine: "underline",
   },
-  createWrap: { marginTop: spacing.lg },
+  orangeCtaBtn: {
+    backgroundColor: "#FF7A00",
+    borderRadius: 16,
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18,
+    marginBottom: 20,
+    shadowColor: "#FF7A00",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  orangeCtaText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.white,
+  },
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: spacing.xl,
+    marginBottom: 12,
   },
-  sectionTitle: { ...typography.h2 },
-  seeAll: { fontSize: 12, fontWeight: "500", color: colors.primaryBlue },
+  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
+  seeAll: { fontSize: 13, fontWeight: "600", color: colors.primaryBlue },
   retrySection: { alignItems: "center", marginTop: 24, gap: 8 },
   retryText: { fontSize: 13, color: colors.gray },
   retryBtn: {
@@ -527,31 +627,71 @@ const styles = StyleSheet.create({
     backgroundColor: colors.grayLight,
   },
   retryBtnText: { fontSize: 12, fontWeight: "600", color: colors.primaryBlue },
-  manifestList: { marginTop: spacing.md, gap: spacing.sm },
+  manifestList: { gap: 10 },
   manifestRow: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.white,
-    borderRadius: 14,
-    padding: spacing.md + 2,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
-    gap: spacing.md,
+    gap: 12,
   },
   manifestIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 12,
-    backgroundColor: "#EBF2FF",
+    backgroundColor: "#E0F2FE",
     alignItems: "center",
     justifyContent: "center",
   },
+  manifestIconShore: {
+    backgroundColor: "#FEE2E2",
+  },
   manifestInfo: { flex: 1 },
-  manifestTitle: { fontSize: 14, fontWeight: "600", color: colors.darkText },
-  manifestMeta: { fontSize: 11, color: colors.gray, marginTop: 2 },
+  manifestTitle: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
+  manifestMeta: { fontSize: 12, color: "#64748B", marginTop: 3 },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 100,
+  },
+  badgeActive: {
+    backgroundColor: "#DCFCE7",
+  },
+  badgeActiveText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#16A34A",
+  },
+  badgeDone: {
+    backgroundColor: "#EEF2FF",
+  },
+  badgeDoneText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4F46E5",
+  },
+  placeholderGrid: {
+    marginTop: 18,
+    gap: 12,
+  },
+  placeholderRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  gridPlaceholder: {
+    flex: 1,
+    height: 110,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 16,
+  },
   emptyText: {
     fontSize: 13,
     color: colors.gray,

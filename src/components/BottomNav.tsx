@@ -16,6 +16,8 @@ interface BottomNavProps {
     }
   >;
   tabLabels: Record<string, string>;
+  /** Whether to show a raised center action button (default false). */
+  showCenterButton?: boolean;
   /** Icon shown in the raised center action button. */
   centerIcon?: keyof typeof Ionicons.glyphMap;
   /** Called when the center action button is pressed. */
@@ -27,11 +29,11 @@ export default function BottomNav({
   navigation,
   tabIcons,
   tabLabels,
+  showCenterButton = false,
   centerIcon = "add",
   onCenterPress,
 }: BottomNavProps) {
-  // Split tabs left/right of the raised center action button, mirroring the
-  // reference nav (home + 1 icon | + | 2 icons).
+  // Split tabs left/right of the raised center action button only when showCenterButton is true
   const mid = Math.ceil(state.routes.length / 2);
   const leftRoutes = state.routes
     .slice(0, mid)
@@ -68,9 +70,9 @@ export default function BottomNav({
           <Ionicons
             name={icon?.focused || "ellipse"}
             size={18}
-            color={colors.navy}
+            color={colors.primaryBlue}
           />
-          <Text style={styles.activeText}>{label}</Text>
+          <Text style={styles.activeText} numberOfLines={1}>{label}</Text>
         </View>
       );
     }
@@ -87,8 +89,8 @@ export default function BottomNav({
       >
         <Ionicons
           name={icon?.unfocused || "ellipse-outline"}
-          size={20}
-          color="rgba(255,255,255,0.6)"
+          size={22}
+          color="rgba(255,255,255,0.9)"
         />
       </TouchableOpacity>
     );
@@ -97,24 +99,32 @@ export default function BottomNav({
   return (
     <View style={styles.barWrap}>
       <View style={styles.bar}>
-        <View style={styles.side}>
-          {leftRoutes.map(({ route, index }) => renderTab(route, index))}
-        </View>
-        <View style={styles.centerSpacer} />
-        <View style={styles.side}>
-          {rightRoutes.map(({ route, index }) => renderTab(route, index))}
-        </View>
+        {showCenterButton ? (
+          <>
+            <View style={styles.side}>
+              {leftRoutes.map(({ route, index }) => renderTab(route, index))}
+            </View>
+            <View style={styles.centerSpacer} />
+            <View style={styles.side}>
+              {rightRoutes.map(({ route, index }) => renderTab(route, index))}
+            </View>
+          </>
+        ) : (
+          state.routes.map((route, index) => renderTab(route, index))
+        )}
       </View>
 
-      <TouchableOpacity
-        style={styles.centerButton}
-        onPress={onCenterPress}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel="Quick action"
-      >
-        <Ionicons name={centerIcon} size={26} color={colors.white} />
-      </TouchableOpacity>
+      {showCenterButton && (
+        <TouchableOpacity
+          style={styles.centerButton}
+          onPress={onCenterPress}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Quick action"
+        >
+          <Ionicons name={centerIcon} size={26} color={colors.white} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -165,8 +175,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   activeText: {
-    color: colors.navy,
-    fontWeight: "600",
+    color: colors.primaryBlue,
+    fontWeight: "700",
     fontSize: 13,
   },
   inactiveTab: {

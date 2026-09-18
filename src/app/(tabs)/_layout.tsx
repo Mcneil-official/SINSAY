@@ -71,8 +71,6 @@ export default function TabLayout() {
               {...props}
               tabIcons={tabIcons}
               tabLabels={tabLabels}
-              centerIcon="chatbubble-ellipses"
-              onCenterPress={() => router.push("/dive-assistant/chat")}
             />
           )
         }
