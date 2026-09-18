@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(10, 26, 64, 0.38)",
   },
   headlineWrap: {

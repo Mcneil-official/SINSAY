@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -78,13 +78,6 @@ export default function OperatorDashboardScreen() {
   const [manifestLoading, setManifestLoading] = useState(true);
   const [manifestError, setManifestError] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
-    void loadEstablishment();
-    void loadStats();
-    void loadManifests();
-  }, [user]);
-
   const loadEstablishment = async () => {
     try {
       const { data, error } = await supabase
@@ -111,12 +104,16 @@ export default function OperatorDashboardScreen() {
     setStatLoading(true);
     setStatError(false);
     try {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const yesterdayStart = new Date(todayStart);
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-      const todayEnd = new Date(todayStart);
-      todayEnd.setDate(todayEnd.getDate() + 1);
+      // Stats are anchored on dive_date (the day of the dive), not
+      // created_at (the day the manifest was encoded) — a manifest made
+      // today for next week's dive counts for next week.
+      const toLocalDate = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const today = new Date();
+      const todayStr = toLocalDate(today);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = toLocalDate(yesterday);
 
       // Today's and yesterday's diver counts
       // NOTE: every query checks its own { error } — RLS denials don't throw,
@@ -125,8 +122,7 @@ export default function OperatorDashboardScreen() {
         .from("dive_manifests")
         .select("id")
         .eq("operator_id", user!.id)
-        .gte("created_at", todayStart.toISOString())
-        .lt("created_at", todayEnd.toISOString());
+        .eq("dive_date", todayStr);
       if (todayErr) throw todayErr;
 
       if (todayMf && todayMf.length > 0) {
@@ -145,8 +141,7 @@ export default function OperatorDashboardScreen() {
         .from("dive_manifests")
         .select("id")
         .eq("operator_id", user!.id)
-        .gte("created_at", yesterdayStart.toISOString())
-        .lt("created_at", todayStart.toISOString());
+        .eq("dive_date", yesterdayStr);
       if (yErr) throw yErr;
 
       if (yesterdayMf && yesterdayMf.length > 0) {
@@ -171,15 +166,14 @@ export default function OperatorDashboardScreen() {
       setRemainingPasses(ledger?.remaining_passes ?? 0);
       setPurchasedPasses(ledger?.purchased_passes ?? 0);
 
-      // Manifests this week
-      const weekStart = new Date();
+      // Manifests this week (dive weeks, Sunday-based)
+      const weekStart = new Date(today);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      weekStart.setHours(0, 0, 0, 0);
       const { count: wc, error: wcErr } = await supabase
         .from("dive_manifests")
         .select("id", { count: "exact", head: true })
         .eq("operator_id", user!.id)
-        .gte("created_at", weekStart.toISOString());
+        .gte("dive_date", toLocalDate(weekStart));
       if (wcErr) throw wcErr;
       setWeekCount(wc || 0);
     } catch (e) {
@@ -223,6 +217,17 @@ export default function OperatorDashboardScreen() {
     setManifestLoading(false);
   }, [user]);
 
+  // Refetch on every focus (not just mount): returning from confirmed or
+  // buy-pass would otherwise show a stale pass balance.
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      void loadEstablishment();
+      void loadStats();
+      void loadManifests();
+    }, [user, loadStats, loadManifests])
+  );
+
   if (authLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -258,7 +263,7 @@ export default function OperatorDashboardScreen() {
           {/* Greeting */}
           <View style={styles.headerRow}>
             <View>
-              <Text style={styles.greeting}>Hi, {establishmentName || "Anilao Beach Club"}!</Text>
+              <Text style={styles.greeting}>Hi, {establishmentName || "Operator"}!</Text>
               <Text style={styles.subGreeting}>Logged in as Operator</Text>
             </View>
             <TouchableOpacity
@@ -273,7 +278,7 @@ export default function OperatorDashboardScreen() {
               />
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
-                  {unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : "5"}
+                  {unreadCount > 99 ? "99+" : unreadCount}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -293,10 +298,10 @@ export default function OperatorDashboardScreen() {
               <View style={styles.blueStatCard}>
                 <Text style={styles.blueStatLabel}>TODAY'S DIVERS</Text>
                 <Text style={styles.blueStatValue}>
-                  {statLoading ? "14" : String(todayDivers || 14)}
+                  {statLoading ? "…" : String(todayDivers)}
                 </Text>
                 <Text style={styles.blueStatDelta}>
-                  {todayDelta || "+3 from yesterday"}
+                  {statLoading ? "…" : todayDelta || "No activity yet"}
                 </Text>
               </View>
 
@@ -304,12 +309,14 @@ export default function OperatorDashboardScreen() {
               <View style={styles.whiteStatCard}>
                 <Text style={styles.whiteStatLabel}>REMAINING PASSES</Text>
                 <Text style={styles.whiteStatValue}>
-                  {statLoading ? "86" : String(remainingPasses ?? 86)}
+                  {statLoading ? "…" : String(remainingPasses ?? 0)}
                 </Text>
                 <Text style={styles.greenStatDelta}>
-                  {purchasedPasses > 0
-                    ? `of ${purchasedPasses} purchased`
-                    : "of 100 purchased"}
+                  {statLoading
+                    ? "…"
+                    : purchasedPasses > 0
+                      ? `of ${purchasedPasses} purchased`
+                      : "No passes purchased yet"}
                 </Text>
               </View>
 
@@ -317,7 +324,7 @@ export default function OperatorDashboardScreen() {
               <View style={styles.whiteStatCard}>
                 <Text style={styles.whiteStatLabel}>MANIFESTO SENT</Text>
                 <Text style={styles.whiteStatValue}>
-                  {statLoading ? "3" : String(weekCount || 3)}
+                  {statLoading ? "…" : String(weekCount)}
                 </Text>
                 <Text style={styles.greenStatDelta}>This week</Text>
               </View>
@@ -408,42 +415,10 @@ export default function OperatorDashboardScreen() {
               })}
             </View>
           ) : (
-            /* Fallback to reference design items when no manifests have been created yet */
-            <View style={styles.manifestList}>
-              <TouchableOpacity
-                style={styles.manifestRow}
-                activeOpacity={0.7}
-                onPress={() => router.push("/(operator-tabs)/manifests")}
-              >
-                <View style={styles.manifestIcon}>
-                  <Text style={{ fontSize: 20 }}>🚤</Text>
-                </View>
-                <View style={styles.manifestInfo}>
-                  <Text style={styles.manifestTitle}>MV Bantay Dagat II</Text>
-                  <Text style={styles.manifestMeta}>Apr 26 · 8 divers · Anilao Cove</Text>
-                </View>
-                <View style={[styles.statusBadge, styles.badgeActive]}>
-                  <Text style={[styles.statusBadgeText, styles.badgeActiveText]}>Active</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.manifestRow}
-                activeOpacity={0.7}
-                onPress={() => router.push("/(operator-tabs)/manifests")}
-              >
-                <View style={[styles.manifestIcon, styles.manifestIconShore]}>
-                  <Text style={{ fontSize: 20 }}>⛱️</Text>
-                </View>
-                <View style={styles.manifestInfo}>
-                  <Text style={styles.manifestTitle}>Shore Dive Group</Text>
-                  <Text style={styles.manifestMeta}>Apr 25 · 4 divers · Mainit</Text>
-                </View>
-                <View style={[styles.statusBadge, styles.badgeDone]}>
-                  <Text style={[styles.statusBadgeText, styles.badgeDoneText]}>Done</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
+            /* Honest empty state — never fake reference-design rows as real data. */
+            <Text style={styles.emptyText}>
+              No manifests yet. Create your first one!
+            </Text>
           )}
 
           {/* 2x2 Placeholder Grid from Design */}
@@ -661,6 +636,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 100,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   badgeActive: {
     backgroundColor: "#DCFCE7",

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -16,10 +16,11 @@ import { ContentContainer, TextInput, FileUpload } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 import { uploadFile, validateFile } from "../../../lib/storage";
+import type { FileInfo } from "../../../lib/storage";
 
 export default function UploadReceiptScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { passId, passLabel, passCount, quantity, total } = useLocalSearchParams<{
     passId?: string;
     passLabel?: string;
@@ -29,18 +30,86 @@ export default function UploadReceiptScreen() {
   }>();
 
   const [referenceNumber, setReferenceNumber] = useState("");
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptFile, setReceiptFile] = useState<FileInfo | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Server-truth pricing: the index screen sends type slugs
+  // ("one-day-pass" | "annual-pass"), resolved here to pass_pricing.code.
+  // Route params are display hints only — the DB insert below uses
+  // re-read values exclusively (deep-links can be tampered with).
+  const [unitPrice, setUnitPrice] = useState<number | null>(null);
+  const [passesPerPack, setPassesPerPack] = useState<number | null>(null);
+  const [passCode, setPassCode] = useState<string | null>(null);
+  const [priceLoading, setPriceLoading] = useState(true);
+  const [priceError, setPriceError] = useState(false);
 
-  const totalNum = Number(total) || 4500;
-  const countNum = Number(passCount) || 50;
+  const pricingCode =
+    passId === "annual-pass" ? "annual" : passId === "one-day-pass" ? "one_day" : null;
 
-  const handlePickFile = (file: File) => {
-    const valid = validateFile(file);
-    if (!valid.valid) {
-      setError(valid.error || "Invalid file");
+  useEffect(() => {
+    if (!pricingCode) {
+      setPriceLoading(false);
+      setPriceError(true);
+      return;
+    }
+    (async () => {
+      try {
+        const { data, error: priceFetchError } = await supabase
+          .from("pass_pricing")
+          .select("price, passes, code")
+          .eq("code", pricingCode)
+          .maybeSingle();
+        if (priceFetchError) throw priceFetchError;
+        if (!data) {
+          setPriceError(true);
+          return;
+        }
+        setUnitPrice(Number(data.price));
+        setPassesPerPack(Number(data.passes));
+        setPassCode((data as { code?: string }).code ?? null);
+      } catch (e) {
+        console.warn("Failed to verify pass pricing:", e);
+        setPriceError(true);
+      } finally {
+        setPriceLoading(false);
+      }
+    })();
+  }, [pricingCode]);
+
+  const qty = Math.max(1, Number(quantity) || 1);
+  // Unit-priced rows (passes = 1) sell a custom count from passCount;
+  // pack rows multiply by qty. Same 1–50 bounds the selection screen enforces.
+  const rawCustomCount = Number(passCount) || 0;
+  const customCountValid =
+    Number.isInteger(rawCustomCount) && rawCustomCount >= 1 && rawCustomCount <= 50;
+  const isUnitRow = passesPerPack === 1;
+  const verifiedPasses =
+    passesPerPack !== null
+      ? isUnitRow
+        ? rawCustomCount
+        : passesPerPack * qty
+      : 0;
+  const verifiedTotal =
+    unitPrice !== null ? unitPrice * (isUnitRow ? rawCustomCount : qty) : 0;
+  const verifiedPassType =
+    passCode === "annual" ? "annual" : passesPerPack !== null && passesPerPack > 1 ? "multi" : "single";
+  const pricingReady =
+    !priceLoading &&
+    !priceError &&
+    unitPrice !== null &&
+    unitPrice > 0 &&
+    passesPerPack !== null &&
+    verifiedTotal > 0 &&
+    (!isUnitRow || customCountValid);
+
+  const refDigits = referenceNumber.replace(/\D/g, "");
+  const refValid = /^\d{13}$/.test(refDigits);
+
+  const handlePickFile = (file: FileInfo) => {
+    const validationError = validateFile(file);
+    if (validationError) {
+      setError(validationError);
       return;
     }
     setError("");
@@ -48,58 +117,104 @@ export default function UploadReceiptScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!referenceNumber.trim()) {
-      setError("Please enter the GCash reference number.");
+    if (!refValid) {
+      setError("Please enter the 13-digit GCash reference number.");
+      return;
+    }
+    if (!receiptFile) {
+      setError("Please upload your payment receipt first.");
+      return;
+    }
+    if (!pricingReady) {
+      setError("Pricing isn't verified yet. Please go back and reselect your passes.");
       return;
     }
     if (!user) {
       setError("Please sign in to continue.");
       return;
     }
-
     setSaving(true);
     setError("");
 
+    let receiptPath: string | null = null;
+    let inventoryId: string | null = null;
     try {
-      let receiptPath = "receipts/gcash-receipt-placeholder.png";
-
-      if (receiptFile) {
-        try {
-          const up = await uploadFile("operator_uploads", receiptFile, "receipts");
-          receiptPath = up.path;
-        } catch (upErr) {
-          console.warn("Storage upload fallback:", upErr);
-        }
+      // 1. Upload receipt to storage (required — no placeholder fallback).
+      const { path: uploadedPath, error: uploadError } = await uploadFile(
+        "operator_uploads",
+        "receipts",
+        receiptFile,
+        user.id
+      );
+      if (uploadError || !uploadedPath) {
+        setError(uploadError || "Upload failed. Please try again.");
+        setSaving(false);
+        return;
       }
+      receiptPath = uploadedPath;
 
-      // Record transaction
-      const { data: inv } = await supabase
+      // 2. Create dive pass inventory (server-verified amounts only).
+      const { data: inventory, error: invError } = await supabase
         .from("dive_pass_inventory")
         .insert({
           operator_id: user.id,
-          passes_purchased: countNum,
-          total_price: totalNum,
-          pass_type: "one_day",
+          pass_type: verifiedPassType,
+          pass_label: passLabel || "",
+          total_passes: verifiedPasses,
+          remaining_passes: verifiedPasses,
+          amount: verifiedTotal,
         })
         .select("id")
-        .maybeSingle();
+        .single();
+      if (invError || !inventory) {
+        await supabase.storage.from("operator_uploads").remove([receiptPath]);
+        setError(invError ? `Failed to create inventory record: ${invError.message}` : "Failed to create inventory record.");
+        setSaving(false);
+        return;
+      }
+      inventoryId = inventory.id;
 
-      await supabase.from("payment_transactions").insert({
-        operator_id: user.id,
-        inventory_id: inv?.id,
-        amount: totalNum,
-        reference_number: referenceNumber.trim(),
-        receipt_url: receiptPath,
-        status: "pending",
-      });
+      // 3. Create payment transaction.
+      const { error: txError } = await supabase
+        .from("payment_transactions")
+        .insert({
+          operator_id: user.id,
+          dive_pass_inventory_id: inventory.id,
+          amount: verifiedTotal,
+          reference_number: refDigits,
+          receipt_url: receiptPath,
+          status: "pending",
+        });
+      if (txError) {
+        // Roll back the partial write: inventory row + storage object.
+        await supabase.from("dive_pass_inventory").delete().eq("id", inventory.id);
+        await supabase.storage.from("operator_uploads").remove([receiptPath]);
+        setError(`Failed to save payment record: ${txError.message}`);
+        setSaving(false);
+        return;
+      }
 
       setSubmitted(true);
-    } catch {
-      setSubmitted(true);
-    } finally {
-      setSaving(false);
+    } catch (e) {
+      console.error("Receipt submit failed:", e);
+      // Best-effort rollback of anything created before the throw.
+      if (inventoryId) {
+        await supabase.from("dive_pass_inventory").delete().eq("id", inventoryId);
+      }
+      if (receiptPath) {
+        await supabase.storage.from("operator_uploads").remove([receiptPath]);
+      }
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     }
+    setSaving(false);
   };
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.replace("/loginpage");
+    }
+  }, [authLoading, user, router]);
 
   if (submitted) {
     return (
@@ -122,17 +237,17 @@ export default function UploadReceiptScreen() {
             <View style={styles.successCard}>
               <View style={styles.successRow}>
                 <Text style={styles.successLabel}>Package</Text>
-                <Text style={styles.successVal}>{countNum} Dive Passes</Text>
+                <Text style={styles.successVal}>{verifiedPasses} Dive Passes</Text>
               </View>
               <View style={styles.cardDivider} />
               <View style={styles.successRow}>
                 <Text style={styles.successLabel}>Amount Paid</Text>
-                <Text style={styles.successVal}>₱{totalNum.toLocaleString()}.00</Text>
+                <Text style={styles.successVal}>₱{verifiedTotal.toLocaleString()}.00</Text>
               </View>
               <View style={styles.cardDivider} />
               <View style={styles.successRow}>
                 <Text style={styles.successLabel}>Reference No.</Text>
-                <Text style={styles.successVal}>{referenceNumber || "GCF202604261"}</Text>
+                <Text style={styles.successVal}>{refDigits}</Text>
               </View>
               <View style={styles.cardDivider} />
               <View style={styles.successRow}>
@@ -173,12 +288,20 @@ export default function UploadReceiptScreen() {
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <ContentContainer maxWidth={540}>
-          {/* Order Summary Strip */}
+          {/* Order Summary Strip (server-verified once pricing loads) */}
           <View style={styles.recapStrip}>
             <Text style={styles.recapText}>
-              <Text style={{ fontWeight: "700" }}>{countNum} Dive Passes</Text> · ₱{totalNum.toLocaleString()}.00 · GCash Reference
+              <Text style={{ fontWeight: "700" }}>{verifiedPasses} Dive Passes</Text> · ₱{verifiedTotal.toLocaleString()}.00 · GCash Reference
             </Text>
           </View>
+          {priceLoading && (
+            <Text style={styles.verifyText}>Verifying pricing…</Text>
+          )}
+          {priceError && (
+            <Text style={styles.errorText}>
+              Couldn&apos;t verify pricing for this pass. Please go back and reselect it.
+            </Text>
+          )}
 
           {/* Upload Area */}
           <FileUpload
@@ -195,7 +318,7 @@ export default function UploadReceiptScreen() {
               placeholder="e.g. 1002 9384 7561"
               value={referenceNumber}
               onChangeText={setReferenceNumber}
-              keyboardType="number-pad"
+              keyboardType="phone-pad"
             />
           </View>
 
@@ -211,10 +334,10 @@ export default function UploadReceiptScreen() {
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={styles.submitBtn}
+            style={[styles.submitBtn, !pricingReady && styles.submitBtnDisabled]}
             activeOpacity={0.88}
             onPress={handleSubmit}
-            disabled={saving}
+            disabled={saving || !pricingReady}
           >
             {saving ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -260,6 +383,12 @@ const styles = StyleSheet.create({
     color: "#334155",
     textAlign: "center",
   },
+  verifyText: {
+    fontSize: 12,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 12,
+  },
   noticeBox: {
     flexDirection: "row",
     gap: 10,
@@ -292,6 +421,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: colors.white,
+  },
+  submitBtnDisabled: {
+    opacity: 0.5,
   },
   errorText: {
     fontSize: 13,

@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -12,6 +13,7 @@ import {
 } from "react-native";
 import { colors } from "../../../constants/colors";
 import { ContentContainer } from "../../../components";
+import { supabase } from "../../../lib/supabase";
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -25,16 +27,65 @@ export default function PaymentScreen() {
       unitPrice?: string;
     }>();
 
-  const [copied, setCopied] = useState(false);
+  const [config, setConfig] = useState<{
+    account_name: string;
+    account_number: string;
+    qr_code_url: string | null;
+  } | null>(null);
+  const [configLoading, setConfigLoading] = useState(true);
 
-  const totalNum = Number(total) || 4500;
-  const countNum = Number(passCount) || 50;
-  const unitNum = Number(unitPrice) || 90;
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("payment_config")
+          .select("account_name, account_number, qr_code_url")
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        if (data) setConfig(data);
+      } catch (e) {
+        console.warn("Failed to load payment config:", e);
+      } finally {
+        setConfigLoading(false);
+      }
+    })();
+  }, []);
 
-  const handleCopy = () => {
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // No magic fallbacks: without a real order this screen is meaningless.
+  const totalNum = Number(total) || 0;
+  const countNum = Number(passCount) || 0;
+  const unitNum = Number(unitPrice) || 0;
+  const passTypeLabel = passId === "annual-pass" ? "Annual Dive Pass" : passLabel || "One-Day Dive Pass";
+  const hasOrder =
+    (passId === "one-day-pass" || passId === "annual-pass") &&
+    Number.isInteger(countNum) &&
+    countNum >= 1 &&
+    countNum <= 50 &&
+    totalNum > 0;
+
+  if (!hasOrder) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <View style={styles.topTitles}>
+            <Text style={styles.topHeader}>GCash Payment</Text>
+          </View>
+        </View>
+        <View style={styles.centerWrap}>
+          <Text style={styles.centerTitle}>No order found</Text>
+          <Text style={styles.centerSub}>Please select a dive pass first.</Text>
+          <TouchableOpacity style={styles.uploadBtn} activeOpacity={0.88} onPress={() => router.back()}>
+            <Text style={styles.uploadBtnText}>Back to Passes</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -58,7 +109,7 @@ export default function PaymentScreen() {
             <Text style={styles.amountLabel}>Amount to Pay</Text>
             <Text style={styles.amountTotal}>₱{totalNum.toLocaleString()}.00</Text>
             <Text style={styles.amountDetail}>
-              {countNum} Dive Passes (₱{unitNum}/pass · {countNum >= 50 ? "10% Bulk Discount" : "Standard Rate"})
+              {countNum} × {passTypeLabel} (₱{unitNum.toLocaleString()}/pass)
             </Text>
           </View>
 
@@ -76,30 +127,37 @@ export default function PaymentScreen() {
               <View style={styles.qrCornerBR} />
 
               <View style={styles.qrInner}>
-                <Ionicons name="qr-code" size={140} color="#005EEC" />
+                {config?.qr_code_url && config.qr_code_url.startsWith("http") ? (
+                  <Image
+                    source={{ uri: config.qr_code_url }}
+                    style={styles.qrImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Ionicons name="qr-code" size={140} color="#005EEC" />
+                )}
               </View>
             </View>
 
-            <Text style={styles.merchantName}>Mabini Tourism Office</Text>
+            <Text style={styles.merchantName}>
+              {config?.account_name || "Mabini Tourism Office"}
+            </Text>
 
             <View style={styles.accountRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.accountNumber}>0917 123 4567</Text>
-                <Text style={styles.accountOrg}>MABINI TOURISM TREASURY</Text>
+                <Text style={styles.accountNumber}>
+                  {configLoading ? "Loading…" : config?.account_number || "Not yet configured"}
+                </Text>
+                <Text style={styles.accountOrg}>
+                  {(config?.account_name || "MABINI TOURISM TREASURY").toUpperCase()}
+                </Text>
               </View>
-              <TouchableOpacity
-                style={styles.copyBtn}
-                activeOpacity={0.8}
-                onPress={handleCopy}
-              >
-                <Ionicons
-                  name={copied ? "checkmark" : "copy-outline"}
-                  size={15}
-                  color={colors.primaryBlue}
-                />
-                <Text style={styles.copyBtnText}>{copied ? "Copied" : "Copy"}</Text>
-              </TouchableOpacity>
             </View>
+            {!configLoading && !config && (
+              <Text style={styles.configNote}>
+                Payment details aren&apos;t configured yet. Please contact the Tourism Office directly.
+              </Text>
+            )}
           </View>
 
           {/* Step Instructions */}
@@ -291,6 +349,37 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+  },
+  qrImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 8,
+  },
+  configNote: {
+    fontSize: 12,
+    color: "#B45309",
+    textAlign: "center",
+    marginTop: 10,
+    lineHeight: 17,
+  },
+  centerWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  centerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#0F172A",
+    textAlign: "center",
+  },
+  centerSub: {
+    fontSize: 13,
+    color: "#64748B",
+    textAlign: "center",
+    marginTop: 6,
+    marginBottom: 20,
   },
   merchantName: {
     fontSize: 15,

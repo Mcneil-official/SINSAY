@@ -7,87 +7,153 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { ContentContainer } from "../../../components";
+import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
 type PassType = "one-day" | "annual";
 
+const MAX_PER_ORDER = 50;
+
 export default function BuyPassSelectionScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [passType, setPassType] = useState<PassType>("one-day");
-  const [quantity, setQuantity] = useState<number>(50);
+  const [quantity, setQuantity] = useState<number>(1);
 
-  // Live or fallback pass inventory metrics
-  const [oneDayPassesLeft, setOneDayPassesLeft] = useState<number>(128);
-  const oneDayTotal = 365;
+  // Server-read pricing (pass_pricing.code = 'one_day' | 'annual'). Annual
+  // row is seeded by the TO — absence means "not yet available", never a
+  // hardcoded fallback price.
+  const [oneDayPrice, setOneDayPrice] = useState<number | null>(null);
+  const [annualPrice, setAnnualPrice] = useState<number | null>(null);
+  const [pricingError, setPricingError] = useState(false);
 
-  const [annualPassesLeft, setAnnualPassesLeft] = useState<number>(7);
-  const annualTotal = 15;
+  // Live ledger metrics; null = not loaded yet (never magic fallbacks).
+  const [oneDayLeft, setOneDayLeft] = useState<number | null>(null);
+  const [oneDayPurchased, setOneDayPurchased] = useState<number | null>(null);
+  const [annualSlots, setAnnualSlots] = useState<number | null>(null);
+  const [annualPurchased, setAnnualPurchased] = useState<number | null>(null);
+  const [metricsError, setMetricsError] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
     (async () => {
-      if (!user) return;
       try {
-        const { data: ledger } = await supabase
+        const { data: pricing, error: pricingErr } = await supabase
+          .from("pass_pricing")
+          .select("price, code");
+        if (pricingErr) throw pricingErr;
+        for (const row of pricing || []) {
+          if (row.code === "one_day") setOneDayPrice(Number(row.price));
+          else if (row.code === "annual") setAnnualPrice(Number(row.price));
+        }
+      } catch (e) {
+        console.warn("Could not load pass pricing:", e);
+        setPricingError(true);
+      }
+      try {
+        const { data: ledger, error: ledgerErr } = await supabase
           .from("operator_pass_ledger")
-          .select("remaining_passes")
+          // select("*"): annual_* columns arrive with 027; pre-027 the view
+          // lacks them and ?? null degrades gracefully instead of erroring.
+          .select("*")
           .eq("operator_id", user.id)
           .maybeSingle();
-
-        if (
-          ledger?.remaining_passes !== null &&
-          ledger?.remaining_passes !== undefined
-        ) {
-          setOneDayPassesLeft(ledger.remaining_passes);
+        if (ledgerErr) throw ledgerErr;
+        if (ledger) {
+          setOneDayLeft(ledger.remaining_passes ?? 0);
+          setOneDayPurchased(ledger.purchased_passes ?? 0);
+          // Annual slot accounting only exists post-027; otherwise unknown.
+          setAnnualSlots(ledger.annual_remaining ?? null);
+          setAnnualPurchased(ledger.annual_purchased ?? null);
+        } else {
+          setOneDayLeft(0);
+          setOneDayPurchased(0);
         }
       } catch (e) {
         console.warn("Could not load operator pass data:", e);
+        setMetricsError(true);
       }
     })();
-  }, [user]);
+  }, [user, authLoading]);
 
-  const unitPrice = passType === "one-day" ? 150 : 1500;
-  const total = quantity * unitPrice;
+  const unitPrice = passType === "one-day" ? oneDayPrice : annualPrice;
+  const pricingReady = unitPrice !== null && unitPrice > 0;
+  // Direct-entry text mirrors quantity; total/proceed only trust it when it
+  // parses to a whole number in range (empty/partial input blocks Proceed
+  // instead of silently using a stale quantity).
+  const [qtyText, setQtyText] = useState("1");
+  const parsedQty = Number(qtyText);
+  const qtyValid =
+    Number.isInteger(parsedQty) && parsedQty >= 1 && parsedQty <= MAX_PER_ORDER;
+  const effectiveQty = qtyValid ? parsedQty : 0;
+  const total = pricingReady ? effectiveQty * (unitPrice as number) : 0;
+  const canProceed = pricingReady && qtyValid;
+
+  const commitQty = (q: number) => {
+    const clamped = Math.min(Math.max(q, 1), MAX_PER_ORDER);
+    setQuantity(clamped);
+    setQtyText(String(clamped));
+  };
 
   const handleDecrease = () => {
-    setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
+    commitQty(quantity - 1);
   };
 
   const handleIncrease = () => {
-    setQuantity((prev) => (prev < 365 ? prev + 1 : 365));
+    commitQty(quantity + 1);
+  };
+
+  const handleQtyText = (v: string) => {
+    const digits = v.replace(/[^0-9]/g, "").slice(0, 3);
+    setQtyText(digits);
+    const n = Number(digits);
+    if (Number.isInteger(n) && n >= 1 && n <= MAX_PER_ORDER) {
+      setQuantity(n);
+    }
+  };
+
+  const handleQtyBlur = () => {
+    // Snap partial/invalid typing back to the last committed quantity.
+    if (!qtyValid) setQtyText(String(quantity));
   };
 
   const handleSelectType = (type: PassType) => {
     setPassType(type);
-    if (type === "annual" && quantity > 15) {
-      setQuantity(1);
-    } else if (type === "one-day" && quantity < 5) {
-      setQuantity(50);
-    }
+    commitQty(quantity);
   };
 
   const handleProceed = () => {
+    if (!canProceed) return;
     router.push({
       pathname: "/(operator-tabs)/buy-pass/payment",
       params: {
         passId: passType === "one-day" ? "one-day-pass" : "annual-pass",
         passLabel: passType === "one-day" ? "One-Day Dive Pass" : "Annual Dive Pass",
-        passCount: String(quantity),
-        quantity: String(quantity),
+        passCount: String(effectiveQty),
+        quantity: String(effectiveQty),
         total: String(total),
         unitPrice: String(unitPrice),
       },
     });
   };
 
-  const oneDayPercent = Math.min(100, Math.max(5, Math.round((oneDayPassesLeft / oneDayTotal) * 100)));
-  const annualPercent = Math.min(100, Math.max(5, Math.round((annualPassesLeft / annualTotal) * 100)));
+  const oneDayPercent =
+    oneDayLeft !== null && (oneDayPurchased ?? 0) > 0
+      ? Math.min(100, Math.max(5, Math.round((oneDayLeft / (oneDayPurchased as number)) * 100)))
+      : 5;
+  const annualPercent =
+    annualSlots !== null && (annualPurchased ?? 0) > 0
+      ? Math.min(100, Math.max(5, Math.round((annualSlots / (annualPurchased as number)) * 100)))
+      : 5;
+  const annualAvailable = annualPrice !== null && annualPrice > 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -120,9 +186,9 @@ export default function BuyPassSelectionScreen() {
                 <Text style={styles.oneDayCardTitle}>{"ONE-DAY DIVE\nPASS"}</Text>
                 <Ionicons name="calendar-outline" size={22} color="#2563EB" />
               </View>
-              <Text style={styles.oneDayBigNumber}>{oneDayPassesLeft}</Text>
+              <Text style={styles.oneDayBigNumber}>{oneDayLeft ?? "…"}</Text>
               <Text style={styles.oneDaySubtext}>
-                of {oneDayTotal} passes left
+                of {oneDayPurchased ?? "…"} passes left
               </Text>
               <View style={styles.oneDayTrack}>
                 <View style={[styles.oneDayFill, { width: `${oneDayPercent}%` }]} />
@@ -135,9 +201,9 @@ export default function BuyPassSelectionScreen() {
                 <Text style={styles.annualCardTitle}>{"ANNUAL DIVE\nPASS"}</Text>
                 <Ionicons name="sunny" size={22} color="#EAB308" />
               </View>
-              <Text style={styles.annualBigNumber}>{annualPassesLeft}</Text>
+              <Text style={styles.annualBigNumber}>{annualSlots ?? "…"}</Text>
               <Text style={styles.annualSubtext}>
-                of {annualTotal} passes available
+                of {annualPurchased ?? "…"} slots available
               </Text>
               <View style={styles.annualTrack}>
                 <View style={[styles.annualFill, { width: `${annualPercent}%` }]} />
@@ -177,10 +243,11 @@ export default function BuyPassSelectionScreen() {
                 style={[
                   styles.toggleBtn,
                   passType === "annual" ? styles.toggleBtnActive : styles.toggleBtnInactive,
+                  !annualAvailable && styles.toggleBtnDisabled,
                 ]}
-                onPress={() => handleSelectType("annual")}
+                onPress={() => annualAvailable && handleSelectType("annual")}
                 accessibilityRole="button"
-                accessibilityState={{ selected: passType === "annual" }}
+                accessibilityState={{ selected: passType === "annual", disabled: !annualAvailable }}
               >
                 <Text
                   style={[
@@ -210,9 +277,15 @@ export default function BuyPassSelectionScreen() {
                 <Ionicons name="remove" size={24} color="#1D4ED8" />
               </TouchableOpacity>
 
-              <View style={styles.quantityBox}>
-                <Text style={styles.quantityText}>{quantity}</Text>
-              </View>
+              <TextInput
+                style={styles.qtyInput}
+                value={qtyText}
+                onChangeText={handleQtyText}
+                onBlur={handleQtyBlur}
+                keyboardType="phone-pad"
+                maxLength={3}
+                accessibilityLabel="Quantity, type a number from 1 to 50"
+              />
 
               <TouchableOpacity
                 activeOpacity={0.85}
@@ -224,18 +297,35 @@ export default function BuyPassSelectionScreen() {
                 <Ionicons name="add" size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
+            {qtyText.length > 0 && !qtyValid && (
+              <Text style={styles.qtyErrorText}>
+                Enter a whole number from 1 to {MAX_PER_ORDER}.
+              </Text>
+            )}
 
             {/* Pricing Breakdown */}
-            <View style={styles.breakdownSection}>
-              <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Price per pass</Text>
-                <Text style={styles.breakdownValue}>₱{unitPrice}</Text>
+            {pricingError ? (
+              <Text style={styles.pricingErrorText}>
+                Couldn&apos;t load pricing. Check your connection and reopen this screen.
+              </Text>
+            ) : !annualAvailable && passType === "annual" ? (
+              <Text style={styles.pricingErrorText}>
+                Annual pricing hasn&apos;t been set by the Tourism Office yet.
+              </Text>
+            ) : (
+              <View style={styles.breakdownSection}>
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>Price per pass</Text>
+                  <Text style={styles.breakdownValue}>
+                    {unitPrice !== null ? `₱${unitPrice.toLocaleString()}` : "…"}
+                  </Text>
+                </View>
+                <View style={[styles.breakdownRow, { marginTop: 12 }]}>
+                  <Text style={styles.breakdownLabel}>Quantity</Text>
+                  <Text style={styles.breakdownValue}>{quantity}</Text>
+                </View>
               </View>
-              <View style={[styles.breakdownRow, { marginTop: 12 }]}>
-                <Text style={styles.breakdownLabel}>Quantity</Text>
-                <Text style={styles.breakdownValue}>{quantity}</Text>
-              </View>
-            </View>
+            )}
 
             {/* Total Highlight Container */}
             <View style={styles.totalBox}>
@@ -258,10 +348,12 @@ export default function BuyPassSelectionScreen() {
           {/* Pay & Upload Receipt Action Button */}
           <TouchableOpacity
             activeOpacity={0.88}
-            style={styles.payBtn}
-            onPress={handleProceed}
+            style={[styles.payBtn, !canProceed && styles.payBtnDisabled]}
+            onPress={() => canProceed && handleProceed()}
+            disabled={!canProceed}
             accessibilityRole="button"
             accessibilityLabel="Pay and upload receipt"
+            accessibilityState={{ disabled: !canProceed }}
           >
             <Text style={styles.payBtnText}>Pay & Upload Receipt</Text>
           </TouchableOpacity>
@@ -295,7 +387,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 6,
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
 
   // Metrics Row
@@ -433,6 +525,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
   },
+  toggleBtnDisabled: {
+    opacity: 0.45,
+  },
   toggleBtnText: {
     fontSize: 13.5,
     fontWeight: "700",
@@ -469,6 +564,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+  },
+  qtyInput: {
+    flex: 1,
+    minWidth: 0,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#0F172A",
+    textAlign: "center",
+    padding: 0,
+  },
+  qtyErrorText: {
+    fontSize: 12,
+    color: colors.red,
+    marginTop: 8,
   },
   quantityText: {
     fontSize: 28,
@@ -572,5 +686,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
     color: "#FFFFFF",
+  },
+  payBtnDisabled: {
+    opacity: 0.5,
+  },
+  pricingErrorText: {
+    fontSize: 13,
+    color: colors.red,
+    textAlign: "center",
+    marginVertical: 12,
+    lineHeight: 18,
   },
 });

@@ -73,13 +73,6 @@ interface Diver {
   meta?: string;
 }
 
-const initialDefaultDivers: Diver[] = [
-  { id: "d1", name: "Juan Reyes", ecoId: "ECO-2024-00112", isWalkIn: false, meta: "ECO-2024-00112 · Fun Dive · Certified · One-Day" },
-  { id: "d2", name: "Maria Santos", ecoId: "ECO-2024-00113", isWalkIn: false, meta: "ECO-2024-00113 · Fun Dive · Certified · One-Day" },
-  { id: "d3", name: "David Kim", ecoId: "ECO-2024-00114", isWalkIn: false, meta: "ECO-2024-00114 · Advanced · Certified · One-Day" },
-  { id: "d4", name: "Sarah Alcantara", ecoId: "ECO-2024-00115", isWalkIn: false, meta: "ECO-2024-00115 · Fun Dive · Certified · One-Day" },
-];
-
 const todayLocal = () => {
   const d = new Date();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -87,14 +80,28 @@ const todayLocal = () => {
   return `${d.getFullYear()}-${mm}-${dd}`;
 };
 
+const isValidCalendarDate = (s: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+};
+
+// Annual validity: exactly 1 year from the dive date, formatted back to
+// YYYY-MM-DD in local parts (avoids UTC day-shift).
+const addOneYear = (s: string) => {
+  const [y, mo, d] = s.split("-").map(Number);
+  return `${y + 1}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+};
+
 let diverIdCounter = 1000;
 function createNextDiverId(): string {
   diverIdCounter += 1;
-  return `diver-${diverIdCounter}`;
-}
-function createNextEcoId(): string {
-  diverIdCounter += 1;
-  return `ECO-2024-${diverIdCounter}`;
+  return `diver-${Date.now()}-${diverIdCounter}`;
 }
 
 export default function CreateManifestStep1() {
@@ -126,17 +133,27 @@ export default function CreateManifestStep1() {
   const [instructorName, setInstructorName] = useState((initialDraft.instructorName as string) ?? "Instructor Marco Valerio");
   const [diveDate, setDiveDate] = useState((initialDraft.diveDate as string) ?? todayLocal());
 
-  // Divers list
+  // Divers list — starts empty. (Demo prefills were removed: they shipped
+  // as real manifest rows with fabricated eco-IDs.)
   const [divers, setDivers] = useState<Diver[]>(() => {
     if (Array.isArray(initialDraft.divers) && initialDraft.divers.length > 0) {
       return initialDraft.divers as Diver[];
     }
-    return initialDefaultDivers;
+    return [];
   });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [remainingPasses, setRemainingPasses] = useState(86);
+  const [dateError, setDateError] = useState("");
+  const [remainingPasses, setRemainingPasses] = useState(0);
+  const [annualSlots, setAnnualSlots] = useState(0);
+  const [passesLoading, setPassesLoading] = useState(true);
+  const [passesError, setPassesError] = useState(false);
+  // touristIds covered by a valid annual pass for the current dive date.
+  const [annualCovered, setAnnualCovered] = useState<Set<string>>(new Set());
+  // touristIds the operator chose to cover with an annual slot on submit.
+  const [annualAssigned, setAnnualAssigned] = useState<string[]>([]);
+  const [searchError, setSearchError] = useState(false);
 
   // Modal State for Add Diver
   const [showAddModal, setShowAddModal] = useState(false);
@@ -156,41 +173,60 @@ export default function CreateManifestStep1() {
 
   const loadLedger = async () => {
     if (!user) return;
+    setPassesLoading(true);
+    setPassesError(false);
     try {
-      const { data } = await supabase
+      const { data, error: ledgerError } = await supabase
         .from("operator_pass_ledger")
+        // select("*"): annual_* columns arrive with 027; pre-027 the view
+        // lacks them and ?? 0 degrades gracefully instead of erroring.
         .select("*")
         .eq("operator_id", user.id)
         .maybeSingle();
-      if (data?.remaining_passes !== null && data?.remaining_passes !== undefined) {
-        setRemainingPasses(data.remaining_passes);
-      }
+      if (ledgerError) throw ledgerError;
+      // New operators have no ledger row yet — treat as 0, not an error.
+      setRemainingPasses(data?.remaining_passes ?? 0);
+      setAnnualSlots(Math.max(0, data?.annual_remaining ?? 0));
     } catch (e) {
       console.warn("Failed to load pass ledger:", e);
+      setPassesError(true);
+    } finally {
+      setPassesLoading(false);
     }
   };
 
   useEffect(() => {
     loadLedger();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Handle diver added via router param
+  // Handle diver added via router param (add-diver screen echo)
   useEffect(() => {
     if (params.addDiver) {
       try {
         const d = JSON.parse(params.addDiver);
         if (d && d.name) {
-          setDivers((prev) => [
-            ...prev,
-            {
-              id: String(Date.now()),
-              name: d.name,
-              ecoId: d.ecoId || "ECO-2024-00120",
-              touristId: d.touristId,
-              isWalkIn: !!d.isWalkIn,
-              meta: `${d.ecoId || "ECO-2024-00120"} · Fun Dive · Certified · One-Day`,
-            },
-          ]);
+          setDivers((prev) => {
+            // Dedupe: re-delivery of the same param must not re-append.
+            const name = String(d.name).trim();
+            if (d.touristId && prev.some((x) => x.touristId === d.touristId)) return prev;
+            if (
+              !d.touristId &&
+              prev.some((x) => x.isWalkIn && x.name.trim().toLowerCase() === name.toLowerCase())
+            )
+              return prev;
+            return [
+              ...prev,
+              {
+                id: createNextDiverId(),
+                name,
+                ecoId: d.ecoId || undefined,
+                touristId: d.touristId,
+                isWalkIn: !!d.isWalkIn,
+                meta: d.isWalkIn ? "Walk-in" : d.ecoId ? `${d.ecoId} · Verified diver` : undefined,
+              },
+            ];
+          });
         }
       } catch (err) {
         console.warn("Could not parse addDiver param:", err);
@@ -198,9 +234,77 @@ export default function CreateManifestStep1() {
     }
   }, [params.addDiver]);
 
+  // Annual coverage: registered divers holding a valid annual pass for the
+  // dive date don't consume one-day passes (ledger excludes them server-side
+  // in 027). Pre-027 the table is missing → catch → all uncovered, and the
+  // one-day logic below behaves exactly as before.
+  useEffect(() => {
+    const ids = [...new Set(divers.filter((d) => d.touristId).map((d) => d.touristId as string))];
+    setAnnualAssigned((prev) => prev.filter((id) => ids.includes(id)));
+    if (ids.length === 0 || !isValidCalendarDate(diveDate)) {
+      setAnnualCovered(new Set());
+      return;
+    }
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("annual_pass_holders")
+          .select("tourist_id, valid_from, valid_until")
+          .in("tourist_id", ids);
+        if (error) throw error;
+        const covered = new Set<string>();
+        for (const h of data || []) {
+          if (h.valid_from <= diveDate && diveDate <= h.valid_until) {
+            covered.add(h.tourist_id);
+          }
+        }
+        setAnnualCovered(covered);
+      } catch (e) {
+        console.warn("Annual coverage check failed:", e);
+        setAnnualCovered(new Set());
+      }
+    })();
+  }, [divers, diveDate]);
+
+  const isCovered = (d: Diver) => !!d.touristId && annualCovered.has(d.touristId);
+  const isAssigned = (d: Diver) => !!d.touristId && annualAssigned.includes(d.touristId as string);
+  const canAssignMore = annualAssigned.length < annualSlots;
+
+  const toggleAnnual = (d: Diver) => {
+    if (!d.touristId || isCovered(d)) return;
+    setAnnualAssigned((prev) =>
+      prev.includes(d.touristId as string)
+        ? prev.filter((id) => id !== d.touristId)
+        : canAssignMore
+          ? [...prev, d.touristId as string]
+          : prev
+    );
+  };
+
+  // Divers that actually consume one-day passes: registered, neither covered
+  // by an annual nor assigned one now. Walk-ins never consume (ledger counts
+  // is_walk_in = false only — preserved behavior).
+  const passesNeeded = divers.filter(
+    (d) => !d.isWalkIn && d.touristId && !isCovered(d) && !isAssigned(d)
+  ).length;
+  const hasEnoughPasses = !passesLoading && !passesError && remainingPasses >= passesNeeded;
+  const dateValid = isValidCalendarDate(diveDate);
+  const maxDiversNum = Number(maxDivers);
+  const maxDiversValid = Number.isInteger(maxDiversNum) && maxDiversNum > 0;
+  const canSubmit =
+    divers.length > 0 &&
+    boatName.trim() &&
+    captainName.trim() &&
+    maxDiversValid &&
+    divers.length <= maxDiversNum &&
+    hasEnoughPasses &&
+    dateValid &&
+    !saving;
+
   // Search tourists in Supabase
   const searchTourists = async (text: string) => {
     setSearchQuery(text);
+    setSearchError(false);
     if (text.trim().length < 2) {
       setSearchResults([]);
       return;
@@ -212,26 +316,41 @@ export default function CreateManifestStep1() {
         .select("id, full_name")
         .ilike("full_name", `%${text.trim()}%`)
         .limit(5);
-      if (!err && data) {
-        setSearchResults(data);
-      }
-    } catch {
-      // ignore
+      if (err) throw err;
+      setSearchResults(data || []);
+    } catch (e) {
+      console.warn("Diver search failed:", e);
+      setSearchResults([]);
+      setSearchError(true);
     }
     setSearching(false);
   };
 
-  const handleSelectSearchResult = (tourist: { id: string; full_name: string }) => {
-    const nextEco = createNextEcoId();
+  const handleSelectSearchResult = async (tourist: { id: string; full_name: string }) => {
+    // Never fabricate an eco-ID: look up the real one (may be none).
+    let ecoId: string | undefined;
+    try {
+      const { data } = await supabase
+        .from("eco_dive_ids")
+        .select("eco_id_number")
+        .eq("tourist_id", tourist.id)
+        .limit(1)
+        .maybeSingle();
+      ecoId = data?.eco_id_number ?? undefined;
+    } catch (e) {
+      console.warn("Eco-ID lookup failed:", e);
+    }
     const newDiver: Diver = {
       id: createNextDiverId(),
       name: tourist.full_name,
-      ecoId: nextEco,
+      ecoId,
       touristId: tourist.id,
       isWalkIn: false,
-      meta: `${nextEco} · Fun Dive · Certified · One-Day`,
+      meta: ecoId ? `${ecoId} · Verified diver` : "No Eco-Dive ID on file",
     };
-    setDivers((prev) => [...prev, newDiver]);
+    setDivers((prev) =>
+      prev.some((d) => d.touristId === tourist.id) ? prev : [...prev, newDiver]
+    );
     setShowAddModal(false);
     setSearchQuery("");
     setSearchResults([]);
@@ -241,16 +360,21 @@ export default function CreateManifestStep1() {
     const fullName = `${newFirstName.trim()} ${newLastName.trim()}`.trim();
     if (!fullName) return;
 
-    const nextEco = createNextEcoId();
     const newDiver: Diver = {
       id: createNextDiverId(),
       name: fullName,
-      ecoId: nextEco,
+      ecoId: undefined,
       isWalkIn: true,
-      meta: `${nextEco} · ${newDiveLevel} · Certified · One-Day`,
+      meta: `Walk-in · ${newDiveLevel} · ${newNationality}`,
     };
 
-    setDivers((prev) => [...prev, newDiver]);
+    setDivers((prev) =>
+      prev.some(
+        (d) => d.isWalkIn && d.name.trim().toLowerCase() === fullName.toLowerCase()
+      )
+        ? prev
+        : [...prev, newDiver]
+    );
     setShowAddModal(false);
     setNewFirstName("");
     setNewLastName("");
@@ -262,11 +386,20 @@ export default function CreateManifestStep1() {
 
   const handleSubmit = async () => {
     if (!user) return;
+    if (!dateValid) {
+      setDateError("Enter a valid dive date (YYYY-MM-DD).");
+      return;
+    }
+    if (!canSubmit) {
+      setError("Please complete all required fields and add at least one diver.");
+      return;
+    }
     setSaving(true);
     setError("");
 
     try {
-      // Insert manifest
+      // Insert manifest (boat_contact / crew_count / instructor_name land
+      // via 028 — the new UI collects them and they must not be dropped).
       const { data: manifest, error: mfError } = await supabase
         .from("dive_manifests")
         .insert({
@@ -277,7 +410,10 @@ export default function CreateManifestStep1() {
           difficulty,
           boat_name: boatName.trim(),
           captain_name: captainName.trim() || null,
-          max_divers: Number(maxDivers) || divers.length,
+          boat_contact: boatContact.trim() || null,
+          crew_count: crewCount.trim() ? Number(crewCount) : null,
+          instructor_name: instructorName.trim() || null,
+          max_divers: maxDiversNum,
           duty_of_care: true,
           dive_date: diveDate,
           status: "active",
@@ -286,18 +422,8 @@ export default function CreateManifestStep1() {
         .single();
 
       if (mfError || !manifest) {
-        // Fallback for preview/offline
-        router.replace({
-          pathname: "/establishment/create-manifest/confirmed",
-          params: {
-            manifestId: `MFT-2026-${Math.floor(10000 + Math.random() * 90000)}`,
-            location,
-            diverCount: divers.length,
-            boatName: boatName.trim(),
-            captainName: captainName.trim(),
-            remainingBalance: Math.max(0, remainingPasses - divers.length),
-          },
-        });
+        setError(mfError ? `Failed to create manifest: ${mfError.message}` : "Failed to create manifest. Please try again.");
+        setSaving(false);
         return;
       }
 
@@ -310,7 +436,40 @@ export default function CreateManifestStep1() {
         is_walk_in: d.isWalkIn,
       }));
 
-      await supabase.from("manifest_divers").insert(diverInserts);
+      const { error: dvError } = await supabase
+        .from("manifest_divers")
+        .insert(diverInserts);
+
+      if (dvError) {
+        // manifest_divers cascades on manifest delete, so removing the
+        // manifest rolls back the whole partial write.
+        await supabase.from("dive_manifests").delete().eq("id", manifest.id);
+        setError(`Failed to add divers: ${dvError.message}`);
+        setSaving(false);
+        return;
+      }
+
+      // Assign annual slots: holder rows anchored on the dive date with
+      // 1-year validity (matches the 027 ledger exclusion).
+      if (annualAssigned.length > 0) {
+        const until = addOneYear(diveDate);
+        const { error: holderError } = await supabase
+          .from("annual_pass_holders")
+          .insert(
+            annualAssigned.map((touristId) => ({
+              operator_id: user.id,
+              tourist_id: touristId,
+              valid_from: diveDate,
+              valid_until: until,
+            }))
+          );
+        if (holderError) {
+          await supabase.from("dive_manifests").delete().eq("id", manifest.id);
+          setError(`Failed to assign annual passes: ${holderError.message}`);
+          setSaving(false);
+          return;
+        }
+      }
 
       router.replace({
         pathname: "/establishment/create-manifest/confirmed",
@@ -320,21 +479,12 @@ export default function CreateManifestStep1() {
           diverCount: divers.length,
           boatName: boatName.trim(),
           captainName: captainName.trim(),
-          remainingBalance: Math.max(0, remainingPasses - divers.length),
+          remainingBalance: Math.max(0, remainingPasses - passesNeeded),
         },
       });
-    } catch {
-      router.replace({
-        pathname: "/establishment/create-manifest/confirmed",
-        params: {
-          manifestId: `MFT-2026-${Math.floor(10000 + Math.random() * 90000)}`,
-          location,
-          diverCount: divers.length,
-          boatName: boatName.trim(),
-          captainName: captainName.trim(),
-          remainingBalance: Math.max(0, remainingPasses - divers.length),
-        },
-      });
+    } catch (e) {
+      console.error("Manifest submit failed:", e);
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -449,6 +599,16 @@ export default function CreateManifestStep1() {
           <View style={styles.cardBox}>
             <Text style={styles.cardHeaderTitle}>⛵ Boat Details</Text>
             <TextInput
+              label="Dive Date"
+              placeholder="YYYY-MM-DD"
+              value={diveDate}
+              onChangeText={(v) => {
+                setDiveDate(v);
+                if (dateError) setDateError("");
+              }}
+              error={dateError || undefined}
+            />
+            <TextInput
               label="Boat Name"
               placeholder="MV Bantay Dagat II"
               value={boatName}
@@ -501,40 +661,67 @@ export default function CreateManifestStep1() {
           </View>
 
           <View style={styles.diverCardList}>
-            {divers.map((d) => (
-              <View key={d.id} style={styles.diverCard}>
-                <View style={styles.diverAvatar}>
-                  <Text style={styles.diverAvatarText}>{getInitials(d.name)}</Text>
+            {divers.length === 0 && (
+              <Text style={styles.noDiversText}>
+                No divers added yet. Tap + Add Diver to search registered tourists or encode a walk-in.
+              </Text>
+            )}
+            {divers.map((d) => {
+              const covered = isCovered(d);
+              const assigned = isAssigned(d);
+              const assignable = !!d.touristId && !d.isWalkIn && !covered;
+              return (
+                <View key={d.id} style={styles.diverCard}>
+                  <View style={styles.diverAvatar}>
+                    <Text style={styles.diverAvatarText}>{getInitials(d.name)}</Text>
+                  </View>
+                  <View style={styles.diverContent}>
+                    <Text style={styles.diverCardName}>{d.name}</Text>
+                    <Text style={styles.diverCardMeta}>
+                      {d.meta || (d.ecoId ? `${d.ecoId} · Verified diver` : d.isWalkIn ? "Walk-in" : "No Eco-Dive ID on file")}
+                    </Text>
+                    <View style={styles.diverBadges}>
+                      {covered && (
+                        <View style={styles.annualBadge}>
+                          <Text style={styles.annualText}>Annual ✓</Text>
+                        </View>
+                      )}
+                      {assignable && (
+                        <TouchableOpacity
+                          style={[styles.assignBadge, assigned && styles.assignBadgeActive]}
+                          onPress={() => toggleAnnual(d)}
+                          disabled={!assigned && !canAssignMore}
+                          activeOpacity={0.7}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: assigned, disabled: !assigned && !canAssignMore }}
+                          accessibilityLabel={`Use annual pass for ${d.name}`}
+                        >
+                          <Text style={[styles.assignText, assigned && styles.assignTextActive]}>
+                            {assigned ? "Annual ✓" : "Use annual"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.activePill}>
+                    <Text style={styles.activePillText}>ACTIVE</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => handleRemoveDiver(d.id)}
+                    style={{ padding: 4 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${d.name}`}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#94A3B8" />
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.diverContent}>
-                  <Text style={styles.diverCardName}>{d.name}</Text>
-                  <Text style={styles.diverCardMeta}>
-                    {d.meta || `${d.ecoId || "ECO-2024-00112"} · Fun Dive · Certified · One-Day`}
-                  </Text>
-                </View>
-                <View style={styles.activePill}>
-                  <Text style={styles.activePillText}>ACTIVE</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => handleRemoveDiver(d.id)}
-                  style={{ padding: 4 }}
-                >
-                  <Ionicons name="close-circle" size={20} color="#94A3B8" />
-                </TouchableOpacity>
-              </View>
-            ))}
+              );
+            })}
           </View>
 
           {/* Duty of Care Section */}
           <View style={[styles.sectionHeaderRow, { marginTop: 20 }]}>
             <Text style={styles.sectionHeading}>Duty of Care</Text>
-            <TouchableOpacity
-              style={styles.orangeAddPill}
-              activeOpacity={0.85}
-              onPress={() => {}}
-            >
-              <Text style={styles.orangeAddPillText}>+ Add Duty of Care</Text>
-            </TouchableOpacity>
           </View>
           <TextInput
             placeholder="Instructor Name"
@@ -545,19 +732,38 @@ export default function CreateManifestStep1() {
           {/* Pass Deduction Alert Banner */}
           <View style={styles.deductionBanner}>
             <Text style={styles.deductionText}>
-              {divers.length} dive passes will be deducted. Remaining after submission:{" "}
-              {Math.max(0, remainingPasses - divers.length)} passes
+              {passesLoading
+                ? "Checking your dive passes…"
+                : `${passesNeeded} dive pass${passesNeeded === 1 ? "" : "es"} will be deducted. Remaining after submission: ${Math.max(0, remainingPasses - passesNeeded)} passes`}
             </Text>
+            {annualSlots > 0 && !passesLoading && (
+              <Text style={styles.deductionSub}>
+                {annualSlots} annual slot{annualSlots === 1 ? "" : "s"} available
+              </Text>
+            )}
           </View>
+          {passesError && (
+            <View style={styles.passesErrorRow}>
+              <Text style={styles.errorText}>Couldn&apos;t load your dive passes.</Text>
+              <TouchableOpacity onPress={loadLedger} hitSlop={8}>
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {divers.length > 0 && !passesLoading && !passesError && !hasEnoughPasses && (
+            <Text style={styles.insufficientText}>
+              Not enough dive passes remaining ({remainingPasses}). You need {passesNeeded - remainingPasses} more.
+            </Text>
+          )}
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={styles.blueSubmitBtn}
+            style={[styles.blueSubmitBtn, !canSubmit && styles.blueSubmitBtnDisabled]}
             activeOpacity={0.88}
             onPress={handleSubmit}
-            disabled={saving}
+            disabled={!canSubmit}
           >
             {saving ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -594,6 +800,11 @@ export default function CreateManifestStep1() {
             </View>
 
             {/* Search Results dropdown if any */}
+            {searchError && (
+              <Text style={styles.searchErrorText}>
+                Search failed. Check your connection and try again.
+              </Text>
+            )}
             {searchResults.length > 0 && (
               <View style={styles.resultsDrop}>
                 {searchResults.map((item) => (
@@ -845,6 +1056,79 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.white,
   },
+  noDiversText: {
+    fontSize: 13,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 19,
+    paddingVertical: 12,
+  },
+  diverBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  annualBadge: {
+    borderRadius: 100,
+    backgroundColor: "#DCFCE7",
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  annualText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#15803D",
+  },
+  assignBadge: {
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: colors.primaryBlue,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  assignBadgeActive: {
+    backgroundColor: colors.primaryBlue,
+  },
+  assignText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.primaryBlue,
+  },
+  assignTextActive: {
+    color: colors.white,
+  },
+  deductionSub: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#15803D",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  passesErrorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  retryText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.primaryBlue,
+  },
+  insufficientText: {
+    fontSize: 13,
+    color: colors.red,
+    textAlign: "center",
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  searchErrorText: {
+    fontSize: 12,
+    color: colors.red,
+    marginTop: 8,
+  },
   deductionBanner: {
     backgroundColor: "#F0FDF4",
     borderWidth: 1,
@@ -875,6 +1159,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: colors.white,
+  },
+  blueSubmitBtnDisabled: {
+    opacity: 0.5,
   },
   errorText: {
     fontSize: 13,

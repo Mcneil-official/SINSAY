@@ -43,12 +43,12 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "dev": "EXPO_UNSTABLE_HEADLESS=1 expo start --port 3000",
+    "dev": "expo start --port 3000",
     "build": "expo export -p web --output-dir dist",
-    "start": "EXPO_UNSTABLE_HEADLESS=1 expo start --port 3000",
+    "start": "expo start --port 3000",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "EXPO_UNSTABLE_HEADLESS=1 expo start --web --port 3000",
+    "web": "expo start --web --port 3000",
     "lint": "expo lint"
   },
   "private": true
