@@ -200,6 +200,20 @@ export default function ProfileScreen() {
             subtitle={t("faq_sub", locale)}
             onPress={() => router.push("/profile/faq")}
           />
+          <View style={styles.divider} />
+          <ProfileRow
+            icon="shield-checkmark-outline"
+            label={t("privacy_policy", locale)}
+            subtitle={t("privacy_policy_sub", locale)}
+            onPress={() => router.push("/privacy")}
+          />
+          <View style={styles.divider} />
+          <ProfileRow
+            icon="reader-outline"
+            label={t("terms_service", locale)}
+            subtitle={t("terms_service_sub", locale)}
+            onPress={() => router.push("/terms")}
+          />
         </View>
 
         <View style={{ height: 120 }} />

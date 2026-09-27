@@ -23,6 +23,22 @@ export default function Next5Page() {
     </Pressable>
   );
 
+  // Standalone legal caption (not nested in the checkbox Pressable, so link
+  // taps navigate cleanly). Both target pages are public — no login bounce.
+  const legalLinks = (
+    <Text style={styles.legalText}>
+      By continuing, you agree to our{" "}
+      <Text style={styles.linkText} onPress={() => router.push("/terms")}>
+        Terms of Service
+      </Text>{" "}
+      and{" "}
+      <Text style={styles.linkText} onPress={() => router.push("/privacy")}>
+        Privacy Policy
+      </Text>
+      .
+    </Text>
+  );
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -38,7 +54,12 @@ export default function Next5Page() {
           listHeader: "Failure to comply may result in:",
           listItems: ["Fines", "Restricted access", "Reporting to authorities"],
           showProgress: false,
-          extraFooter: consentCheckbox,
+          extraFooter: (
+            <View style={{ gap: 12 }}>
+              {consentCheckbox}
+              {legalLinks}
+            </View>
+          ),
           ctaLabel: "Get Started",
           ctaDisabled: !agreed,
           onCta: () => router.push("/loginpage"),
@@ -90,6 +111,7 @@ export default function Next5Page() {
           >
             <Text style={styles.buttonText}>Get Started</Text>
           </Pressable>
+          {legalLinks}
         </View>
       </OnboardingCard>
     </>
@@ -153,6 +175,16 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     color: "#5f554d",
     lineHeight: 17,
+  },
+  legalText: {
+    fontSize: 11,
+    color: "#5f554d",
+    textAlign: "center",
+    lineHeight: 16,
+  },
+  linkText: {
+    color: "#176FF2",
+    textDecorationLine: "underline",
   },
   button: {
     alignSelf: "stretch",
