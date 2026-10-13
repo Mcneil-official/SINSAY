@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Eye, EyeSlash } from "phosphor-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -13,11 +13,12 @@ import {
 } from "react-native";
 import { AuthLayout } from "../components";
 import { useAuth } from "../hooks/useAuth";
-import { supabase } from "../lib/supabase";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { signUp, signInWithGoogle } = useAuth();
+  const params = useLocalSearchParams<{ error?: string }>();
+  const { signUp, signInWithGoogle, user, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +28,21 @@ export default function SignUpPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  // Already signed in (e.g. back-nav after OAuth): route by role, and surface
+  // provider errors forwarded from /auth/callback. Mirrors loginpage.
+  useEffect(() => {
+    if (params.error && typeof params.error === "string") setError(params.error);
+  }, [params.error]);
+  useEffect(() => {
+    if (isLoading || !roleReady || !user) return;
+    router.replace(isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)");
+  }, [isLoading, roleReady, user, isOperator, viewAsTourist, router]);
+
   async function handleGoogleSignup() {
+    if (!isSupabaseConfigured) {
+      setError("Backend not configured for this preview build.");
+      return;
+    }
     setGoogleLoading(true);
     setError("");
     // OAuth signup is first-time OAuth login: Google supplies the name, so
@@ -40,6 +55,10 @@ export default function SignUpPage() {
   }
 
   async function handleRegister() {
+    if (!isSupabaseConfigured) {
+      setError("Backend not configured for this preview build.");
+      return;
+    }
     if (!fullName || !email || !password) {
       setError("Please fill in all fields");
       return;
@@ -59,6 +78,8 @@ export default function SignUpPage() {
       data: { session },
     } = await supabase.auth.getSession();
     if (session) {
+      // Role for a brand-new account is always tourist; the redirect effect
+      // above corrects operators on the next auth tick if needed.
       router.replace("/(tabs)");
       return;
     }

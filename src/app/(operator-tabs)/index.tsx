@@ -24,6 +24,7 @@ import { typography } from "../../constants/typography";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
+import { deriveStatus, formatDiveDate } from "../../lib/diveDate";
 
 interface ManifestItem {
   id: string;
@@ -33,27 +34,15 @@ interface ManifestItem {
   diver_count: number;
 }
 
-type StatusDerived = "active" | "done";
-
-function deriveStatus(diveDate: string): StatusDerived {
-  if (!diveDate) return "active";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dd = new Date(diveDate);
-  if (isNaN(dd.getTime())) return "active";
-  dd.setHours(0, 0, 0, 0);
-  return dd < today ? "done" : "active";
-}
-
-function formatDiveDate(diveDate: string): string {
-  if (!diveDate) return "—";
-  const dd = new Date(diveDate);
-  if (isNaN(dd.getTime())) return "—";
-  return dd.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+interface OperatorStats {
+  today_divers: number;
+  yesterday_divers: number;
+  week_count: number;
+  remaining_passes: number;
+  purchased_passes: number;
+  annual_remaining: number;
+  annual_purchased: number;
+  recent_manifests: ManifestItem[];
 }
 
 export default function OperatorDashboardScreen() {
@@ -100,13 +89,12 @@ export default function OperatorDashboardScreen() {
     }
   };
 
-  const loadStats = useCallback(async () => {
-    setStatLoading(true);
-    setStatError(false);
+  // Legacy multi-query path (pre-041 backends): stats anchored on dive_date,
+  // not created_at — a manifest made today for next week's dive counts for
+  // next week. Every query checks its own { error } — RLS denials don't
+  // throw, so without these a blocked read would silently render as 0.
+  const loadStatsLegacy = useCallback(async () => {
     try {
-      // Stats are anchored on dive_date (the day of the dive), not
-      // created_at (the day the manifest was encoded) — a manifest made
-      // today for next week's dive counts for next week.
       const toLocalDate = (d: Date) =>
         `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const today = new Date();
@@ -115,9 +103,6 @@ export default function OperatorDashboardScreen() {
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = toLocalDate(yesterday);
 
-      // Today's and yesterday's diver counts
-      // NOTE: every query checks its own { error } — RLS denials don't throw,
-      // so without these checks a blocked read would silently render as 0.
       const { data: todayMf, error: todayErr } = await supabase
         .from("dive_manifests")
         .select("id")
@@ -156,7 +141,6 @@ export default function OperatorDashboardScreen() {
         setYesterdayDivers(0);
       }
 
-      // Pass ledger
       const { data: ledger, error: ledgerErr } = await supabase
         .from("operator_pass_ledger")
         .select("remaining_passes, purchased_passes")
@@ -166,14 +150,17 @@ export default function OperatorDashboardScreen() {
       setRemainingPasses(ledger?.remaining_passes ?? 0);
       setPurchasedPasses(ledger?.purchased_passes ?? 0);
 
-      // Manifests this week (dive weeks, Sunday-based)
+      // Manifests this week (dive weeks, Sunday-based, bounded both ends)
       const weekStart = new Date(today);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
       const { count: wc, error: wcErr } = await supabase
         .from("dive_manifests")
         .select("id", { count: "exact", head: true })
         .eq("operator_id", user!.id)
-        .gte("dive_date", toLocalDate(weekStart));
+        .gte("dive_date", toLocalDate(weekStart))
+        .lte("dive_date", toLocalDate(weekEnd));
       if (wcErr) throw wcErr;
       setWeekCount(wc || 0);
     } catch (e) {
@@ -183,33 +170,60 @@ export default function OperatorDashboardScreen() {
     setStatLoading(false);
   }, [user]);
 
+  const loadStats = useCallback(async () => {
+    setStatLoading(true);
+    setStatError(false);
+    try {
+      // Single round-trip (041 get_operator_stats): ledger + today/yesterday
+      // diver counts + Sunday-based week count + 10 recent manifests w/ counts.
+      // Falls back to the legacy multi-query path on pre-041 backends.
+      const { data: stats, error: statsErr } = await supabase.rpc("get_operator_stats");
+      if (!statsErr && stats) {
+        const s = stats as OperatorStats;
+        setTodayDivers(s.today_divers ?? 0);
+        setYesterdayDivers(s.yesterday_divers ?? 0);
+        setWeekCount(s.week_count ?? 0);
+        setRemainingPasses(s.remaining_passes ?? 0);
+        setPurchasedPasses(s.purchased_passes ?? 0);
+        setManifests(s.recent_manifests ?? []);
+        setManifestLoading(false);
+        setManifestError(false);
+        setStatLoading(false);
+        return;
+      }
+      if (statsErr) console.warn("get_operator_stats unavailable, legacy fallback:", statsErr);
+      await loadStatsLegacy();
+    } catch (e) {
+      console.warn("Stats load error", e);
+      setStatError(true);
+      setStatLoading(false);
+    }
+  }, [user, loadStatsLegacy]);
+
   const loadManifests = useCallback(async () => {
     setManifestLoading(true);
     setManifestError(false);
     try {
+      // Single query with embedded diver counts (no N+1), ordered by dive
+      // date — the canonical recency axis — not created_at.
       const { data: mfData, error: mfErr } = await supabase
         .from("dive_manifests")
-        .select("id, boat_name, location, dive_date")
+        .select("id, boat_name, location, dive_date, manifest_divers(count)")
         .eq("operator_id", user!.id)
-        .order("created_at", { ascending: false })
+        .order("dive_date", { ascending: false })
         .limit(10);
       if (mfErr) throw mfErr;
 
-      if (mfData) {
-        const withCounts = await Promise.all(
-          mfData.map(async (m) => {
-            const { count, error: cErr } = await supabase
-              .from("manifest_divers")
-              .select("id", { count: "exact", head: true })
-              .eq("manifest_id", m.id);
-            if (cErr) throw cErr;
-            return { ...m, diver_count: count || 0 } as ManifestItem;
-          }),
-        );
-        setManifests(withCounts);
-      } else {
-        setManifests([]);
-      }
+      setManifests(
+        (mfData || []).map((m: {
+          id: string; boat_name: string; location: string; dive_date: string;
+          manifest_divers?: { count: number }[] | { count: number };
+        }) => {
+          const dc = m.manifest_divers;
+          const diver_count = Array.isArray(dc) ? (dc[0]?.count ?? 0) : (dc?.count ?? 0);
+          return { id: m.id, boat_name: m.boat_name, location: m.location, dive_date: m.dive_date, diver_count };
+        })
+      );
     } catch (e) {
       console.warn("Manifests load error", e);
       setManifestError(true);

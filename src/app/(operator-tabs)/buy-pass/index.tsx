@@ -322,7 +322,7 @@ export default function BuyPassSelectionScreen() {
                 </View>
                 <View style={[styles.breakdownRow, { marginTop: 12 }]}>
                   <Text style={styles.breakdownLabel}>Quantity</Text>
-                  <Text style={styles.breakdownValue}>{quantity}</Text>
+                  <Text style={styles.breakdownValue}>{effectiveQty}</Text>
                 </View>
               </View>
             )}

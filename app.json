@@ -75,7 +75,7 @@
     },
     "extra": {
       "router": {
-        "origin": "https://ais-dev-mjllcbfalybepvuhhedeso-899045927299.asia-southeast1.run.app"
+        "origin": "https://sinsay-prod.vercel.app"
       },
       "eas": {
         "projectId": "e43b1547-7151-48a5-8d42-b9f26a471404"

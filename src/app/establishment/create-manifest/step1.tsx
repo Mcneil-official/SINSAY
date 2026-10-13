@@ -17,6 +17,7 @@ import { colors } from "../../../constants/colors";
 import { TextInput, Dropdown, ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
+import { deleteDraft, saveDraft } from "../../../lib/manifestDrafts";
 
 const diveTypes = [
   { label: "Scuba Diving", value: "Scuba Diving" },
@@ -71,7 +72,30 @@ interface Diver {
   touristId?: string;
   isWalkIn: boolean;
   meta?: string;
+  // Manifest display attributes (manifest_divers has no such columns — these
+  // never reach the DB). Registered divers auto-fill from the tourist
+  // profile with per-diver override; walk-ins are entered manually.
+  nationality?: string;
+  diveLevel?: string;
 }
+
+// Tourist certification_level (step2 vocabulary) → manifest dive-level list.
+const certToDiveLevel = (cert: string | null | undefined): string => {
+  const c = (cert || "").toLowerCase();
+  if (c.includes("rescue")) return "Rescue Diver";
+  if (c.includes("advanced")) return "Advanced Adventurer";
+  if (c.includes("open")) return "Open Water";
+  if (c.includes("divemaster")) return "Divemaster";
+  return "Fun Dive";
+};
+
+const buildDiverMeta = (d: Pick<Diver, "ecoId" | "isWalkIn" | "nationality" | "diveLevel">): string => {
+  const nat = d.nationality || "Unknown";
+  const lvl = d.diveLevel || "Fun Dive";
+  if (d.isWalkIn) return `Walk-in · ${lvl} · ${nat}`;
+  const idPart = d.ecoId || "No Eco-Dive ID on file";
+  return `${idPart} · ${nat} · ${lvl}`;
+};
 
 const todayLocal = () => {
   const d = new Date();
@@ -92,10 +116,14 @@ const isValidCalendarDate = (s: string) => {
 };
 
 // Annual validity: exactly 1 year from the dive date, formatted back to
-// YYYY-MM-DD in local parts (avoids UTC day-shift).
+// YYYY-MM-DD in local parts (avoids UTC day-shift). Clamps Feb-29 → Feb-28
+// so leap-day dives don't produce an invalid date that fails the insert.
 const addOneYear = (s: string) => {
   const [y, mo, d] = s.split("-").map(Number);
-  return `${y + 1}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const dt = new Date(y, mo - 1, d);
+  dt.setFullYear(dt.getFullYear() + 1);
+  if (dt.getMonth() !== mo - 1) dt.setDate(0);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 };
 
 let diverIdCounter = 1000;
@@ -107,7 +135,7 @@ function createNextDiverId(): string {
 export default function CreateManifestStep1() {
   const router = useRouter();
   const { user } = useAuth();
-  const params = useLocalSearchParams<{ addDiver?: string; draft?: string }>();
+  const params = useLocalSearchParams<{ draft?: string; draftId?: string }>();
 
   const [initialDraft] = useState(() => {
     try {
@@ -116,6 +144,12 @@ export default function CreateManifestStep1() {
       return {};
     }
   });
+  // Resumed local draft id (Drafts tab): autosave updates it, successful
+  // submit deletes it. New forms get an id on first autosave.
+  const [draftId, setDraftId] = useState<string | null>(
+    typeof params.draftId === "string" ? params.draftId : null
+  );
+  const [draftSavedTick, setDraftSavedTick] = useState(0);
 
   const [diveType, setDiveType] = useState((initialDraft.diveType as string) ?? "Scuba Diving");
   const [diveMode, setDiveMode] = useState((initialDraft.diveMode as string) ?? "Boat Dive");
@@ -151,6 +185,11 @@ export default function CreateManifestStep1() {
   const [passesError, setPassesError] = useState(false);
   // touristIds covered by a valid annual pass for the current dive date.
   const [annualCovered, setAnnualCovered] = useState<Set<string>>(new Set());
+  // Full holder ranges for overlap preview (B1): assigning [diveDate, +1yr]
+  // must not overlap any existing holder range for the same tourist.
+  const [annualHolders, setAnnualHolders] = useState<
+    { tourist_id: string; valid_from: string; valid_until: string }[]
+  >([]);
   // touristIds the operator chose to cover with an annual slot on submit.
   const [annualAssigned, setAnnualAssigned] = useState<string[]>([]);
   const [searchError, setSearchError] = useState(false);
@@ -200,40 +239,6 @@ export default function CreateManifestStep1() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Handle diver added via router param (add-diver screen echo)
-  useEffect(() => {
-    if (params.addDiver) {
-      try {
-        const d = JSON.parse(params.addDiver);
-        if (d && d.name) {
-          setDivers((prev) => {
-            // Dedupe: re-delivery of the same param must not re-append.
-            const name = String(d.name).trim();
-            if (d.touristId && prev.some((x) => x.touristId === d.touristId)) return prev;
-            if (
-              !d.touristId &&
-              prev.some((x) => x.isWalkIn && x.name.trim().toLowerCase() === name.toLowerCase())
-            )
-              return prev;
-            return [
-              ...prev,
-              {
-                id: createNextDiverId(),
-                name,
-                ecoId: d.ecoId || undefined,
-                touristId: d.touristId,
-                isWalkIn: !!d.isWalkIn,
-                meta: d.isWalkIn ? "Walk-in" : d.ecoId ? `${d.ecoId} · Verified diver` : undefined,
-              },
-            ];
-          });
-        }
-      } catch (err) {
-        console.warn("Could not parse addDiver param:", err);
-      }
-    }
-  }, [params.addDiver]);
-
   // Annual coverage: registered divers holding a valid annual pass for the
   // dive date don't consume one-day passes (ledger excludes them server-side
   // in 027). Pre-027 the table is missing → catch → all uncovered, and the
@@ -243,6 +248,7 @@ export default function CreateManifestStep1() {
     setAnnualAssigned((prev) => prev.filter((id) => ids.includes(id)));
     if (ids.length === 0 || !isValidCalendarDate(diveDate)) {
       setAnnualCovered(new Set());
+      setAnnualHolders([]);
       return;
     }
     (async () => {
@@ -252,8 +258,10 @@ export default function CreateManifestStep1() {
           .select("tourist_id, valid_from, valid_until")
           .in("tourist_id", ids);
         if (error) throw error;
+        const rows = data || [];
+        setAnnualHolders(rows);
         const covered = new Set<string>();
-        for (const h of data || []) {
+        for (const h of rows) {
           if (h.valid_from <= diveDate && diveDate <= h.valid_until) {
             covered.add(h.tourist_id);
           }
@@ -262,6 +270,7 @@ export default function CreateManifestStep1() {
       } catch (e) {
         console.warn("Annual coverage check failed:", e);
         setAnnualCovered(new Set());
+        setAnnualHolders([]);
       }
     })();
   }, [divers, diveDate]);
@@ -270,38 +279,68 @@ export default function CreateManifestStep1() {
   const isAssigned = (d: Diver) => !!d.touristId && annualAssigned.includes(d.touristId as string);
   const canAssignMore = annualAssigned.length < annualSlots;
 
+  // New assignment range always anchors on the dive date (exact 1-yr, 041).
+  const rangesOverlap = (aFrom: string, aUntil: string, bFrom: string, bUntil: string) =>
+    aFrom <= bUntil && bFrom <= aUntil;
+
   const toggleAnnual = (d: Diver) => {
     if (!d.touristId || isCovered(d)) return;
-    setAnnualAssigned((prev) =>
-      prev.includes(d.touristId as string)
-        ? prev.filter((id) => id !== d.touristId)
-        : canAssignMore
-          ? [...prev, d.touristId as string]
-          : prev
-    );
+    const tid = d.touristId as string;
+    if (annualAssigned.includes(tid)) {
+      setAnnualAssigned((prev) => prev.filter((id) => id !== tid));
+      return;
+    }
+    if (!canAssignMore) return;
+    // Pre-flight: the new [diveDate, +1yr] range must not overlap any
+    // existing holder range for this tourist (server trigger is the backstop).
+    if (isValidCalendarDate(diveDate)) {
+      const newUntil = addOneYear(diveDate);
+      const clash = annualHolders.some(
+        (h) => h.tourist_id === tid && rangesOverlap(diveDate, newUntil, h.valid_from, h.valid_until)
+      );
+      if (clash) {
+        setError(`${d.name} already holds an annual pass overlapping this dive year — slot not assigned.`);
+        return;
+      }
+    }
+    setError("");
+    setAnnualAssigned((prev) => [...prev, tid]);
   };
 
-  // Divers that actually consume one-day passes: registered, neither covered
-  // by an annual nor assigned one now. Walk-ins never consume (ledger counts
-  // is_walk_in = false only — preserved behavior).
-  const passesNeeded = divers.filter(
-    (d) => !d.isWalkIn && d.touristId && !isCovered(d) && !isAssigned(d)
+  // Pass consumption (A6: walk-ins consume): every walk-in needs 1 pass,
+  // plus every registered diver neither covered by an annual nor assigned
+  // one now. Matches the 040 ledger (counts all rows except covered).
+  const walkInCount = divers.filter((d) => d.isWalkIn).length;
+  const registeredNeeded = divers.filter(
+    (d) => !d.isWalkIn && !isCovered(d) && !isAssigned(d)
   ).length;
+  const passesNeeded = walkInCount + registeredNeeded;
   const hasEnoughPasses = !passesLoading && !passesError && remainingPasses >= passesNeeded;
-  const dateValid = isValidCalendarDate(diveDate);
+  const dateValid =
+    isValidCalendarDate(diveDate) && diveDate >= todayLocal();
   const maxDiversNum = Number(maxDivers);
   const maxDiversValid = Number.isInteger(maxDiversNum) && maxDiversNum > 0;
+  // crew_count is an integer column — reject "3.5"/"abc" up front instead of
+  // surfacing a raw PG error after submit.
+  const crewTrimmed = crewCount.trim();
+  const crewCountNum = crewTrimmed === "" ? null : Number(crewTrimmed);
+  const crewCountValid =
+    crewTrimmed === "" ||
+    (Number.isInteger(crewCountNum) && (crewCountNum as number) >= 0);
   const canSubmit =
     divers.length > 0 &&
     boatName.trim() &&
     captainName.trim() &&
     maxDiversValid &&
+    crewCountValid &&
     divers.length <= maxDiversNum &&
     hasEnoughPasses &&
     dateValid &&
     !saving;
 
-  // Search tourists in Supabase
+  // Search tourists in Supabase: name contains-match + exact Eco-Dive ID
+  // match (Eco IDs look like ECO-2026-…, so only attempt the ID lookup for
+  // inputs long enough to be an ID — avoids a wasted query per keystroke).
   const searchTourists = async (text: string) => {
     setSearchQuery(text);
     setSearchError(false);
@@ -311,13 +350,36 @@ export default function CreateManifestStep1() {
     }
     setSearching(true);
     try {
-      const { data, error: err } = await supabase
-        .from("tourists")
-        .select("id, full_name")
-        .ilike("full_name", `%${text.trim()}%`)
-        .limit(5);
-      if (err) throw err;
-      setSearchResults(data || []);
+      const trimmed = text.trim();
+      const [nameRes, ecoRes] = await Promise.all([
+        supabase
+          .from("tourists")
+          .select("id, full_name")
+          .ilike("full_name", `%${trimmed}%`)
+          .limit(5),
+        trimmed.length >= 6
+          ? supabase
+              .from("eco_dive_ids")
+              .select("tourist_id, eco_id_number")
+              .ilike("eco_id_number", trimmed)
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
+      if (nameRes.error) throw nameRes.error;
+      if (ecoRes.error) throw ecoRes.error;
+      const rows = [...(nameRes.data || [])] as { id: string; full_name: string; _ecoMatch?: boolean }[];
+      const eco = (ecoRes as { data?: { tourist_id: string; eco_id_number: string } | null }).data;
+      if (eco && !rows.some((r) => r.id === eco.tourist_id)) {
+        const { data: holder, error: holderErr } = await supabase
+          .from("tourists")
+          .select("id, full_name")
+          .eq("id", eco.tourist_id)
+          .maybeSingle();
+        if (holderErr) throw holderErr;
+        if (holder) rows.unshift({ ...holder, _ecoMatch: true });
+      }
+      setSearchResults(rows);
     } catch (e) {
       console.warn("Diver search failed:", e);
       setSearchResults([]);
@@ -328,17 +390,32 @@ export default function CreateManifestStep1() {
 
   const handleSelectSearchResult = async (tourist: { id: string; full_name: string }) => {
     // Never fabricate an eco-ID: look up the real one (may be none).
+    // Auto-fill display attributes from the tourist profile (overrideable
+    // per diver below).
     let ecoId: string | undefined;
+    let nationality = "Filipino";
+    let diveLevel = "Fun Dive";
     try {
-      const { data } = await supabase
-        .from("eco_dive_ids")
-        .select("eco_id_number")
-        .eq("tourist_id", tourist.id)
-        .limit(1)
-        .maybeSingle();
-      ecoId = data?.eco_id_number ?? undefined;
+      const [{ data: eco }, { data: prof }] = await Promise.all([
+        supabase
+          .from("eco_dive_ids")
+          .select("eco_id_number")
+          .eq("tourist_id", tourist.id)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("tourists")
+          .select("nationality, certification_level")
+          .eq("id", tourist.id)
+          .maybeSingle(),
+      ]);
+      ecoId = eco?.eco_id_number ?? undefined;
+      if (prof?.nationality) nationality = prof.nationality;
+      diveLevel = certToDiveLevel(
+        (prof as { certification_level?: string } | null)?.certification_level
+      );
     } catch (e) {
-      console.warn("Eco-ID lookup failed:", e);
+      console.warn("Eco-ID/profile lookup failed:", e);
     }
     const newDiver: Diver = {
       id: createNextDiverId(),
@@ -346,7 +423,9 @@ export default function CreateManifestStep1() {
       ecoId,
       touristId: tourist.id,
       isWalkIn: false,
-      meta: ecoId ? `${ecoId} · Verified diver` : "No Eco-Dive ID on file",
+      nationality,
+      diveLevel,
+      meta: buildDiverMeta({ ecoId, isWalkIn: false, nationality, diveLevel }),
     };
     setDivers((prev) =>
       prev.some((d) => d.touristId === tourist.id) ? prev : [...prev, newDiver]
@@ -354,6 +433,19 @@ export default function CreateManifestStep1() {
     setShowAddModal(false);
     setSearchQuery("");
     setSearchResults([]);
+  };
+
+  // Per-diver attribute override (registered divers): keeps profile values
+  // as the base, operator adjusts nationality/dive level for this manifest.
+  const [editingDiverId, setEditingDiverId] = useState<string | null>(null);
+  const updateDiverAttrs = (id: string, patch: Partial<Pick<Diver, "nationality" | "diveLevel">>) => {
+    setDivers((prev) =>
+      prev.map((d) => {
+        if (d.id !== id) return d;
+        const next = { ...d, ...patch };
+        return { ...next, meta: buildDiverMeta(next) };
+      })
+    );
   };
 
   const handleAddModalDiver = () => {
@@ -365,7 +457,9 @@ export default function CreateManifestStep1() {
       name: fullName,
       ecoId: undefined,
       isWalkIn: true,
-      meta: `Walk-in · ${newDiveLevel} · ${newNationality}`,
+      nationality: newNationality,
+      diveLevel: newDiveLevel,
+      meta: buildDiverMeta({ isWalkIn: true, nationality: newNationality, diveLevel: newDiveLevel }),
     };
 
     setDivers((prev) =>
@@ -384,13 +478,54 @@ export default function CreateManifestStep1() {
     setDivers((prev) => prev.filter((d) => d.id !== id));
   };
 
+  // Local draft autosave (never touches the DB): a draft with at least one
+  // diver is worth keeping. Debounced 1.5s so typing doesn't spam storage.
+  const collectDraftForm = () => ({
+    diveType, diveMode, location, difficulty, boatName, captainName, crewCount,
+    maxDivers, boatContact, instructorName, diveDate, divers,
+  });
+  useEffect(() => {
+    if (!user || divers.length === 0) return;
+    const t = setTimeout(async () => {
+      try {
+        const saved = await saveDraft(user.id, collectDraftForm() as Record<string, unknown>, draftId ?? undefined);
+        if (!draftId) setDraftId(saved.id);
+        setDraftSavedTick(Date.now());
+      } catch {
+        // Draft persistence is best-effort; the form itself is unaffected.
+      }
+    }, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, divers, diveType, diveMode, location, difficulty, boatName, captainName, crewCount, maxDivers, boatContact, instructorName, diveDate]);
+
+  const handleSaveDraft = async () => {
+    if (!user) return;
+    try {
+      const saved = await saveDraft(user.id, collectDraftForm() as Record<string, unknown>, draftId ?? undefined);
+      setDraftId(saved.id);
+      setDraftSavedTick(Date.now());
+      setError("");
+    } catch {
+      setError("Couldn't save the draft on this device. Try again.");
+    }
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
-    if (!dateValid) {
+    if (!isValidCalendarDate(diveDate)) {
       setDateError("Enter a valid dive date (YYYY-MM-DD).");
       return;
     }
+    if (diveDate < todayLocal()) {
+      setDateError("Dive date cannot be in the past.");
+      return;
+    }
     if (!canSubmit) {
+      if (!crewCountValid) {
+        setError("Crew count must be a whole number.");
+        return;
+      }
       setError("Please complete all required fields and add at least one diver.");
       return;
     }
@@ -398,88 +533,63 @@ export default function CreateManifestStep1() {
     setError("");
 
     try {
-      // Insert manifest (boat_contact / crew_count / instructor_name land
-      // via 028 — the new UI collects them and they must not be dropped).
-      const { data: manifest, error: mfError } = await supabase
-        .from("dive_manifests")
-        .insert({
-          operator_id: user.id,
-          dive_type: diveType,
-          dive_mode: diveMode,
-          location,
-          difficulty,
-          boat_name: boatName.trim(),
-          captain_name: captainName.trim() || null,
-          boat_contact: boatContact.trim() || null,
-          crew_count: crewCount.trim() ? Number(crewCount) : null,
-          instructor_name: instructorName.trim() || null,
-          max_divers: maxDiversNum,
-          duty_of_care: true,
-          dive_date: diveDate,
-          status: "active",
-        })
-        .select("id")
-        .single();
-
-      if (mfError || !manifest) {
-        setError(mfError ? `Failed to create manifest: ${mfError.message}` : "Failed to create manifest. Please try again.");
-        setSaving(false);
-        return;
-      }
-
-      // Insert divers
-      const diverInserts = divers.map((d) => ({
-        manifest_id: manifest.id,
+      // Atomic manifest write via RPC (040, hardened 041): manifest + divers
+      // + annual holders land together or not at all. Balance + capacity +
+      // overlap enforced server-side too. 041 returns {manifest_id, remaining}
+      // (040 returned a bare uuid) — accept both during the migration window.
+      const diverPayload = divers.map((d) => ({
         name: d.name,
         eco_id: d.ecoId || null,
         tourist_id: d.touristId || null,
         is_walk_in: d.isWalkIn,
       }));
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "create_manifest_with_divers",
+        {
+          p_dive_type: diveType,
+          p_dive_mode: diveMode,
+          p_location: location,
+          p_difficulty: difficulty,
+          p_boat_name: boatName.trim(),
+          p_captain_name: captainName.trim() || null,
+          p_boat_contact: boatContact.trim() || null,
+          p_crew_count: crewCountNum,
+          p_instructor_name: instructorName.trim() || null,
+          p_max_divers: maxDiversNum,
+          p_dive_date: diveDate,
+          p_divers: diverPayload,
+          p_annual_assign: annualAssigned,
+        }
+      );
 
-      const { error: dvError } = await supabase
-        .from("manifest_divers")
-        .insert(diverInserts);
-
-      if (dvError) {
-        // manifest_divers cascades on manifest delete, so removing the
-        // manifest rolls back the whole partial write.
-        await supabase.from("dive_manifests").delete().eq("id", manifest.id);
-        setError(`Failed to add divers: ${dvError.message}`);
+      if (rpcError || !rpcData) {
+        setError(rpcError ? `Failed to create manifest: ${rpcError.message}` : "Failed to create manifest. Please try again.");
         setSaving(false);
         return;
       }
+      const result =
+        typeof rpcData === "string"
+          ? { manifest_id: rpcData, remaining: Math.max(0, remainingPasses - passesNeeded) }
+          : (rpcData as { manifest_id: string; remaining: number });
 
-      // Assign annual slots: holder rows anchored on the dive date with
-      // 1-year validity (matches the 027 ledger exclusion).
-      if (annualAssigned.length > 0) {
-        const until = addOneYear(diveDate);
-        const { error: holderError } = await supabase
-          .from("annual_pass_holders")
-          .insert(
-            annualAssigned.map((touristId) => ({
-              operator_id: user.id,
-              tourist_id: touristId,
-              valid_from: diveDate,
-              valid_until: until,
-            }))
-          );
-        if (holderError) {
-          await supabase.from("dive_manifests").delete().eq("id", manifest.id);
-          setError(`Failed to assign annual passes: ${holderError.message}`);
-          setSaving(false);
-          return;
+      // Submitted — the resumed local draft (if any) is now obsolete.
+      if (user && draftId) {
+        try {
+          await deleteDraft(user.id, draftId);
+        } catch {
+          // Best-effort; a stale draft row is harmless.
         }
       }
 
       router.replace({
         pathname: "/establishment/create-manifest/confirmed",
         params: {
-          manifestId: manifest.id,
+          manifestId: String(result.manifest_id),
           location,
           diverCount: divers.length,
           boatName: boatName.trim(),
           captainName: captainName.trim(),
-          remainingBalance: Math.max(0, remainingPasses - passesNeeded),
+          remainingBalance: String(result.remaining),
         },
       });
     } catch (e) {
@@ -670,6 +780,7 @@ export default function CreateManifestStep1() {
               const covered = isCovered(d);
               const assigned = isAssigned(d);
               const assignable = !!d.touristId && !d.isWalkIn && !covered;
+              const editing = editingDiverId === d.id;
               return (
                 <View key={d.id} style={styles.diverCard}>
                   <View style={styles.diverAvatar}>
@@ -678,8 +789,44 @@ export default function CreateManifestStep1() {
                   <View style={styles.diverContent}>
                     <Text style={styles.diverCardName}>{d.name}</Text>
                     <Text style={styles.diverCardMeta}>
-                      {d.meta || (d.ecoId ? `${d.ecoId} · Verified diver` : d.isWalkIn ? "Walk-in" : "No Eco-Dive ID on file")}
+                      {d.meta || buildDiverMeta(d)}
                     </Text>
+                    {!d.isWalkIn && d.touristId && (
+                      <TouchableOpacity
+                        onPress={() => setEditingDiverId(editing ? null : d.id)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={editing ? `Done editing ${d.name}` : `Edit nationality and dive level for ${d.name}`}
+                      >
+                        <Text style={styles.editAttrsLink}>
+                          {editing ? "Done" : "Edit nationality · dive level"}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    {editing && (
+                      <View style={styles.attrEditRow}>
+                        <View style={{ flex: 1 }}>
+                          <Dropdown
+                            label="Nationality"
+                            value={
+                              nationalities.some((n) => n.value === d.nationality)
+                                ? (d.nationality as string)
+                                : "Other"
+                            }
+                            options={nationalities}
+                            onSelect={(v) => updateDiverAttrs(d.id, { nationality: v })}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Dropdown
+                            label="Dive Level"
+                            value={d.diveLevel || "Fun Dive"}
+                            options={diveLevels}
+                            onSelect={(v) => updateDiverAttrs(d.id, { diveLevel: v })}
+                          />
+                        </View>
+                      </View>
+                    )}
                     <View style={styles.diverBadges}>
                       {covered && (
                         <View style={styles.annualBadge}>
@@ -772,6 +919,20 @@ export default function CreateManifestStep1() {
             )}
           </TouchableOpacity>
 
+          {/* Local draft: unsubmitted forms live on this device only (see
+              Drafts tab) — never sent to the DB, never consuming passes. */}
+          <TouchableOpacity
+            style={styles.draftBtn}
+            activeOpacity={0.85}
+            onPress={handleSaveDraft}
+            accessibilityRole="button"
+            accessibilityLabel="Save draft on this device"
+          >
+            <Text style={styles.draftBtnText}>
+              {draftSavedTick ? "Draft saved on this device ✓" : "Save Draft"}
+            </Text>
+          </TouchableOpacity>
+
           <View style={{ height: 100 }} />
         </ContentContainer>
       </ScrollView>
@@ -785,16 +946,17 @@ export default function CreateManifestStep1() {
               Search existing tourist or encode new
             </Text>
 
-            {/* Search Tourist */}
-            <Text style={styles.fieldTitle}>Search Tourist (by Name or Eco-ID)</Text>
+            {/* Search Tourist: name contains-match + exact Eco-Dive ID */}
+            <Text style={styles.fieldTitle}>Search Tourist (Name or exact Eco-Dive ID)</Text>
             <View style={styles.searchBarWrap}>
               <Ionicons name="search" size={18} color="#94A3B8" style={{ marginRight: 8 }} />
               <NativeInput
                 style={styles.nativeSearchInput}
-                placeholder="Search registered tourist..."
+                placeholder="Name or full Eco-Dive ID (e.g. ECO-2026-…)"
                 placeholderTextColor="#94A3B8"
                 value={searchQuery}
                 onChangeText={searchTourists}
+                autoCapitalize="characters"
               />
               {searching && <ActivityIndicator size="small" color={colors.primaryBlue} />}
             </View>
@@ -807,7 +969,7 @@ export default function CreateManifestStep1() {
             )}
             {searchResults.length > 0 && (
               <View style={styles.resultsDrop}>
-                {searchResults.map((item) => (
+                {searchResults.map((item: { id: string; full_name: string; _ecoMatch?: boolean }) => (
                   <TouchableOpacity
                     key={item.id}
                     style={styles.resultItem}
@@ -815,6 +977,11 @@ export default function CreateManifestStep1() {
                   >
                     <Ionicons name="person" size={16} color={colors.primaryBlue} />
                     <Text style={styles.resultItemName}>{item.full_name}</Text>
+                    {item._ecoMatch && (
+                      <View style={styles.ecoMatchBadge}>
+                        <Text style={styles.ecoMatchText}>Eco-ID ✓</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1045,6 +1212,17 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 2,
   },
+  editAttrsLink: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.primaryBlue,
+    marginTop: 4,
+  },
+  attrEditRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 6,
+  },
   activePill: {
     backgroundColor: "#10B981",
     borderRadius: 100,
@@ -1163,6 +1341,21 @@ const styles = StyleSheet.create({
   blueSubmitBtnDisabled: {
     opacity: 0.5,
   },
+  draftBtn: {
+    marginTop: 10,
+    borderRadius: 24,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: colors.primaryBlue,
+    backgroundColor: colors.white,
+  },
+  draftBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.primaryBlue,
+  },
   errorText: {
     fontSize: 13,
     color: colors.red,
@@ -1237,6 +1430,18 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F1F5F9",
   },
   resultItemName: { fontSize: 13, fontWeight: "600", color: "#0F172A" },
+  ecoMatchBadge: {
+    borderRadius: 100,
+    backgroundColor: "#DCFCE7",
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginLeft: "auto",
+  },
+  ecoMatchText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#15803D",
+  },
   orEncodeLabel: {
     fontSize: 12,
     color: "#64748B",

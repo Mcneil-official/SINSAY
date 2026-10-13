@@ -33,6 +33,9 @@ export default function PaymentScreen() {
     qr_code_url: string | null;
   } | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
+  const [dbUnitPrice, setDbUnitPrice] = useState<number | null>(null);
+  const [dbPassesPerPack, setDbPassesPerPack] = useState<number | null>(null);
+  const [pricingChecked, setPricingChecked] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -52,10 +55,41 @@ export default function PaymentScreen() {
     })();
   }, []);
 
+  const pricingCode =
+    passId === "annual-pass" ? "annual" : passId === "one-day-pass" ? "one_day" : null;
+
+  useEffect(() => {
+    if (!pricingCode) {
+      setPricingChecked(true);
+      return;
+    }
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("pass_pricing")
+          .select("price, passes")
+          .eq("code", pricingCode)
+          .maybeSingle();
+        if (data) {
+          setDbUnitPrice(Number(data.price));
+          setDbPassesPerPack(Number(data.passes));
+        }
+      } catch (e) {
+        console.warn("Failed to verify pricing:", e);
+      } finally {
+        setPricingChecked(true);
+      }
+    })();
+  }, [pricingCode]);
+
   // No magic fallbacks: without a real order this screen is meaningless.
   const totalNum = Number(total) || 0;
   const countNum = Number(passCount) || 0;
   const unitNum = Number(unitPrice) || 0;
+  // Clamp both axes to 1–50: upload enforces the same bounds, so a tampered
+  // deep-link can never display (or forward) an unachievable total.
+  const qtyNum = Math.min(50, Math.max(1, Number(quantity) || 1));
+  const clampedCount = Math.min(50, Math.max(0, countNum));
   const passTypeLabel = passId === "annual-pass" ? "Annual Dive Pass" : passLabel || "One-Day Dive Pass";
   const hasOrder =
     (passId === "one-day-pass" || passId === "annual-pass") &&
@@ -63,6 +97,18 @@ export default function PaymentScreen() {
     countNum >= 1 &&
     countNum <= 50 &&
     totalNum > 0;
+
+  // DB-truth override: once pricing loads, the payable amount comes from
+  // pass_pricing, never the (tamperable) route param.
+  const isUnitRow = dbPassesPerPack === 1;
+  const verifiedTotal =
+    dbUnitPrice !== null
+      ? dbUnitPrice * (isUnitRow ? clampedCount : qtyNum)
+      : totalNum;
+  const displayTotal = pricingChecked && dbUnitPrice !== null ? verifiedTotal : totalNum;
+  const displayUnit = dbUnitPrice ?? unitNum;
+  const priceMismatch =
+    pricingChecked && dbUnitPrice !== null && Math.abs(verifiedTotal - totalNum) > 0;
 
   if (!hasOrder) {
     return (
@@ -107,10 +153,15 @@ export default function PaymentScreen() {
           {/* Amount to Pay Box */}
           <View style={styles.amountBox}>
             <Text style={styles.amountLabel}>Amount to Pay</Text>
-            <Text style={styles.amountTotal}>₱{totalNum.toLocaleString()}.00</Text>
+            <Text style={styles.amountTotal}>₱{displayTotal.toLocaleString()}.00</Text>
             <Text style={styles.amountDetail}>
-              {countNum} × {passTypeLabel} (₱{unitNum.toLocaleString()}/pass)
+              {clampedCount} × {passTypeLabel} (₱{displayUnit.toLocaleString()}/pass)
             </Text>
+            {priceMismatch && (
+              <Text style={styles.priceNote}>
+                Price updated by the Tourism Office — please pay ₱{verifiedTotal.toLocaleString()}.00
+              </Text>
+            )}
           </View>
 
           {/* GCash QR Card */}
@@ -178,7 +229,7 @@ export default function PaymentScreen() {
                 <Text style={styles.stepBadgeText}>2</Text>
               </View>
               <Text style={styles.stepText}>
-                Pay the exact amount of <Text style={{ fontWeight: "700" }}>₱{totalNum.toLocaleString()}.00</Text>
+                 Pay the exact amount of <Text style={{ fontWeight: "700" }}>₱{displayTotal.toLocaleString()}.00</Text>
               </Text>
             </View>
 
@@ -208,7 +259,16 @@ export default function PaymentScreen() {
             onPress={() =>
               router.push({
                 pathname: "/(operator-tabs)/buy-pass/upload",
-                params: { passId, passLabel, passCount, quantity, total, unitPrice },
+                // Forward DB-verified amounts (not the raw tamperable params)
+                // so payment → upload never shows two different totals.
+                params: {
+                  passId,
+                  passLabel: passTypeLabel,
+                  passCount: String(clampedCount),
+                  quantity: String(qtyNum),
+                  total: String(displayTotal),
+                  unitPrice: String(displayUnit),
+                },
               })
             }
           >
@@ -264,6 +324,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#2563EB",
+  },
+  priceNote: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#B45309",
+    marginTop: 6,
+    textAlign: "center",
   },
   qrCard: {
     backgroundColor: colors.white,

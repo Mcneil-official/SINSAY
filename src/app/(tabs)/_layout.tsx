@@ -8,19 +8,19 @@ import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
 
 function TouristGate() {
-  const { user, isOperator, isLoading } = useAuth();
+  const { user, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !roleReady) return;
     if (!user) {
       router.replace("/loginpage");
-    } else if (isOperator) {
+    } else if (isOperator && !viewAsTourist) {
       router.replace("/(operator-tabs)");
     }
-  }, [isLoading, user, isOperator, router]);
+  }, [isLoading, roleReady, user, isOperator, viewAsTourist, router]);
 
-  if (isLoading) {
+  if (isLoading || !roleReady) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator size="large" color={colors.primaryBlue} />
@@ -56,7 +56,20 @@ const tabLabels: Record<string, string> = {
 
 export default function TabLayout() {
   const { isDesktop } = useLayout();
+  const { isLoading, roleReady } = useAuth();
   const router = useRouter();
+
+  const ready = !isLoading && roleReady;
+  if (!ready) {
+    return (
+      <>
+        <TouristGate />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator size="large" color={colors.primaryBlue} />
+        </View>
+      </>
+    );
+  }
 
   return (
     <>
