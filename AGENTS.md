@@ -48,12 +48,14 @@ src/app/
 │       └── upload.tsx               # Upload receipt (push)
 │
 ├── establishment/create-manifest/   # Stack routes from dashboard (push)
-│   ├── step1.tsx                    # Manifest form + diver list + submit
-│   ├── add-diver.tsx                # Diver search/walk-in
+│   ├── step1.tsx                    # Manifest form + diver list + submit (via create_manifest_with_divers RPC)
+│   ├── add-diver.tsx                # Standalone diver search/walk-in (deep-linkable; primary entry is step1 modal)
 │   └── confirmed.tsx                # Manifest submitted confirmation
 │
-└── _layout.tsx                      # Root: AuthProvider + max-width 480px shell + slide_from_right animation
+└── _layout.tsx                      # Root: AuthProvider + max-width shell + slide_from_right animation
 ```
+(Centering is per-screen via ContentContainer — no global 480px wrapper in
+`src/app/_layout.tsx`; the "480px container" phrasing in older docs is stale.)
 
 ## Completed Work
 
@@ -104,11 +106,12 @@ src/app/
 - Login redirects to `/(tabs)` (not `/`) to avoid splash loop
 - Operator accounts: one account per establishment (no multi-staff for now)
 - Active/Done on manifests derived from `dive_date` (not manually toggled)
-- Pass credits: `operator_pass_ledger` view computes remaining from verified purchases minus consumed manifests (no client-side decrement)
+- Pass credits: `operator_pass_ledger` view computes remaining from verified purchases minus consumed manifests (no client-side decrement); annual slots are CONSUMABLE (assigned counts forever, expired slots do not free up)
 - Nav bars use `flex: 1` distribution, navy active color, "Dive Assistant" label
 - Edge Function uses direct `fetch` to Gemini REST API (no npm imports in Deno)
 - Private buckets store file path in DB; signed URLs generated on read with `getSignedUrl()`
 - Capacity constraint enforced DB-side via trigger (not just client validation)
+- tailwind `darkMode: "class"` is LOAD-BEARING (do not remove): css-interop throws on any color-scheme set in default `media` mode; nothing emits `dark`, so the app stays light-only
 
 ## Next Steps / Backlog
 - (All R1–R8 + Phase 1–5 profile work + Operator dashboard deep-dive compliance complete)

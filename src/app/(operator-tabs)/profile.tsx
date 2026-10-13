@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -40,8 +40,14 @@ function ProfileRow({ icon, label, subtitle, onPress, destructive }: ProfileRowP
 }
 
 export default function OperatorProfileScreen() {
-  const { user, profile, signOut, isLoading, setViewAsTourist } = useAuth();
+  const { user, profile, signOut, isLoading, setViewAsTourist, viewAsTourist } = useAuth();
   const router = useRouter();
+
+  // Navigate only after the flag propagates so OperatorGate sees the new
+  // value (avoids the set-then-replace race that bounced back on slow devices).
+  useEffect(() => {
+    if (viewAsTourist) router.replace("/(tabs)");
+  }, [viewAsTourist, router]);
 
   const handleLogout = async () => {
     const confirmed = await confirmDialog(
@@ -94,7 +100,6 @@ export default function OperatorProfileScreen() {
             subtitle="Browse the app as a diver"
             onPress={() => {
               setViewAsTourist(true);
-              router.replace("/(tabs)");
             }}
           />
         </View>

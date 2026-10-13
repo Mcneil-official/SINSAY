@@ -16,6 +16,11 @@ interface AuthState {
   viewAsTourist: boolean;
   setViewAsTourist: (v: boolean) => void;
   isLoading: boolean;
+  // True once role data (profile + operatorApplication) has settled for the
+  // current user (or immediately when logged out). Gates must wait for this —
+  // isLoading alone is one-shot at boot and goes false while fetchProfile is
+  // still in flight, which caused the operator ping-pong flash.
+  roleReady: boolean;
   unreadCount: number;
   notifications: NotificationRow[];
   fetchNotifications: () => Promise<void>;
@@ -42,6 +47,7 @@ const defaultAuthState: AuthState = {
   viewAsTourist: false,
   setViewAsTourist: () => {},
   isLoading: true,
+  roleReady: false,
   unreadCount: 0,
   notifications: [],
   fetchNotifications: async () => {},
@@ -64,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [operatorApplication, setOperatorApplication] = useState<OperatorApplicationRow | null>(null);
   const [viewAsTourist, setViewAsTourist] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [roleReady, setRoleReady] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   // Single-flight guard: concurrent fetchProfile calls (getSession +
@@ -78,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setViewAsTourist(false);
     setNotifications([]);
     setUnreadCount(0);
+    setRoleReady(false);
   }, []);
 
   const signOut = useCallback(async () => {
@@ -91,6 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     clearLocalAuthState();
+    // Logged-out snapshot is definitive for gates.
+    setRoleReady(true);
     await supabase.auth.signOut();
   }, [clearLocalAuthState]);
 
@@ -139,7 +149,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!data) {
       const { data: authUser } = await supabase.auth.getUser();
-      const fullName = authUser?.user?.user_metadata?.full_name || "Diver";
+      const meta = authUser?.user?.user_metadata as Record<string, unknown> | undefined;
+      const fullName =
+        (meta?.full_name as string | undefined) ||
+        (meta?.name as string | undefined) ||
+        "Diver";
       const email = authUser?.user?.email || "";
       const { error: insertError } = await supabase
         .from("tourists")
@@ -176,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isLatest()) return false;
     if (opApp) setOperatorApplication(opApp);
     else setOperatorApplication(null);
+    if (isLatest()) setRoleReady(true);
     return opApp?.status === "approved";
   }, []);
 
@@ -196,6 +211,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         await fetchProfile(session.user.id);
+      } else {
+        // Anonymous: nothing to resolve — gates may redirect immediately.
+        setRoleReady(true);
       }
       setIsLoading(false);
     });
@@ -206,6 +224,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        // New identity arriving: role is stale until fetchProfile lands.
+        setRoleReady(false);
         fetchProfile(session.user.id);
         supabase
           .from("notifications")
@@ -216,10 +236,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // SIGNED_OUT (or expired session): clear role-derived state
         // synchronously so gates never see user=null + isOperator=true stale.
+        // Logged-out is a definitive state — mark ready so gates redirect now.
         fetchSeqRef.current += 1;
         setSession(null);
         setUser(null);
         clearLocalAuthState();
+        setRoleReady(true);
       }
     });
 
@@ -282,12 +304,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               try {
                 const { error } = await supabase.auth.refreshSession();
                 if (error) throw error;
+                // Role comes from the table row, not JWT claims — re-read it
+                // so isOperator flips even if the refresh changed nothing.
+                await fetchProfile(updated.tourist_id);
               } catch (e) {
-                // Stale/rotated refresh token (HTTP 400 invalid_grant):
-                // purge the poisoned stored session so gates route cleanly
-                // to /loginpage instead of retrying a dead token.
-                console.warn("Post-approval session refresh failed, signing out:", e);
-                await signOut();
+                // Transient refresh failure (HTTP 400 invalid_grant / blip):
+                // do NOT log the user out right after approval — just re-read
+                // the row; the next focus/restart picks up a fresh session.
+                console.warn("Post-approval session refresh failed, re-reading role:", e);
+                await fetchProfile(updated.tourist_id);
               }
             }
           }
@@ -300,16 +325,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(notifChannel);
       supabase.removeChannel(opAppChannel);
     };
-  }, [user, fetchNotifications, fetchUnreadCount, signOut]);
+  }, [user, fetchNotifications, fetchUnreadCount, fetchProfile]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
+    setRoleReady(false);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { error: error.message };
+      if (error) {
+        // Failed login: nothing is resolving — unblock gates immediately.
+        setRoleReady(true);
+        return { error: error.message };
+      }
       let isOperator = false;
       if (data.user) {
         isOperator = await fetchProfile(data.user.id);
+      } else {
+        setRoleReady(true);
       }
       return { isOperator };
     } finally {
@@ -319,10 +351,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = useCallback(
     async (email: string, password: string, fullName: string) => {
+      const emailRedirectTo =
+        typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: {
+          data: { full_name: fullName },
+          ...(emailRedirectTo ? { emailRedirectTo } : {}),
+        },
       });
       if (error) return { error: error.message };
       return {};
@@ -361,6 +398,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         viewAsTourist,
         setViewAsTourist,
         isLoading,
+        roleReady,
         unreadCount,
         notifications,
         fetchNotifications,

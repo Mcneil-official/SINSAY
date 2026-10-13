@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import React, { useState, useEffect, useCallback } from "react";
+import { Stack, useRouter } from "expo-router";
+import React, { useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -9,235 +10,177 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
+  TextInput as NativeInput,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, TextInput, Card, ContentContainer } from "../../../components";
+import { ContentContainer, TextInput, Dropdown } from "../../../components";
+import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
-interface SearchResult {
-  name: string;
-  ecoId: string;
-  verified: boolean;
-  touristId: string;
-}
+// Standalone add-diver route (deep-linkable). The primary entry remains the
+// + Add Diver modal in step1.tsx; this screen reuses the same search +
+// walk-in encode and returns via router.back() so step1 dedupes by
+// touristId / walk-in name. Exists so AGENTS.md and any .../add-diver link
+// never 404.
+const nationalities = [
+  { label: "Filipino", value: "Filipino" },
+  { label: "American", value: "American" },
+  { label: "Japanese", value: "Japanese" },
+  { label: "Korean", value: "Korean" },
+  { label: "Other", value: "Other" },
+];
+
+const diveLevels = [
+  { label: "Fun Dive", value: "Fun Dive" },
+  { label: "Open Water", value: "Open Water" },
+  { label: "Advanced Adventurer", value: "Advanced Adventurer" },
+  { label: "Rescue Diver", value: "Rescue Diver" },
+  { label: "Divemaster", value: "Divemaster" },
+];
 
 export default function AddDiverScreen() {
   const router = useRouter();
-  const { draft } = useLocalSearchParams<{ draft?: string }>();
+  const { user, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [showWalkInForm, setShowWalkInForm] = useState(false);
-  const [walkInName, setWalkInName] = useState("");
-  const [walkInContact, setWalkInContact] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<{ id: string; full_name: string }[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [nationality, setNationality] = useState("Filipino");
+  const [diveLevel, setDiveLevel] = useState("Fun Dive");
+  const [notice, setNotice] = useState("");
 
-  const doSearch = useCallback(async (q: string) => {
-    if (q.length < 2) {
-      setResults([]);
+  if (!authLoading && !user) {
+    router.replace("/loginpage");
+  }
+
+  const searchTourists = async (text: string) => {
+    setSearchQuery(text);
+    setSearchError(false);
+    if (text.trim().length < 2) {
+      setSearchResults([]);
       return;
     }
     setSearching(true);
-    setSearchError(false);
     try {
-      const { data: tourists, error: tErr } = await supabase
-        .from("tourists")
-        .select("id, full_name")
-        .ilike("full_name", `%${q}%`)
-        .limit(10);
-      if (tErr) throw tErr;
-
-      const { data: ecoIds, error: eErr } = await supabase
-        .from("eco_dive_ids")
-        .select("tourist_id, eco_id_number, status")
-        .ilike("eco_id_number", `%${q}%`)
-        .limit(10);
-      if (eErr) throw eErr;
-
-      const merged: SearchResult[] = [];
-      const added = new Set<string>();
-
-      for (const t of tourists || []) {
-        merged.push({ name: t.full_name, ecoId: "", verified: false, touristId: t.id });
-        added.add(t.id);
-      }
-
-      // Batch-fetch names for eco-ID hits not already matched, instead of
-      // one query per row (each of which could silently render "Unknown").
-      const unmatched = (ecoIds || []).filter((e) => !added.has(e.tourist_id));
-      const nameById = new Map<string, string>();
-      if (unmatched.length > 0) {
-        const { data: names, error: nErr } = await supabase
+      // Name contains-match + exact Eco-Dive ID match (parity with step1).
+      const trimmed = text.trim();
+      const [nameRes, ecoRes] = await Promise.all([
+        supabase
           .from("tourists")
           .select("id, full_name")
-          .in("id", unmatched.map((e) => e.tourist_id));
-        if (nErr) throw nErr;
-        for (const n of names || []) nameById.set(n.id, n.full_name);
+          .ilike("full_name", `%${trimmed}%`)
+          .limit(5),
+        trimmed.length >= 6
+          ? supabase
+              .from("eco_dive_ids")
+              .select("tourist_id, eco_id_number")
+              .ilike("eco_id_number", trimmed)
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
+      if (nameRes.error) throw nameRes.error;
+      if (ecoRes.error) throw ecoRes.error;
+      const rows = [...(nameRes.data || [])] as { id: string; full_name: string; _ecoMatch?: boolean }[];
+      const eco = (ecoRes as { data?: { tourist_id: string } | null }).data;
+      if (eco && !rows.some((r) => r.id === eco.tourist_id)) {
+        const { data: holder, error: holderErr } = await supabase
+          .from("tourists")
+          .select("id, full_name")
+          .eq("id", eco.tourist_id)
+          .maybeSingle();
+        if (holderErr) throw holderErr;
+        if (holder) rows.unshift({ ...holder, _ecoMatch: true });
       }
-
-      for (const e of ecoIds || []) {
-        if (added.has(e.tourist_id)) {
-          const existing = merged.find((r) => r.touristId === e.tourist_id);
-          if (existing) {
-            existing.ecoId = e.eco_id_number;
-            existing.verified = e.status === "complete";
-          }
-        } else {
-          merged.push({
-            name: nameById.get(e.tourist_id) || "Unknown",
-            ecoId: e.eco_id_number,
-            verified: e.status === "complete",
-            touristId: e.tourist_id,
-          });
-        }
-      }
-      setResults(merged);
-    } catch (e) {
-      console.warn("Diver search failed:", e);
-      setResults([]);
+      setSearchResults(rows);
+    } catch {
+      setSearchResults([]);
       setSearchError(true);
     }
     setSearching(false);
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => doSearch(searchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, doSearch]);
-
-  const handleSelectDiver = (diver: SearchResult) => {
-    // Replace (not push): avoids stacking Step1 → AddDiver → Step1 …
-    // The draft is echoed back so the in-progress form is preserved.
-    router.replace({
-      pathname: "/establishment/create-manifest/step1",
-      params: {
-        ...(draft ? { draft } : {}),
-        addDiver: JSON.stringify({
-          name: diver.name,
-          ecoId: diver.ecoId,
-          touristId: diver.touristId,
-          isWalkIn: false,
-        }),
-      },
-    });
   };
 
-  const handleAddWalkIn = () => {
-    if (!walkInName.trim()) return;
-    router.replace({
-      pathname: "/establishment/create-manifest/step1",
-      params: {
-        ...(draft ? { draft } : {}),
-        addDiver: JSON.stringify({
-          name: walkInName.trim(),
-          ecoId: "",
-          touristId: "",
-          isWalkIn: true,
-        }),
-      },
-    });
+  const pickTourist = async (tourist: { id: string; full_name: string }) => {
+    let ecoId: string | undefined;
+    try {
+      const { data } = await supabase
+        .from("eco_dive_ids")
+        .select("eco_id_number")
+        .eq("tourist_id", tourist.id)
+        .limit(1)
+        .maybeSingle();
+      ecoId = data?.eco_id_number ?? undefined;
+    } catch {
+      ecoId = undefined;
+    }
+    setNotice(
+      ecoId
+        ? `${tourist.full_name} (${ecoId}) selected — go back to add them to the manifest.`
+        : `${tourist.full_name} selected — no Eco-Dive ID on file. Go back to add them.`,
+    );
+    router.back();
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safe}>
+      <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="dark-content" />
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={colors.darkText} />
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>Add Diver</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Add Diver</Text>
+          <Text style={styles.sub}>Search existing tourist or encode walk-in</Text>
+        </View>
       </View>
-
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <ContentContainer maxWidth={720}>
-          <Text style={styles.instructions}>
-            Search for a registered diver by name or Eco-Diver ID, or add a walk-in diver.
-          </Text>
-
-        {/* Search */}
-        <TextInput
-          label="Search Diver"
-          placeholder="Name or Eco-Diver ID"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          leftIcon={<Ionicons name="search" size={18} color={colors.gray} />}
-        />
-
-        {/* Search results */}
-        {searching && <ActivityIndicator size="small" color={colors.primaryBlue} style={{ marginTop: 12 }} />}
-        {results.length > 0 && (
-          <View style={styles.sectionLabel}>
-            <Text style={styles.sectionLabelText}>Registered Divers</Text>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body}>
+        <ContentContainer maxWidth={540}>
+          <Text style={styles.fieldTitle}>Search Tourist (Name or exact Eco-Dive ID)</Text>
+          <View style={styles.searchWrap}>
+            <Ionicons name="search" size={18} color="#94A3B8" style={{ marginRight: 8 }} />
+            <NativeInput
+              style={styles.searchInput}
+              placeholder="Name or full Eco-Dive ID (e.g. ECO-2026-…)"
+              placeholderTextColor="#94A3B8"
+              value={searchQuery}
+              onChangeText={searchTourists}
+              autoCapitalize="characters"
+            />
+            {searching && <ActivityIndicator size="small" color={colors.primaryBlue} />}
           </View>
-        )}
-        {searchError && searchQuery.length >= 2 && !searching && (
-          <Text style={styles.searchErrorText}>Search failed. Check your connection and try again.</Text>
-        )}
-        {results.length === 0 && searchQuery.length >= 2 && !searching && !searchError && (
-          <Text style={styles.noResultsText}>No results for '{searchQuery}'. Try a different name or add a walk-in.</Text>
-        )}
-        <View style={{ gap: 6, marginTop: 4 }}>
-          {results.map((d, i) => (
-            <TouchableOpacity key={i} style={styles.diverRow} onPress={() => handleSelectDiver(d)} activeOpacity={0.7}>
-              <Ionicons name="person-circle-outline" size={28} color={colors.primaryBlue} />
-              <View style={styles.diverInfo}>
-                <View style={styles.diverNameRow}>
-                  <Text style={styles.diverName}>{d.name}</Text>
-                  {d.verified && <Ionicons name="checkmark-circle" size={14} color="#16A34A" />}
-                </View>
-                {d.ecoId ? <Text style={styles.diverEcoId}>{d.ecoId}</Text> : <Text style={styles.diverEcoId}>No Eco-Dive ID</Text>}
-              </View>
-              <Ionicons name="add-circle" size={22} color={colors.primaryBlue} />
+          {searchError && <Text style={styles.err}>Search failed. Check your connection and try again.</Text>}
+          {searchResults.map((item: { id: string; full_name: string; _ecoMatch?: boolean }) => (
+            <TouchableOpacity key={item.id} style={styles.result} onPress={() => pickTourist(item)}>
+              <Ionicons name="person" size={16} color={colors.primaryBlue} />
+              <Text style={styles.resultName}>{item.full_name}</Text>
+              {item._ecoMatch && <Text style={styles.ecoBadge}>Eco-ID ✓</Text>}
             </TouchableOpacity>
           ))}
-        </View>
-
-        {/* Walk-in toggle */}
-        <View style={{ marginTop: 24 }}>
-          <TouchableOpacity
-            style={styles.walkInToggle}
-            onPress={() => setShowWalkInForm(!showWalkInForm)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.walkInToggleLeft}>
-              <Ionicons name="person-add-outline" size={20} color={colors.primaryBlue} />
-              <Text style={styles.walkInToggleText}>Add Walk-in Diver</Text>
+          <Text style={styles.orLabel}>No result? Encode a walk-in below, then go back.</Text>
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <TextInput label="First Name" placeholder="Juan" value={firstName} onChangeText={setFirstName} />
             </View>
-            <Ionicons name={showWalkInForm ? "chevron-up" : "chevron-down"} size={18} color={colors.gray} />
+            <View style={{ flex: 1 }}>
+              <TextInput label="Last Name" placeholder="Dela Cruz" value={lastName} onChangeText={setLastName} />
+            </View>
+          </View>
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <Dropdown label="Nationality" value={nationality} options={nationalities} onSelect={setNationality} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Dropdown label="Dive Level" value={diveLevel} options={diveLevels} onSelect={setDiveLevel} />
+            </View>
+          </View>
+          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+          <TouchableOpacity style={styles.backCta} onPress={() => router.back()} activeOpacity={0.88}>
+            <Text style={styles.backCtaText}>Back to Manifest</Text>
           </TouchableOpacity>
-        </View>
-
-        {showWalkInForm && (
-          <Card style={styles.walkInForm}>
-            <TextInput
-              label="Full Name"
-              placeholder="Enter full name"
-              value={walkInName}
-              onChangeText={setWalkInName}
-            />
-            <View style={{ height: 12 }} />
-            <TextInput
-              label="Contact Number"
-              placeholder="+63 9XX XXX XXXX"
-              value={walkInContact}
-              onChangeText={setWalkInContact}
-              keyboardType="phone-pad"
-            />
-            <View style={styles.walkInActions}>
-              <View style={{ flex: 1 }}>
-                <Button title="Cancel" variant="outline" onPress={() => setShowWalkInForm(false)} />
-              </View>
-              <View style={{ width: 10 }} />
-              <View style={{ flex: 1 }}>
-                <Button title="Add Diver" onPress={handleAddWalkIn} disabled={!walkInName.trim()} />
-              </View>
-            </View>
-          </Card>
-        )}
-
-        <View style={{ height: 60 }} />
+          <View style={{ height: 60 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -245,36 +188,22 @@ export default function AddDiverScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1 },
-  scrollContent: { paddingTop: 8, paddingBottom: 20 },
-  topBar: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingVertical: 12,
-  },
-  topTitle: { fontSize: 17, fontWeight: "600", color: colors.darkText },
-  instructions: { fontSize: 13, color: colors.gray, lineHeight: 18, marginBottom: 16 },
-  sectionLabel: { marginTop: 16 },
-  sectionLabelText: { fontSize: 13, fontWeight: "600", color: colors.gray, textTransform: "uppercase", letterSpacing: 0.5 },
-  noResultsText: { fontSize: 13, color: colors.gray, textAlign: "center", marginTop: 16 },
-  searchErrorText: { fontSize: 13, color: colors.red, textAlign: "center", marginTop: 16 },
-  diverRow: {
-    flexDirection: "row", alignItems: "center", backgroundColor: colors.white,
-    borderRadius: 12, padding: 12, gap: 10,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 1,
-  },
-  diverInfo: { flex: 1 },
-  diverNameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  diverName: { fontSize: 14, fontWeight: "600", color: colors.darkText },
-  diverEcoId: { fontSize: 11, color: colors.gray, marginTop: 2 },
-  walkInToggle: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 14, paddingHorizontal: 16,
-    backgroundColor: "#EBF2FF", borderRadius: 12,
-  },
-  walkInToggleLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  walkInToggleText: { fontSize: 14, fontWeight: "600", color: colors.primaryBlue },
-  walkInForm: { padding: 16, marginTop: 12, gap: 0 },
-  walkInActions: { flexDirection: "row", marginTop: 20 },
+  safe: { flex: 1, backgroundColor: "#F8FAFC" },
+  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
+  backBtn: { paddingRight: 8 },
+  title: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
+  sub: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  body: { paddingTop: 12, paddingBottom: 24, paddingHorizontal: 16 },
+  fieldTitle: { fontSize: 12, fontWeight: "700", color: "#334155", marginBottom: 6 },
+  searchWrap: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#CBD5E1", borderRadius: 10, paddingHorizontal: 12, height: 44, backgroundColor: colors.white, marginBottom: 8 },
+  searchInput: { flex: 1, fontSize: 14, color: "#0F172A" },
+  err: { fontSize: 12, color: colors.red, marginTop: 8 },
+  result: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10, backgroundColor: colors.white, marginTop: 6 },
+  resultName: { fontSize: 13, fontWeight: "600", color: "#0F172A" },
+  ecoBadge: { fontSize: 10, fontWeight: "700", color: "#15803D", backgroundColor: "#DCFCE7", borderRadius: 100, paddingHorizontal: 8, paddingVertical: 2, marginLeft: "auto" },
+  orLabel: { fontSize: 12, color: "#64748B", marginVertical: 10 },
+  row: { flexDirection: "row", gap: 12, marginBottom: 4 },
+  notice: { fontSize: 13, color: "#15803D", marginTop: 10, lineHeight: 18 },
+  backCta: { marginTop: 18, backgroundColor: colors.primaryBlue, borderRadius: 14, height: 50, alignItems: "center", justifyContent: "center" },
+  backCtaText: { fontSize: 15, fontWeight: "700", color: colors.white },
 });

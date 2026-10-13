@@ -77,18 +77,20 @@ export default function UploadReceiptScreen() {
     })();
   }, [pricingCode]);
 
-  const qty = Math.max(1, Number(quantity) || 1);
+  const rawQty = Number(quantity) || 0;
+  const qtyValid = Number.isInteger(rawQty) && rawQty >= 1 && rawQty <= 50;
+  const qty = qtyValid ? rawQty : 0;
   // Unit-priced rows (passes = 1) sell a custom count from passCount;
   // pack rows multiply by qty. Same 1–50 bounds the selection screen enforces.
   const rawCustomCount = Number(passCount) || 0;
   const customCountValid =
     Number.isInteger(rawCustomCount) && rawCustomCount >= 1 && rawCustomCount <= 50;
   const isUnitRow = passesPerPack === 1;
+  // Cap at MAX_PER_ORDER even if TO ever adds a pack row (passes=10):
+  // without this, 10×50=500 passes would silently break the 50-cap intent.
   const verifiedPasses =
     passesPerPack !== null
-      ? isUnitRow
-        ? rawCustomCount
-        : passesPerPack * qty
+      ? Math.min(50, isUnitRow ? rawCustomCount : passesPerPack * qty)
       : 0;
   const verifiedTotal =
     unitPrice !== null ? unitPrice * (isUnitRow ? rawCustomCount : qty) : 0;
@@ -101,7 +103,8 @@ export default function UploadReceiptScreen() {
     unitPrice > 0 &&
     passesPerPack !== null &&
     verifiedTotal > 0 &&
-    (!isUnitRow || customCountValid);
+    (!isUnitRow || customCountValid) &&
+    (isUnitRow || qtyValid);
 
   const refDigits = referenceNumber.replace(/\D/g, "");
   const refValid = /^\d{13}$/.test(refDigits);
@@ -137,7 +140,6 @@ export default function UploadReceiptScreen() {
     setError("");
 
     let receiptPath: string | null = null;
-    let inventoryId: string | null = null;
     try {
       // 1. Upload receipt to storage (required — no placeholder fallback).
       const { path: uploadedPath, error: uploadError } = await uploadFile(
@@ -153,43 +155,29 @@ export default function UploadReceiptScreen() {
       }
       receiptPath = uploadedPath;
 
-      // 2. Create dive pass inventory (server-verified amounts only).
-      const { data: inventory, error: invError } = await supabase
-        .from("dive_pass_inventory")
-        .insert({
-          operator_id: user.id,
-          pass_type: verifiedPassType,
-          pass_label: passLabel || "",
-          total_passes: verifiedPasses,
-          remaining_passes: verifiedPasses,
-          amount: verifiedTotal,
-        })
-        .select("id")
-        .single();
-      if (invError || !inventory) {
-        await supabase.storage.from("operator_uploads").remove([receiptPath]);
-        setError(invError ? `Failed to create inventory record: ${invError.message}` : "Failed to create inventory record.");
-        setSaving(false);
-        return;
-      }
-      inventoryId = inventory.id;
-
-      // 3. Create payment transaction.
-      const { error: txError } = await supabase
-        .from("payment_transactions")
-        .insert({
-          operator_id: user.id,
-          dive_pass_inventory_id: inventory.id,
-          amount: verifiedTotal,
-          reference_number: refDigits,
-          receipt_url: receiptPath,
-          status: "pending",
-        });
-      if (txError) {
-        // Roll back the partial write: inventory row + storage object.
-        await supabase.from("dive_pass_inventory").delete().eq("id", inventory.id);
-        await supabase.storage.from("operator_uploads").remove([receiptPath]);
-        setError(`Failed to save payment record: ${txError.message}`);
+      // 2+3. Atomic order: inventory + payment in one RPC (040). Either both
+      // land or neither does — no client compensating deletes needed (they
+      // would be denied by RLS anyway: 001 is SELECT+INSERT-only).
+      const { error: rpcError } = await supabase.rpc("create_buy_pass_order", {
+        p_pass_type: verifiedPassType,
+        p_pass_label: passLabel || "",
+        p_total_passes: verifiedPasses,
+        p_amount: verifiedTotal,
+        p_reference_number: refDigits,
+        p_receipt_path: receiptPath,
+      });
+      if (rpcError) {
+        // Best-effort storage cleanup (may be denied — harmless either way
+        // since no DB orphan escapes the failed transaction).
+        try {
+          await supabase.storage.from("operator_uploads").remove([receiptPath]);
+        } catch {
+          // ignore — TO queue stays clean, blob is inert
+        }
+        const msg = rpcError.message.includes("already submitted")
+          ? "This GCash reference number was already submitted. Please check your history."
+          : `Failed to save payment record: ${rpcError.message}`;
+        setError(msg);
         setSaving(false);
         return;
       }
@@ -197,12 +185,13 @@ export default function UploadReceiptScreen() {
       setSubmitted(true);
     } catch (e) {
       console.error("Receipt submit failed:", e);
-      // Best-effort rollback of anything created before the throw.
-      if (inventoryId) {
-        await supabase.from("dive_pass_inventory").delete().eq("id", inventoryId);
-      }
+      // Best-effort storage cleanup only — the RPC never leaves DB orphans.
       if (receiptPath) {
-        await supabase.storage.from("operator_uploads").remove([receiptPath]);
+        try {
+          await supabase.storage.from("operator_uploads").remove([receiptPath]);
+        } catch {
+          // ignore
+        }
       }
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     }
@@ -301,6 +290,9 @@ export default function UploadReceiptScreen() {
             <Text style={styles.errorText}>
               Couldn&apos;t verify pricing for this pass. Please go back and reselect it.
             </Text>
+          )}
+          {!priceLoading && !priceError && !isUnitRow && !qtyValid && (
+            <Text style={styles.errorText}>Quantity must be between 1 and 50.</Text>
           )}
 
           {/* Upload Area */}

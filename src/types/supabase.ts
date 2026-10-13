@@ -81,6 +81,16 @@ export interface Database {
         Insert: PaymentConfigInsert;
         Update: PaymentConfigUpdate;
       };
+      annual_pass_holders: {
+        Row: AnnualPassHolderRow;
+        Insert: AnnualPassHolderInsert;
+        Update: AnnualPassHolderUpdate;
+      };
+      to_staff: {
+        Row: ToStaffRow;
+        Insert: ToStaffInsert;
+        Update: ToStaffUpdate;
+      };
     };
     Views: {
       dive_profile_completion: {
@@ -111,6 +121,10 @@ export interface TouristRow {
   business_permit_url: string | null;
   pcss_url: string | null;
   language_preference: string;
+  // 031_tourist_status: operator-intent status (Active/Expired/Suspended).
+  // Loose string — the caps differ from eco_dive_ids lowercase union, so a
+  // shared enum would lie.
+  status: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -172,12 +186,15 @@ export interface DivePassInventoryRow {
   pass_type: "single" | "multi" | "annual";
   pass_label: string;
   total_passes: number;
+  // DEPRECATED (Phase B): never decremented — the operator_pass_ledger view
+  // (purchased − consumed) is the source of truth. Kept for legacy rows only;
+  // do not read for balances.
   remaining_passes: number;
   amount: number;
   created_at: string;
 }
 
-export type DivePassInventoryInsert = Partial<DivePassInventoryRow> & Pick<DivePassInventoryRow, "operator_id" | "pass_type" | "pass_label" | "total_passes" | "remaining_passes" | "amount">;
+export type DivePassInventoryInsert = Partial<DivePassInventoryRow> & Pick<DivePassInventoryRow, "operator_id" | "pass_type" | "pass_label" | "total_passes" | "amount">;
 export type DivePassInventoryUpdate = Partial<DivePassInventoryInsert>;
 
 export interface PaymentTransactionRow {
@@ -188,6 +205,7 @@ export interface PaymentTransactionRow {
   reference_number: string;
   receipt_url: string | null;
   status: "pending" | "verified" | "rejected";
+  rejection_reason: string | null;
   created_at: string;
 }
 
@@ -203,10 +221,15 @@ export interface DiveManifestRow {
   difficulty: string;
   boat_name: string;
   captain_name: string | null;
+  boat_contact: string | null;
+  crew_count: number | null;
+  instructor_name: string | null;
   max_divers: number;
   duty_of_care: boolean;
   status: "active" | "done";
   dive_date: string;
+  verified: boolean;
+  verified_at: string | null;
   created_at: string;
 }
 
@@ -321,6 +344,9 @@ export interface OperatorPassLedgerView {
   purchased_passes: number;
   consumed_passes: number;
   remaining_passes: number;
+  annual_purchased: number;
+  annual_assigned: number;
+  annual_remaining: number;
 }
 
 export interface PassPricingRow {
@@ -348,3 +374,29 @@ export interface PaymentConfigRow {
 
 export type PaymentConfigInsert = Partial<PaymentConfigRow> & Pick<PaymentConfigRow, "account_name" | "account_number">;
 export type PaymentConfigUpdate = Partial<PaymentConfigInsert>;
+
+export interface AnnualPassHolderRow {
+  id: string;
+  operator_id: string;
+  tourist_id: string;
+  valid_from: string;
+  valid_until: string;
+  // 041: which manifest spent the slot (NULL for pre-B rows / direct inserts).
+  manifest_id: string | null;
+  created_at: string;
+}
+
+export type AnnualPassHolderInsert = Partial<AnnualPassHolderRow> & Pick<AnnualPassHolderRow, "operator_id" | "tourist_id" | "valid_from" | "valid_until">;
+export type AnnualPassHolderUpdate = Partial<AnnualPassHolderInsert>;
+
+export interface ToStaffRow {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  role?: "staff" | "superadmin";
+  created_at: string;
+}
+
+export type ToStaffInsert = Partial<ToStaffRow> & Pick<ToStaffRow, "id" | "email" | "full_name">;
+export type ToStaffUpdate = Partial<ToStaffInsert>;

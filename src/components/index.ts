@@ -11,6 +11,7 @@ export { ErrorState } from "./ErrorState";
 export { EstablishmentCard } from "./EstablishmentCard";
 export { FileUpload } from "./FileUpload";
 export { HeroCarousel } from "./HeroCarousel";
+export { ManifestSnapshotCard } from "./ManifestSnapshotCard";
 export { OnboardingCard } from "./OnboardingCard";
 export { ProgressBar } from "./ProgressBar";
 export { ScreenHeader } from "./ScreenHeader";

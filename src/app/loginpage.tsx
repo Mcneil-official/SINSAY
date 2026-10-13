@@ -1,10 +1,11 @@
 import { Image } from "expo-image";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Eye, EyeSlash } from "phosphor-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,10 +14,12 @@ import {
 import { AuthLayout } from "../components";
 import { useAuth } from "../hooks/useAuth";
 import { showAlert } from "../lib/confirm";
+import { isSupabaseConfigured } from "../lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signInWithGoogle } = useAuth();
+  const params = useLocalSearchParams<{ error?: string }>();
+  const { signIn, signInWithGoogle, user, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +27,21 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Already signed in (e.g. back-nav after OAuth): route by role, and surface
+  // provider errors forwarded from /auth/callback.
+  useEffect(() => {
+    if (params.error && typeof params.error === "string") setError(params.error);
+  }, [params.error]);
+  useEffect(() => {
+    if (isLoading || !roleReady || !user) return;
+    router.replace(isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)");
+  }, [isLoading, roleReady, user, isOperator, viewAsTourist, router]);
+
   async function handleLogin() {
+    if (!isSupabaseConfigured) {
+      setError("Backend not configured for this preview build.");
+      return;
+    }
     if (!email || !password) {
       setError("Please fill in all fields");
       return;
@@ -57,6 +74,12 @@ export default function LoginPage() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <AuthLayout activeTab="login">
+        <ScrollView
+          style={styles.formScroll}
+          contentContainerStyle={styles.formContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.field}>
           <Text style={styles.label}>Email</Text>
           <TextInput
@@ -127,7 +150,7 @@ export default function LoginPage() {
         </View>
 
         <Pressable
-          style={styles.socialButton}
+          style={[styles.socialButton, (googleLoading || loading) && styles.socialButtonDisabled]}
           onPress={handleGoogleLogin}
           disabled={googleLoading || loading}
         >
@@ -139,16 +162,19 @@ export default function LoginPage() {
                 source={require("../../assets/images/search.png")}
                 style={styles.socialIcon}
               />
-              <Text style={styles.socialText}>Continue with Google</Text>
+              <Text style={[styles.socialText, (googleLoading || loading) && styles.socialTextDisabled]}>Continue with Google</Text>
             </>
           )}
         </Pressable>
+        </ScrollView>
       </AuthLayout>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  formScroll: { flex: 1 },
+  formContent: { gap: 12 },
   field: { gap: 6 },
   label: { fontSize: 13, color: "#5f554d" },
   input: {

@@ -17,6 +17,8 @@ const PRE_AUTH_PATHS = new Set([
   "/signup",
   "/loginpage",
   "/auth/callback",
+  "/terms",
+  "/privacy",
 ]);
 
 function normalizePath(pathname: string): string {
@@ -87,19 +89,19 @@ const operatorIcons: Record<string, { focused: keyof typeof Ionicons.glyphMap; u
   index: { focused: "home", unfocused: "home-outline" },
   manifests: { focused: "document-text", unfocused: "document-text-outline" },
   "buy-pass": { focused: "cart", unfocused: "cart-outline" },
-  profile: { focused: "person", unfocused: "person-outline" },
+  profile: { focused: "person-circle", unfocused: "person-circle-outline" },
 };
 
 const operatorLabels: Record<string, string> = {
   index: "Home",
-  manifests: "Manifests",
-  "buy-pass": "Buy Pass",
+  manifests: "Dive Manifesto",
+  "buy-pass": "Buy Dive Pass",
   profile: "Profile",
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { isDesktop, isTablet, sidebarWidth, headerHeight } = useLayout();
-  const { user, isOperator, isLoading } = useAuth();
+  const { user, isOperator, viewAsTourist, isLoading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -114,19 +116,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return <View style={styles.fill}>{children}</View>;
   }
 
-  const icons = isOperator ? operatorIcons : touristIcons;
-  const labels = isOperator ? operatorLabels : touristLabels;
-  const activeTab = (isOperator ? operatorActiveTab : touristActiveTab)(path);
+  const effectiveOperator = isOperator && !viewAsTourist;
+  const icons = effectiveOperator ? operatorIcons : touristIcons;
+  const labels = effectiveOperator ? operatorLabels : touristLabels;
+  const activeTab = (effectiveOperator ? operatorActiveTab : touristActiveTab)(path);
 
 const handleSelect = (name: string) => {
-  if (isOperator) {
+  if (effectiveOperator) {
     if (name === "index") router.push("/(operator-tabs)");
     else if (name === "manifests") router.push("/(operator-tabs)/manifests");
     else if (name === "buy-pass") router.push("/(operator-tabs)/buy-pass");
     else if (name === "profile") router.push("/(operator-tabs)/profile");
     return;
   }
-  if (name === "index") router.push("/");
+  if (name === "index") router.push("/(tabs)");
   else if (name === "eco-dive-id") router.push("/(tabs)/eco-dive-id");
   else if (name === "dive-assistant") router.push("/(tabs)/dive-assistant");
   else if (name === "profile") router.push("/(tabs)/profile");

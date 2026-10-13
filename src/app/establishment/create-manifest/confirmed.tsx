@@ -62,7 +62,7 @@ export default function ManifestConfirmedScreen() {
 
   const displayId = manifestId
     ? (manifestId.length > 12 ? `MFT-2026-${manifestId.slice(0, 5).toUpperCase()}` : manifestId)
-    : "MFT-2026-04261";
+    : "…";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -89,11 +89,11 @@ export default function ManifestConfirmedScreen() {
             The dive manifest has been submitted to the MTO.
           </Text>
           <Text style={styles.subheading}>
-            Eco-Dive IDs for {diverCount || "4"} tourists are now ACTIVE.
+            Eco-Dive IDs for {diverCount || "…"} tourists are now ACTIVE.
           </Text>
 
           <Text style={styles.creditsText}>
-            Dive pass credits remaining: {balance ?? "82"}
+            Dive pass credits remaining: {balance ?? "…"}
           </Text>
 
           {/* Details Card from Design */}
@@ -111,7 +111,7 @@ export default function ManifestConfirmedScreen() {
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Divers</Text>
               <Text style={styles.detailValue}>
-                {diverCount || "4"} tourists activated
+                {diverCount || "…"} tourists activated
               </Text>
             </View>
           </View>

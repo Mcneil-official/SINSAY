@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -42,8 +42,18 @@ function ProfileRow({ icon, label, subtitle, onPress, destructive }: ProfileRowP
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, profile, operatorApplication, isOperator, signOut, isLoading, updateProfile, setViewAsTourist } = useAuth();
+  const { user, profile, operatorApplication, isOperator, signOut, isLoading, updateProfile, setViewAsTourist, viewAsTourist } = useAuth();
   const locale: Locale = (profile?.language_preference as Locale) || "en";
+  const [returnToOperator, setReturnToOperator] = useState(false);
+
+  // Return leg of tourist-view: navigate after the flag clears so
+  // TouristGate doesn't bounce us back to /(tabs) on a stale read.
+  useEffect(() => {
+    if (returnToOperator && !viewAsTourist && isOperator) {
+      setReturnToOperator(false);
+      router.replace("/(operator-tabs)");
+    }
+  }, [returnToOperator, viewAsTourist, isOperator, router]);
 
   const handleLogout = async () => {
     const confirmed = await confirmDialog(
@@ -117,8 +127,9 @@ export default function ProfileScreen() {
                 onPress={() => {
                   if (isOperator) {
                     // Clear a tourist-view override so the gate doesn't fight us.
+                    // Navigation fires from the effect once the flag propagates.
+                    setReturnToOperator(true);
                     setViewAsTourist(false);
-                    router.replace("/(operator-tabs)");
                   }
                 }}
               />
