@@ -1,12 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "../constants/colors";
+
+const FALLBACK_IMAGE = require("../../assets/dive-alley-palace.png");
+
+// Real site photo when the row has one, bundled fallback otherwise —
+// callers must never hardcode the fallback themselves.
+export function resolveSiteImage(imageUrl?: string | null) {
+  return imageUrl ? { uri: imageUrl } : FALLBACK_IMAGE;
+}
 
 interface DiveSiteCardProps {
   name: string;
-  rating: string;
-  image: any;
+  rating?: string | null;
+  image?: any;
+  imageUrl?: string | null;
   index?: number;
   liked?: boolean;
   onPress?: () => void;
@@ -18,48 +27,59 @@ export function DiveSiteCard({
   name,
   rating,
   image,
+  imageUrl,
   index = 0,
   liked = false,
   onPress,
   onLike,
   fluid = false,
 }: DiveSiteCardProps) {
-  const isTall = index === 1;
+  // Ratings of null/"" / "0" mean unrated — the pill hides instead of
+  // showing a dishonest 0-star badge.
+  const showRating = !!rating && rating !== "0";
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.card,
-        isTall ? styles.cardTall : styles.cardShort,
-        fluid && styles.cardFluid,
-      ]}
-      onPress={onPress}
-      activeOpacity={0.85}
+    // Flat siblings (never nested pressables): the card press fills the tile
+    // and the heart floats above it — nested touchables fought over the
+    // responder and crashed the rail on some platforms.
+    <View
+      style={[styles.card, fluid ? styles.cardFluid : styles.cardFixed]}
     >
-      <Image source={image} style={styles.image} />
-      <TouchableOpacity
+      <Pressable
+        style={styles.cardPress}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${name}${showRating ? `, rated ${rating}` : ""}`}
+      >
+        <Image source={image ?? resolveSiteImage(imageUrl)} style={styles.image} />
+        <View style={styles.overlay}>
+          <View style={styles.nameLabel}>
+            <Text style={styles.nameText} numberOfLines={2}>
+              {name}
+            </Text>
+          </View>
+          {showRating && (
+            <View style={styles.ratingPill}>
+              <Ionicons name="star" size={13} color={colors.starYellow} />
+              <Text style={styles.ratingText}>{rating}</Text>
+            </View>
+          )}
+        </View>
+      </Pressable>
+      <Pressable
         style={styles.heartButton}
         onPress={onLike}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={liked ? `Unfavorite ${name}` : `Favorite ${name}`}
       >
         <Ionicons
           name={liked ? "heart" : "heart-outline"}
           size={13}
           color={colors.heartRed}
         />
-      </TouchableOpacity>
-      <View style={styles.overlay}>
-        <View style={styles.nameLabel}>
-          <Text style={styles.nameText} numberOfLines={1}>
-            {name}
-          </Text>
-        </View>
-        <View style={styles.ratingPill}>
-          <Ionicons name="star" size={13} color={colors.starYellow} />
-          <Text style={styles.ratingText}>{rating}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      </Pressable>
+    </View>
   );
 }
 
@@ -69,21 +89,22 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#000",
   },
-  cardShort: {
+  cardPress: {
+    flex: 1,
+  },
+  // Even row: the old index===1 stagger (taller card + marginTop:-20) made
+  // the 2nd card jut regardless of content — uniform heights instead.
+  cardFixed: {
     width: 188,
     height: 240,
   },
-  cardTall: {
-    width: 190,
-    height: 271,
-    marginTop: -20,
-  },
   cardFluid: {
     flex: 1,
-    minWidth: 260,
+    // minWidth 150 → 2 columns on 360px phones ((320 − 14 gap) / 2 ≈ 153).
+    // Desktop (900px) fits up to 5-across at ~169px each; maxWidth caps stretch.
+    minWidth: 150,
     maxWidth: 340,
     height: 200,
-    marginTop: 0,
   },
   image: {
     width: "100%",
@@ -104,6 +125,7 @@ const styles = StyleSheet.create({
   overlay: {
     position: "absolute",
     left: 12,
+    right: 12,
     bottom: 12,
     gap: 7,
   },
@@ -113,11 +135,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 14,
     alignSelf: "flex-start",
-    maxWidth: 160,
+    maxWidth: "100%",
   },
   nameText: {
     color: colors.white,
     fontSize: 12,
+    lineHeight: 16,
   },
   ratingPill: {
     flexDirection: "row",

@@ -74,7 +74,7 @@ src/app/
 
 ### B8–B10 — Notifications & Activation Backend
 - **B8**: `006_notifications.sql` — notifications table (5 types), RLS, realtime enabled
-- **B9**: `007_activation_trigger.sql` — AFTER INSERT trigger on `manifest_divers` auto-activates Eco-Dive IDs and inserts notification
+- **B9**: `007_activation_trigger.sql` — original AFTER INSERT trigger on `manifest_divers` (superseded by `044`: activation now gated on TO verification)
 - **B10**: `008_active_status.sql` — adds `'active'` and `'expired'` to `eco_dive_ids` status check constraint
 
 ### B1–B7 — Supabase Backend
@@ -136,7 +136,8 @@ src/app/
 - `src/context/AuthContext.tsx` — Auth state + profile + ecoId + operatorApplication + isOperator
 - `supabase/migrations/001_initial_schema.sql` through `008_active_status.sql`
 - `supabase/migrations/006_notifications.sql` — notifications table, RLS, realtime
-- `supabase/migrations/007_activation_trigger.sql` — manifest insert → eco_dive_ids activation + notification
+- `supabase/migrations/007_activation_trigger.sql` — original activation trigger (superseded by 044)
+- `supabase/migrations/044_eco_id_lifecycle.sql` — activation on TO `dive_manifests.verified` + pg_cron daily `expire_eco_dive_ids()` sweep (one-day & annual coverage; silent expiry)
 - `supabase/migrations/008_active_status.sql` — adds active/expired to eco_dive_ids status
 - `supabase/migrations/018_tourists_insert_policy.sql` — lets users INSERT own tourists row (needed for P3 fallback)
 - `supabase/migrations/019_language_preference.sql` — language_preference column on tourists

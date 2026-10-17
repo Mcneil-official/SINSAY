@@ -1,19 +1,58 @@
 import { supabase } from "./supabase";
 
+// Mock replies exist ONLY for explicit offline demos:
+// set EXPO_PUBLIC_USE_MOCK_AI=1 to use them. Otherwise backend failures
+// throw (the chat UI renders its error bubble + Retry) instead of silently
+// answering with a random canned reply that ignores the question.
+const USE_MOCK_AI = process.env.EXPO_PUBLIC_USE_MOCK_AI === "1";
+
+async function invokeProxy<T>(body: Record<string, any>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke("gemini-proxy", {
+    body,
+  });
+  if (!error) return data as T;
+
+  // Best-effort: surface the edge function's own error body (rate-limit
+  // text, config errors) instead of the generic non-2xx wrapper.
+  let edgeMessage = "";
+  try {
+    const ctx = (error as { context?: unknown }).context;
+    if (ctx instanceof Response) {
+      const parsed = (await ctx.clone().json()) as { error?: string };
+      if (parsed?.error) edgeMessage = parsed.error;
+    }
+  } catch {
+    // Fall through to status-based mapping below.
+  }
+  const status = (error as { status?: number }).status;
+  const combined = `${status ?? ""} ${edgeMessage} ${error.message}`;
+  if (/429|rate limit/i.test(combined)) {
+    throw new Error("Too many requests right now. Try again in a minute.");
+  }
+  console.warn("Gemini proxy error:", edgeMessage || error.message);
+  throw new Error(
+    edgeMessage || "The dive assistant is unavailable right now. Please try again."
+  );
+}
+
 export async function chatWithGemini(
   history: { role: "user" | "assistant"; text: string }[],
   userMessage: string
 ): Promise<string> {
   try {
-    const { data, error } = await supabase.functions.invoke("gemini-proxy", {
-      body: { type: "chat", history, userMessage },
+    const data = await invokeProxy<{ reply?: string }>({
+      type: "chat",
+      history,
+      userMessage,
     });
-    if (error) throw error;
     if (data?.reply) return data.reply;
-    throw new Error("No reply");
+    throw new Error("Empty reply from dive assistant.");
   } catch (e) {
-    console.warn("Gemini proxy error, falling back to mock", e);
-    return getMockChatReply(userMessage);
+    if (USE_MOCK_AI) {
+      console.warn("Mock AI fallback (EXPO_PUBLIC_USE_MOCK_AI=1):", e);
+      return getMockChatReply(userMessage);
+    }
+    throw e instanceof Error ? e : new Error("Chat request failed.");
   }
 }
 
@@ -24,17 +63,21 @@ export async function generateDivePlan(params: {
   divers: string;
   diveType: string;
   interests: string;
+  budget?: string;
 }): Promise<string> {
   try {
-    const { data, error } = await supabase.functions.invoke("gemini-proxy", {
-      body: { type: "planner", params },
+    const data = await invokeProxy<{ reply?: string }>({
+      type: "planner",
+      params,
     });
-    if (error) throw error;
     if (data?.reply) return data.reply;
-    throw new Error("No reply");
+    throw new Error("Empty reply from dive planner.");
   } catch (e) {
-    console.warn("Gemini proxy error, falling back to mock", e);
-    return getMockPlan(params);
+    if (USE_MOCK_AI) {
+      console.warn("Mock AI fallback (EXPO_PUBLIC_USE_MOCK_AI=1):", e);
+      return getMockPlan(params);
+    }
+    throw e instanceof Error ? e : new Error("Plan request failed.");
   }
 }
 
@@ -55,12 +98,15 @@ function getMockPlan(params: {
   divers: string;
   diveType: string;
   interests: string;
+  budget?: string;
 }): string {
   return (
     `🌊 Dive Plan for ${params.destination}\n\n` +
     `📅 ${params.startDate} - ${params.endDate}\n` +
     `👤 ${params.divers} diver(s)\n` +
-    `🏊 ${params.diveType}\n\n` +
+    `🏊 ${params.diveType}\n` +
+    (params.budget?.trim() ? `💰 Budget: ₱${params.budget.trim()}\n` : "") +
+    `\n` +
     `Day 1:\n` +
     `  • 08:00 - Morning dive at Anilao Cove\n` +
     `  • 12:00 - Lunch break at resort\n` +

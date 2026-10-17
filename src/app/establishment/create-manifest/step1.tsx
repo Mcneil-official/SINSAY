@@ -14,7 +14,7 @@ import {
   TextInput as NativeInput,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { TextInput, Dropdown, ContentContainer } from "../../../components";
+import { TextInput, Dropdown, ContentContainer, DateField } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 import { deleteDraft, saveDraft } from "../../../lib/manifestDrafts";
@@ -165,6 +165,7 @@ export default function CreateManifestStep1() {
 
   // Instructor / Duty of Care
   const [instructorName, setInstructorName] = useState((initialDraft.instructorName as string) ?? "Instructor Marco Valerio");
+  const [dutyNotes, setDutyNotes] = useState((initialDraft.dutyNotes as string) ?? "");
   const [diveDate, setDiveDate] = useState((initialDraft.diveDate as string) ?? todayLocal());
 
   // Divers list — starts empty. (Demo prefills were removed: they shipped
@@ -482,7 +483,7 @@ export default function CreateManifestStep1() {
   // diver is worth keeping. Debounced 1.5s so typing doesn't spam storage.
   const collectDraftForm = () => ({
     diveType, diveMode, location, difficulty, boatName, captainName, crewCount,
-    maxDivers, boatContact, instructorName, diveDate, divers,
+    maxDivers, boatContact, instructorName, dutyNotes, diveDate, divers,
   });
   useEffect(() => {
     if (!user || divers.length === 0) return;
@@ -497,7 +498,7 @@ export default function CreateManifestStep1() {
     }, 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, divers, diveType, diveMode, location, difficulty, boatName, captainName, crewCount, maxDivers, boatContact, instructorName, diveDate]);
+  }, [user, divers, diveType, diveMode, location, difficulty, boatName, captainName, crewCount, maxDivers, boatContact, instructorName, dutyNotes, diveDate]);
 
   const handleSaveDraft = async () => {
     if (!user) return;
@@ -559,6 +560,7 @@ export default function CreateManifestStep1() {
           p_dive_date: diveDate,
           p_divers: diverPayload,
           p_annual_assign: annualAssigned,
+          p_duty_notes: dutyNotes.trim() || null,
         }
       );
 
@@ -708,15 +710,15 @@ export default function CreateManifestStep1() {
           {/* Boat Details Card */}
           <View style={styles.cardBox}>
             <Text style={styles.cardHeaderTitle}>⛵ Boat Details</Text>
-            <TextInput
+            <DateField
               label="Dive Date"
-              placeholder="YYYY-MM-DD"
               value={diveDate}
               onChangeText={(v) => {
                 setDiveDate(v);
                 if (dateError) setDateError("");
               }}
               error={dateError || undefined}
+              min={todayLocal()}
             />
             <TextInput
               label="Boat Name"
@@ -874,6 +876,16 @@ export default function CreateManifestStep1() {
             placeholder="Instructor Name"
             value={instructorName}
             onChangeText={setInstructorName}
+          />
+          {/* Optional free-text notes (briefing points, medical notes,
+              special needs). Stored on the manifest only — never affects
+              credits and never blocks submit. */}
+          <TextInput
+            label="Duty of Care Notes (optional)"
+            placeholder="e.g. Beginner-heavy group, extra briefing on equalizing; one diver with mild asthma — cleared to dive"
+            value={dutyNotes}
+            onChangeText={setDutyNotes}
+            multiline
           />
 
           {/* Pass Deduction Alert Banner */}

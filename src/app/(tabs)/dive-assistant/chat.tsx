@@ -1,7 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState, useRef, useEffect } from "react";
+import { push } from "expo-router/build/global-state/router";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
+  Easing,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -10,12 +15,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
+import { ContentContainer, MarkdownText } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { chatWithGemini } from "../../../lib/gemini";
-import { ContentContainer } from "../../../components";
 
 interface Message {
   id: string;
@@ -30,8 +33,61 @@ const getTime = () => {
   const h = d.getHours();
   const m = d.getMinutes().toString().padStart(2, "0");
   const ampm = h >= 12 ? "PM" : "AM";
-  return `Visitor ${h % 12 || 12}:${m} ${ampm}`;
+  return `${h % 12 || 12}:${m} ${ampm}`;
 };
+
+const QUICK_PROMPTS = [
+  "Best dive site for beginners?",
+  "Dive safety tips",
+  "What is an Eco-Dive ID?",
+];
+
+function TypingDots() {
+  const d1 = useRef(new Animated.Value(0)).current;
+  const d2 = useRef(new Animated.Value(0)).current;
+  const d3 = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anims = [d1, d2, d3].map((v, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 180),
+          Animated.timing(v, {
+            toValue: 1,
+            duration: 320,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(v, {
+            toValue: 0,
+            duration: 320,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
+    );
+    anims.forEach((a) => a.start());
+    return () => anims.forEach((a) => a.stop());
+  }, [d1, d2, d3]);
+  return (
+    <View style={styles.typingRow}>
+      {[d1, d2, d3].map((v, i) => (
+        <Animated.View
+          key={i}
+          style={[
+            styles.typingDot,
+            {
+              opacity: v.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.25, 1],
+              }),
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -45,11 +101,14 @@ export default function ChatScreen() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
+  const scrollToEnd = () => scrollRef.current?.scrollToEnd({ animated: true });
+
   useEffect(() => {
-    scrollRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+    scrollToEnd();
+  }, [messages, loading]);
 
   const sendMessage = async (text: string) => {
     const userMsgId = Date.now().toString();
@@ -72,14 +131,19 @@ export default function ChatScreen() {
         time: getTime(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch {
+    } catch (e) {
       setMessages((prev) =>
-        prev.map((m) => (m.id === userMsgId ? { ...m, failed: true } : m))
+        prev.map((m) => (m.id === userMsgId ? { ...m, failed: true } : m)),
       );
+      // gemini.ts throws user-safe messages (rate-limit, unavailable) —
+      // show them instead of a generic line so the user knows what to do.
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        text: "Sorry, I couldn't process that request. Please try again.",
+        text:
+          e instanceof Error
+            ? e.message
+            : "Sorry, I couldn't process that request. Please try again.",
         time: getTime(),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -94,6 +158,8 @@ export default function ChatScreen() {
     await sendMessage(text);
   };
 
+  const showNudge = !loading && messages.length > 1 && !nudgeDismissed;
+
   const chatContent = (
     <>
       {/* Messages */}
@@ -102,13 +168,17 @@ export default function ChatScreen() {
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
         showsVerticalScrollIndicator={false}
+        onContentSizeChange={scrollToEnd}
+        keyboardShouldPersistTaps="handled"
       >
         {messages.map((msg) => (
           <View
             key={msg.id}
             style={[
               styles.messageRow,
-              msg.role === "user" ? styles.messageRowUser : styles.messageRowAssistant,
+              msg.role === "user"
+                ? styles.messageRowUser
+                : styles.messageRowAssistant,
             ]}
           >
             {msg.role === "assistant" && (
@@ -119,22 +189,29 @@ export default function ChatScreen() {
             <View
               style={[
                 styles.bubble,
-                msg.role === "user" ? styles.bubbleUser : styles.bubbleAssistant,
+                msg.role === "user"
+                  ? styles.bubbleUser
+                  : styles.bubbleAssistant,
               ]}
             >
-              <Text
-                style={[
-                  styles.bubbleText,
-                  msg.role === "user" ? styles.bubbleTextUser : styles.bubbleTextAssistant,
-                ]}
-              >
-                {msg.text}
-              </Text>
+              {msg.role === "user" ? (
+                <Text style={[styles.bubbleText, styles.bubbleTextUser]}>
+                  {msg.text}
+                </Text>
+              ) : (
+                <MarkdownText
+                  text={msg.text}
+                  color={colors.darkText}
+                  fontSize={14}
+                />
+              )}
               <View style={styles.bubbleFooter}>
                 <Text
                   style={[
                     styles.bubbleTime,
-                    msg.role === "user" ? styles.bubbleTimeUser : styles.bubbleTimeAssistant,
+                    msg.role === "user"
+                      ? styles.bubbleTimeUser
+                      : styles.bubbleTimeAssistant,
                   ]}
                 >
                   {msg.time}
@@ -161,16 +238,31 @@ export default function ChatScreen() {
               <Ionicons name="bulb" size={12} color={colors.primaryBlue} />
             </View>
             <View style={[styles.bubble, styles.bubbleAssistant]}>
-              <Text style={styles.typingIndicator}>...</Text>
+              <TypingDots />
             </View>
           </View>
         )}
 
-        {!loading && messages.length > 1 && (
+        {showNudge && (
           <View style={styles.suggestionRow}>
             <View style={styles.suggestionCard}>
-              <Ionicons name="map-outline" size={16} color={colors.primaryBlue} />
-              <Text style={styles.suggestionText}>Want a full dive itinerary?</Text>
+              <TouchableOpacity
+                style={styles.nudgeClose}
+                onPress={() => setNudgeDismissed(true)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss trip planner suggestion"
+              >
+                <Ionicons name="close" size={13} color={colors.gray} />
+              </TouchableOpacity>
+              <Ionicons
+                name="map-outline"
+                size={16}
+                color={colors.primaryBlue}
+              />
+              <Text style={styles.suggestionText}>
+                Want a full dive itinerary?
+              </Text>
               <TouchableOpacity
                 style={styles.suggestionBtn}
                 onPress={() => router.push("/dive-assistant/planner")}
@@ -184,6 +276,24 @@ export default function ChatScreen() {
         )}
       </ScrollView>
 
+      {/* Quick prompts (empty state) */}
+      {!loading && messages.length <= 1 && (
+        <View style={styles.chipsRow}>
+          {QUICK_PROMPTS.map((q) => (
+            <TouchableOpacity
+              key={q}
+              style={styles.chip}
+              onPress={() => sendMessage(q)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`Ask: ${q}`}
+            >
+              <Text style={styles.chipText}>{q}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       {/* Composer */}
       <View style={styles.composer}>
         <TextInput
@@ -194,9 +304,16 @@ export default function ChatScreen() {
           onChangeText={setInput}
           editable={!loading}
           multiline
+          maxLength={1000}
+          returnKeyType="send"
+          blurOnSubmit={false}
+          onSubmitEditing={handleSend}
         />
         <TouchableOpacity
-          style={[styles.sendButton, (!input.trim() || loading) && styles.sendButtonDisabled]}
+          style={[
+            styles.sendButton,
+            (!input.trim() || loading) && styles.sendButtonDisabled,
+          ]}
           onPress={handleSend}
           disabled={!input.trim() || loading}
         >
@@ -216,7 +333,10 @@ export default function ChatScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
+        <TouchableOpacity
+          onPress={() => push("/dive-assistant")}
+          style={styles.headerBack}
+        >
           <Ionicons name="chevron-back" size={22} color={colors.darkText} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -235,13 +355,21 @@ export default function ChatScreen() {
 
       {Platform.OS === "ios" ? (
         <KeyboardAvoidingView style={styles.flex} behavior="padding">
-          <ContentContainer maxWidth={720} paddingH={0} style={styles.flexInner}>
+          <ContentContainer
+            maxWidth={720}
+            paddingH={0}
+            style={styles.flexInner}
+          >
             {chatContent}
           </ContentContainer>
         </KeyboardAvoidingView>
       ) : (
         <View style={styles.flex}>
-          <ContentContainer maxWidth={720} paddingH={0} style={styles.flexInner}>
+          <ContentContainer
+            maxWidth={720}
+            paddingH={0}
+            style={styles.flexInner}
+          >
             {chatContent}
           </ContentContainer>
         </View>
@@ -255,13 +383,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
   },
+  // Single bottom offset clearing the floating BottomNav (was doubled on
+  // both flex + flexInner, squeezing the message list).
   flex: {
     flex: 1,
     paddingBottom: 100,
   },
   flexInner: {
     flex: 1,
-    paddingBottom: 100,
   },
   header: {
     flexDirection: "row",
@@ -311,6 +440,7 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     paddingBottom: 12,
+    flexGrow: 1,
   },
   messageRow: {
     flexDirection: "row",
@@ -337,6 +467,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 14,
+    flexShrink: 1,
   },
   bubbleUser: {
     backgroundColor: colors.primaryBlue,
@@ -353,9 +484,6 @@ const styles = StyleSheet.create({
   bubbleTextUser: {
     color: colors.white,
   },
-  bubbleTextAssistant: {
-    color: colors.darkText,
-  },
   bubbleTime: {
     fontSize: 9,
     marginTop: 6,
@@ -367,41 +495,17 @@ const styles = StyleSheet.create({
   bubbleTimeAssistant: {
     color: colors.gray,
   },
-  typingIndicator: {
-    fontSize: 18,
-    color: colors.gray,
-    lineHeight: 14,
-    letterSpacing: 2,
-  },
-  composer: {
+  typingRow: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.grayLight,
-    gap: 8,
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
   },
-  composerInput: {
-    flex: 1,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.grayLight,
-    paddingHorizontal: 16,
-    fontSize: 14,
-    color: colors.darkText,
-    paddingVertical: 8,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  typingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.primaryBlue,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sendButtonDisabled: {
-    backgroundColor: colors.grayLight,
   },
   bubbleFooter: {
     flexDirection: "row",
@@ -434,6 +538,10 @@ const styles = StyleSheet.create({
     gap: 8,
     maxWidth: "90%",
   },
+  nudgeClose: {
+    padding: 4,
+    marginLeft: -4,
+  },
   suggestionText: {
     fontSize: 12,
     color: colors.darkText,
@@ -449,5 +557,56 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     color: colors.white,
+  },
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  chip: {
+    borderRadius: 100,
+    borderWidth: 1.5,
+    borderColor: colors.primaryBlue,
+    backgroundColor: colors.white,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primaryBlue,
+  },
+  composer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.grayLight,
+    gap: 8,
+  },
+  composerInput: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 120,
+    borderRadius: 20,
+    backgroundColor: colors.grayLight,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    color: colors.darkText,
+    paddingVertical: 8,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryBlue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sendButtonDisabled: {
+    backgroundColor: colors.grayLight,
   },
 });

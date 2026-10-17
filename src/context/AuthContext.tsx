@@ -33,6 +33,12 @@ interface AuthState {
   // not enabled) when the redirect can't start.
   signInWithGoogle: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
+  // Password reset (email link flow): request sends the Supabase recovery
+  // email (redirects to /auth/reset-password — must be allowlisted in
+  // Supabase Auth → URL Configuration); confirm sets the new password on
+  // the recovery session. Never throw — return { error }.
+  requestPasswordReset: (email: string) => Promise<{ error?: string }>;
+  updatePassword: (password: string) => Promise<{ error?: string }>;
   refreshProfile: () => Promise<void>;
   updateProfile: (updates: TouristUpdate) => Promise<{ error?: string }>;
 }
@@ -56,6 +62,8 @@ const defaultAuthState: AuthState = {
   signUp: async () => ({}),
   signInWithGoogle: async () => ({}),
   signOut: async () => {},
+  requestPasswordReset: async () => ({}),
+  updatePassword: async () => ({}),
   refreshProfile: async () => {},
   updateProfile: async () => ({}),
 };
@@ -386,6 +394,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {};
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    const redirectTo =
+      typeof window !== "undefined" ? `${window.location.origin}/auth/reset-password` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      ...(redirectTo ? { redirectTo } : {}),
+    });
+    if (error) return { error: error.message };
+    return {};
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { error: error.message };
+    return {};
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -407,6 +431,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signInWithGoogle,
         signOut,
+        requestPasswordReset,
+        updatePassword,
         refreshProfile,
         updateProfile,
       }}

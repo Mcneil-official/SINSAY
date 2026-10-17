@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { AuthLayout } from "../components";
 import { useAuth } from "../hooks/useAuth";
-import { showAlert } from "../lib/confirm";
 import { isSupabaseConfigured } from "../lib/supabase";
 
 export default function LoginPage() {
@@ -118,12 +117,7 @@ export default function LoginPage() {
         </View>
 
         <Pressable
-          onPress={() =>
-            showAlert(
-              "Password Reset Coming Soon",
-              "This feature isn't available yet. Contact tourism@sinsay.gov.ph for help accessing your account.",
-            )
-          }
+          onPress={() => router.push("/auth/forgot-password")}
           style={styles.forgotWrap}
         >
           <Text style={styles.forgotText}>Forgot Password ?</Text>

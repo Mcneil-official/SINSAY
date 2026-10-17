@@ -135,7 +135,7 @@ export type TouristUpdate = Partial<TouristInsert>;
 export interface NotificationRow {
   id: string;
   tourist_id: string;
-  type: "eco_dive_activated" | "dive_plan_ready" | "operator_application_approved" | "operator_application_rejected" | "pass_purchase_verified";
+  type: "eco_dive_activated" | "dive_plan_ready" | "operator_application_approved" | "operator_application_rejected" | "pass_purchase_verified" | "manifest_submitted" | "announcement_published";
   title: string;
   body: string;
   deep_link: string | null;

@@ -17,6 +17,8 @@ const PRE_AUTH_PATHS = new Set([
   "/signup",
   "/loginpage",
   "/auth/callback",
+  "/auth/forgot-password",
+  "/auth/reset-password",
   "/terms",
   "/privacy",
 ]);

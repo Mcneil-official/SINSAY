@@ -21,6 +21,8 @@ const notifIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   operator_application_approved: "checkmark-done",
   operator_application_rejected: "close-circle",
   pass_purchase_verified: "wallet",
+  manifest_submitted: "document-text",
+  announcement_published: "megaphone",
 };
 
 const notifColors: Record<string, string> = {
@@ -29,6 +31,8 @@ const notifColors: Record<string, string> = {
   operator_application_approved: colors.green,
   operator_application_rejected: colors.red,
   pass_purchase_verified: colors.amberDark,
+  manifest_submitted: colors.primaryBlue,
+  announcement_published: colors.amberDark,
 };
 
 function timeAgo(dateStr: string): string {

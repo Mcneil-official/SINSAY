@@ -95,8 +95,8 @@ export default function DiveSitesScreen() {
                 <DiveSiteCard
                   key={site.id}
                   name={site.name}
-                  rating={site.rating ?? "0"}
-                  image={require("../../assets/dive-alley-palace.png")}
+                  rating={site.rating}
+                  imageUrl={site.image_url}
                   index={index}
                   liked={favoriteIds.has(site.id)}
                   onPress={() =>
