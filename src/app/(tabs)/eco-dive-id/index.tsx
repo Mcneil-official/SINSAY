@@ -20,6 +20,7 @@ import {
   StatusBadge,
 } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { ecoStatusLabel, ecoStatusVariant } from "../../../constants/ecoStatus";
 import { spacing } from "../../../constants/spacing";
 import { typography } from "../../../constants/typography";
 import { useLayout } from "../../../context/LayoutContext";
@@ -42,7 +43,9 @@ export default function EcoDiveIDScreen() {
   useEffect(() => {
     if (
       !isLoading &&
-      (ecoId?.status === "complete" || ecoId?.status === "active")
+      (ecoId?.status === "complete" ||
+        ecoId?.status === "active" ||
+        ecoId?.status === "expired")
     ) {
       router.replace("/eco-dive-id/complete");
     }
@@ -130,7 +133,10 @@ export default function EcoDiveIDScreen() {
                     <Ionicons name="water" size={14} color={colors.white} />
                     <Text style={styles.ecoPillText}>ECO-DIVE ID</Text>
                   </View>
-                  <StatusBadge label="Incomplete" variant="incomplete" />
+                  <StatusBadge
+                    label={ecoStatusLabel(ecoId?.status)}
+                    variant={ecoStatusVariant(ecoId?.status)}
+                  />
                 </View>
                 <Text style={styles.idCardName}>
                   {profile?.full_name || "Diver"}
@@ -195,7 +201,10 @@ export default function EcoDiveIDScreen() {
                   <Ionicons name="water" size={14} color={colors.white} />
                   <Text style={styles.ecoPillText}>ECO-DIVE ID</Text>
                 </View>
-                <StatusBadge label="Incomplete" variant="incomplete" />
+                <StatusBadge
+                  label={ecoStatusLabel(ecoId?.status)}
+                  variant={ecoStatusVariant(ecoId?.status)}
+                />
               </View>
               <Text style={styles.idCardName}>
                 {profile?.full_name || "Diver"}

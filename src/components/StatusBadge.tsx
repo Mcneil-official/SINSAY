@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { colors } from "../constants/colors";
 
-type BadgeVariant = "incomplete" | "ready" | "active" | "done" | "pending" | "approved" | "rejected";
+type BadgeVariant = "incomplete" | "ready" | "active" | "expired" | "done" | "pending" | "approved" | "rejected";
 
 interface StatusBadgeProps {
   label: string;
@@ -13,6 +13,7 @@ const variantStyles: Record<BadgeVariant, { bg: string; text: string }> = {
   incomplete: { bg: "#FEE2E2", text: colors.red },
   ready: { bg: "#FEF3C7", text: "#D97706" },
   active: { bg: "#D1FAE5", text: colors.green },
+  expired: { bg: colors.grayLight, text: colors.gray },
   done: { bg: colors.grayLight, text: colors.gray },
   pending: { bg: "#FEF3C7", text: "#D97706" },
   approved: { bg: "#D1FAE5", text: colors.green },

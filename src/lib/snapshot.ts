@@ -70,3 +70,30 @@ export async function captureAndDownload(node: unknown, fileName: string): Promi
   a.click();
   a.remove();
 }
+
+// Text sharing (dive plans): system share sheet when available, clipboard
+// fallback otherwise. Returns how the text left the device.
+export type TextShareResult = "shared" | "copied" | "unavailable";
+
+export async function shareText(title: string, text: string): Promise<TextShareResult> {
+  const nav = typeof navigator !== "undefined" ? (navigator as Navigator & { share?: (d: { title?: string; text?: string }) => Promise<void> }) : undefined;
+  if (nav && typeof nav.share === "function") {
+    try {
+      await nav.share({ title, text });
+      return "shared";
+    } catch (e) {
+      // Dismissal is not an error; real failures fall through to clipboard.
+      if (e instanceof Error && e.name === "AbortError") return "shared";
+      if (e instanceof DOMException && e.name === "AbortError") return "shared";
+    }
+  }
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      return "copied";
+    }
+  } catch {
+    // Clipboard unavailable (non-secure context, permissions).
+  }
+  return "unavailable";
+}

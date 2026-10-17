@@ -15,19 +15,18 @@ import {
   UIManager,
 } from "react-native";
 import { colors } from "../../../constants/colors";
+import {
+  ECO_STATUS_LIFECYCLE,
+  ecoStatusIndex,
+  ecoStatusLabel,
+  ecoStatusVariant,
+} from "../../../constants/ecoStatus";
 import { StatusBadge, Card, ErrorState, ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const steps = [
-  { label: "Registered", icon: "checkmark-circle", status: "done" as const },
-  { label: "Profile Complete", icon: "checkmark-circle", status: "done" as const },
-  { label: "Added to Manifesto", icon: "time", status: "current" as const },
-  { label: "Activated", icon: "ellipse-outline", status: "pending" as const },
-];
 
 const labels: Record<string, string> = {
   filipino: "Filipino",
@@ -45,13 +44,22 @@ const diveTypeLabels: Record<string, string> = {
   certified: "Certified",
 };
 
+const certificationLabels: Record<string, string> = {
+  "open-water": "Open Water Diver",
+  advanced: "Advanced Open Water",
+  rescue: "Rescue Diver",
+  divemaster: "Divemaster",
+};
+
+const ISSUED_STATUSES = ["complete", "active", "expired"];
+
 export default function EcoDiveIDCompleteScreen() {
   const router = useRouter();
   const { user, profile, ecoId, isLoading, refreshProfile } = useAuth();
   const prevStatusRef = useRef(ecoId?.status);
 
   useEffect(() => {
-    if (prevStatusRef.current === "complete" && ecoId?.status === "active") {
+    if (prevStatusRef.current && prevStatusRef.current !== ecoId?.status) {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     }
     prevStatusRef.current = ecoId?.status;
@@ -64,7 +72,10 @@ export default function EcoDiveIDCompleteScreen() {
   }, [isLoading, user, router]);
 
   useEffect(() => {
-    if (!isLoading && (!ecoId || (ecoId.status !== "complete" && ecoId.status !== "active"))) {
+    if (
+      !isLoading &&
+      (!ecoId || !ISSUED_STATUSES.includes(ecoId.status))
+    ) {
       router.replace("/eco-dive-id");
     }
   }, [isLoading, ecoId, router]);
@@ -89,17 +100,33 @@ export default function EcoDiveIDCompleteScreen() {
     );
   }
 
-  if (ecoId?.status === "active") {
-    return <ActiveIDScreen profile={profile} ecoId={ecoId} router={router} />;
-  }
+  return <IssuedIDScreen profile={profile} ecoId={ecoId} router={router} />;
+}
 
-  const idNumber = ecoId?.eco_id_number || `ECO-${new Date().getFullYear()}-000001`;
+function IssuedIDScreen({
+  profile,
+  ecoId,
+  router,
+}: {
+  profile: any;
+  ecoId: any;
+  router: any;
+}) {
+  // Honest fallback: never render a fabricated ID as if it were real.
+  const idNumber = ecoId?.eco_id_number || "—";
+  const status: string = ecoId?.status ?? "complete";
+
+  const cardStyle =
+    status === "active"
+      ? activeStyles.idCard
+      : status === "expired"
+        ? expiredStyles.idCard
+        : styles.idCard;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color={colors.darkText} />
@@ -110,190 +137,130 @@ export default function EcoDiveIDCompleteScreen() {
       </View>
       <Text style={styles.subtitle}>Your official dive identity in Mabini</Text>
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <ContentContainer maxWidth={720}>
-        {/* Gradient ID Card — completed state */}
-        <View style={styles.idCard}>
-          <View style={styles.idCardTop}>
-            <View style={styles.ecoPill}>
-              <Ionicons name="water" size={14} color={colors.white} />
-              <Text style={styles.ecoPillText}>ECO-DIVE ID</Text>
+          {/* ID Card — issued state (Ready / Active / Expired) */}
+          <View style={cardStyle}>
+            <View style={styles.idCardTop}>
+              <View style={styles.ecoPill}>
+                <Ionicons name="water" size={14} color={colors.white} />
+                <Text style={styles.ecoPillText}>ECO-DIVE ID</Text>
+              </View>
+              <StatusBadge
+                label={ecoStatusLabel(status)}
+                variant={ecoStatusVariant(status)}
+              />
             </View>
-            <StatusBadge label="Ready for Manifesto" variant="ready" />
-          </View>
-          <Text style={styles.idCardName}>{profile?.full_name || "Diver"}</Text>
-          <Text style={styles.idCardCode}>{idNumber}</Text>
-          <View style={styles.idCardInfoRow}>
-            <View style={styles.idCardInfoItem}>
-              <Text style={styles.infoItemLabel}>Nationality</Text>
-              <Text style={styles.infoItemValue}>{labels[profile?.nationality || ""] || profile?.nationality || "N/A"}</Text>
-            </View>
-            <View style={styles.idCardInfoItem}>
-              <Text style={styles.infoItemLabel}>Dive Type</Text>
-              <Text style={styles.infoItemValue}>{diveTypeLabels[profile?.type_of_dive || ""] || profile?.type_of_dive || "N/A"}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Caption */}
-        <Text style={styles.caption}>
-          Your profile is complete. Please coordinate with your resort to be
-          included in a dive manifesto.
-        </Text>
-
-        {/* Dive Status Tracker */}
-        <Card style={styles.trackerCard}>
-          <Text style={styles.trackerTitle}>Dive Status Tracker</Text>
-          <View style={styles.trackerSteps}>
-            {steps.map((step, i) => (
-              <View key={i} style={styles.trackerStep}>
-                <View style={styles.trackerStepLeft}>
-                  {step.status === "done" ? (
-                    <View style={[styles.stepIcon, styles.stepIconDone]}>
-                      <Ionicons name="checkmark" size={14} color={colors.white} />
-                    </View>
-                  ) : step.status === "current" ? (
-                    <View style={[styles.stepIcon, styles.stepIconCurrent]}>
-                      <Ionicons name="time" size={14} color={colors.white} />
-                    </View>
-                  ) : (
-                    <View style={[styles.stepIcon, styles.stepIconPending]}>
-                      <View style={styles.stepDot} />
-                    </View>
-                  )}
-                  {i < steps.length - 1 && (
-                    <View
-                      style={[
-                        styles.stepLine,
-                        step.status === "done" && styles.stepLineDone,
-                        step.status === "current" && styles.stepLinePending,
-                      ]}
-                    />
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.stepLabel,
-                    step.status === "pending" && styles.stepLabelPending,
-                  ]}
-                >
-                  {step.label}
+            <Text style={styles.idCardName}>{profile?.full_name || "Diver"}</Text>
+            <Text style={styles.idCardCode}>{idNumber}</Text>
+            <View style={styles.idCardInfoRow}>
+              <View style={styles.idCardInfoItem}>
+                <Text style={styles.infoItemLabel}>Nationality</Text>
+                <Text style={styles.infoItemValue}>
+                  {labels[profile?.nationality || ""] || profile?.nationality || "N/A"}
                 </Text>
               </View>
-            ))}
+              <View style={styles.idCardInfoItem}>
+                <Text style={styles.infoItemLabel}>Dive Type</Text>
+                <Text style={styles.infoItemValue}>
+                  {diveTypeLabels[profile?.type_of_dive || ""] || profile?.type_of_dive || "N/A"}
+                </Text>
+              </View>
+              <View style={styles.idCardInfoItem}>
+                <Text style={styles.infoItemLabel}>Certification Level</Text>
+                <Text style={styles.infoItemValue}>
+                  {profile?.certification_level
+                    ? certificationLabels[profile.certification_level] ||
+                      profile.certification_level
+                    : "N/A"}
+                </Text>
+              </View>
+            </View>
           </View>
-        </Card>
 
-        <View style={{ height: 120 }} />
+          {status === "complete" && (
+            <Text style={styles.caption}>
+              Your profile is complete. Please coordinate with your resort to be
+              included in a dive manifesto.
+            </Text>
+          )}
+
+          {status === "active" && (
+            <View style={activeStyles.activatedCard}>
+              <Ionicons name="checkmark-circle" size={24} color={colors.green} />
+              <Text style={activeStyles.activatedText}>
+                You are now part of an active Dive Manifesto. Your Eco-Dive ID is fully activated.
+              </Text>
+            </View>
+          )}
+
+          {status === "expired" && (
+            <View style={expiredStyles.expiredCard}>
+              <Ionicons name="information-circle" size={24} color={colors.gray} />
+              <Text style={expiredStyles.expiredText}>
+                Your Eco-Dive ID has expired. To reactivate it, coordinate with
+                your resort or dive operator to be included in a new dive
+                manifesto.
+              </Text>
+            </View>
+          )}
+
+          <DiveStatusTracker status={status} />
+
+          <View style={{ height: 120 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function ActiveIDScreen({ profile, ecoId, router }: { profile: any; ecoId: any; router: any }) {
-  const idNumber = ecoId?.eco_id_number || `ECO-${new Date().getFullYear()}-000001`;
-
-  const activeSteps = [
-    { label: "Registered", status: "done" as const },
-    { label: "Profile Complete", status: "done" as const },
-    { label: "Added to Manifesto", status: "done" as const },
-    { label: "Activated", status: "done" as const },
-  ];
-
-  const labels: Record<string, string> = {
-    filipino: "Filipino",
-    american: "American",
-    japanese: "Japanese",
-    korean: "Korean",
-    chinese: "Chinese",
-    australian: "Australian",
-    european: "European",
-    other: "Other",
-  };
-
-  const diveTypeLabels: Record<string, string> = {
-    "intro-fun": "Intro/Fun Dive",
-    certified: "Certified",
-  };
+function DiveStatusTracker({ status }: { status: string }) {
+  const current = ecoStatusIndex(status);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color={colors.darkText} />
-        </TouchableOpacity>
-        <View>
-          <Text style={styles.title}>Digital Diver ID</Text>
-        </View>
-      </View>
-      <Text style={styles.subtitle}>Your official dive identity in Mabini</Text>
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <ContentContainer maxWidth={720}>
-        {/* Active ID Card */}
-        <View style={activeStyles.idCard}>
-          <View style={styles.idCardTop}>
-            <View style={styles.ecoPill}>
-              <Ionicons name="water" size={14} color={colors.white} />
-              <Text style={styles.ecoPillText}>ECO-DIVE ID</Text>
-            </View>
-            <View style={activeStyles.activeBadge}>
-              <Ionicons name="checkmark-circle" size={14} color={colors.white} />
-              <Text style={activeStyles.activeBadgeText}>Active</Text>
-            </View>
-          </View>
-          <Text style={styles.idCardName}>{profile?.full_name || "Diver"}</Text>
-          <Text style={styles.idCardCode}>{idNumber}</Text>
-          <View style={styles.idCardInfoRow}>
-            <View style={styles.idCardInfoItem}>
-              <Text style={styles.infoItemLabel}>Nationality</Text>
-              <Text style={styles.infoItemValue}>{labels[profile?.nationality || ""] || profile?.nationality || "N/A"}</Text>
-            </View>
-            <View style={styles.idCardInfoItem}>
-              <Text style={styles.infoItemLabel}>Dive Type</Text>
-              <Text style={styles.infoItemValue}>{diveTypeLabels[profile?.type_of_dive || ""] || profile?.type_of_dive || "N/A"}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Activation message */}
-        <View style={activeStyles.activatedCard}>
-          <Ionicons name="checkmark-circle" size={24} color={colors.green} />
-          <Text style={activeStyles.activatedText}>
-            You are now part of an active Dive Manifesto. Your Eco-Dive ID is fully activated.
-          </Text>
-        </View>
-
-        {/* Dive Status Tracker */}
-        <Card style={styles.trackerCard}>
-          <Text style={styles.trackerTitle}>Dive Status Tracker</Text>
-          <View style={styles.trackerSteps}>
-            {activeSteps.map((step, i) => (
-              <View key={i} style={styles.trackerStep}>
-                <View style={styles.trackerStepLeft}>
+    <Card style={styles.trackerCard}>
+      <Text style={styles.trackerTitle}>Dive Status Tracker</Text>
+      <View style={styles.trackerSteps}>
+        {ECO_STATUS_LIFECYCLE.map((step, i) => {
+          const state = i < current ? "done" : i === current ? "current" : "pending";
+          return (
+            <View key={step.status} style={styles.trackerStep}>
+              <View style={styles.trackerStepLeft}>
+                {state === "done" ? (
                   <View style={[styles.stepIcon, styles.stepIconDone]}>
                     <Ionicons name="checkmark" size={14} color={colors.white} />
                   </View>
-                  {i < activeSteps.length - 1 && <View style={[styles.stepLine, styles.stepLineDone]} />}
-                </View>
-                <Text style={styles.stepLabel}>{step.label}</Text>
+                ) : state === "current" ? (
+                  <View style={[styles.stepIcon, styles.stepIconCurrent]}>
+                    <Ionicons name="time" size={14} color={colors.white} />
+                  </View>
+                ) : (
+                  <View style={[styles.stepIcon, styles.stepIconPending]}>
+                    <View style={styles.stepDot} />
+                  </View>
+                )}
+                {i < ECO_STATUS_LIFECYCLE.length - 1 && (
+                  <View
+                    style={[
+                      styles.stepLine,
+                      state === "done" ? styles.stepLineDone : styles.stepLinePending,
+                    ]}
+                  />
+                )}
               </View>
-            ))}
-          </View>
-        </Card>
-
-        <View style={{ height: 120 }} />
-        </ContentContainer>
-      </ScrollView>
-    </SafeAreaView>
+              <Text
+                style={[
+                  styles.stepLabel,
+                  state === "pending" && styles.stepLabelPending,
+                ]}
+              >
+                {step.label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </Card>
   );
 }
 
@@ -370,11 +337,13 @@ const styles = StyleSheet.create({
   },
   idCardInfoRow: {
     flexDirection: "row",
-    gap: 24,
+    flexWrap: "wrap",
+    gap: 20,
     marginTop: 4,
   },
   idCardInfoItem: {
     gap: 2,
+    minWidth: 96,
   },
   infoItemLabel: {
     fontSize: 10,
@@ -470,20 +439,6 @@ const activeStyles = StyleSheet.create({
     gap: 8,
     overflow: "hidden",
   },
-  activeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderRadius: 100,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    gap: 4,
-  },
-  activeBadgeText: {
-    color: colors.white,
-    fontSize: 11,
-    fontWeight: "700",
-  },
   activatedCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -494,6 +449,32 @@ const activeStyles = StyleSheet.create({
     gap: 12,
   },
   activatedText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.darkText,
+    lineHeight: 18,
+  },
+});
+
+const expiredStyles = StyleSheet.create({
+  idCard: {
+    marginTop: 20,
+    borderRadius: 24,
+    backgroundColor: colors.gray,
+    padding: 20,
+    gap: 8,
+    overflow: "hidden",
+  },
+  expiredCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: colors.grayLight,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 20,
+    gap: 12,
+  },
+  expiredText: {
     flex: 1,
     fontSize: 13,
     color: colors.darkText,

@@ -24,7 +24,6 @@ import { SearchResult } from "../../components/SearchBar";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
-import { showAlert } from "../../lib/confirm";
 import { supabase } from "../../lib/supabase";
 import {
   AnnouncementRow,
@@ -207,14 +206,14 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <ContentContainer maxWidth={900} paddingH={20}>
-          {/* Greeting + avatar + notification bell + filter */}
+          {/* Greeting + avatar + notification bell */}
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
               <View style={styles.avatarCircle}>
                 <Ionicons name="person" size={20} color={colors.white} />
               </View>
               <View style={styles.headerTextWrap}>
-                <Text style={styles.greeting}>{greeting} 🌊</Text>
+                <Text style={styles.greeting}>{greeting}</Text>
                 <Text style={styles.subGreeting}>Let's dive now</Text>
               </View>
             </View>
@@ -237,23 +236,6 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() =>
-                  showAlert(
-                    "Filters",
-                    "Advanced search filters are coming soon.",
-                  )
-                }
-                accessibilityRole="button"
-                accessibilityLabel="Filters"
-              >
-                <Ionicons
-                  name="options-outline"
-                  size={20}
-                  color={colors.darkText}
-                />
               </TouchableOpacity>
             </View>
           </View>
@@ -401,8 +383,8 @@ export default function HomeScreen() {
                 <DiveSiteCard
                   key={site.id}
                   name={site.name}
-                  rating={site.rating ?? "0"}
-                  image={require("../../../assets/dive-alley-palace.png")}
+                  rating={site.rating}
+                  imageUrl={site.image_url}
                   index={index}
                   liked={favoriteIds.has(site.id)}
                   onPress={() =>
@@ -425,8 +407,8 @@ export default function HomeScreen() {
                 <DiveSiteCard
                   key={site.id}
                   name={site.name}
-                  rating={site.rating ?? "0"}
-                  image={require("../../../assets/dive-alley-palace.png")}
+                  rating={site.rating}
+                  imageUrl={site.image_url}
                   index={index}
                   liked={favoriteIds.has(site.id)}
                   onPress={() =>

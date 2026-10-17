@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-const GEMINI_MODEL = "gemini-2.0-flash-lite";
+const GEMINI_MODEL = "gemini-3.5-flash-lite";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
 const CHAT_SYSTEM = `You are a friendly dive assistant for SINSAY, an eco-dive tourism app in Mabini, Batangas, Philippines.
@@ -11,7 +11,14 @@ Answer questions concisely about:
 - Marine life in the area (nudibranchs, turtles, frogfish, whale sharks)
 - The Eco-Dive ID process and requirements
 - Weather and diving conditions
-Keep answers under 3 paragraphs. Use a warm, helpful tone.`;
+- Getting to Mabini (bus/jeepney routes from Manila and Batangas City, tricycles, terminals)
+- Restaurants and food spots near dive sites and around Mabini
+- Visitor practicalities: stays, ATMs, clinics/emergency contacts, island hopping
+Keep answers under 3 paragraphs. Use a warm, helpful tone.
+Freshness rule: fares, schedules, opening hours, and prices change often and
+your knowledge may be stale — never state a specific fare, schedule, or hour
+as fact (give ranges or "typically"), and end such answers with one line
+advising the visitor to verify locally or with their operator.`;
 
 const PLANNER_SYSTEM = `You are a dive trip planner for SINSAY in Mabini, Batangas, Philippines.
 Generate a detailed dive itinerary based on the user's preferences. Include:
@@ -29,6 +36,20 @@ const RATE_LIMITS: Record<string, number> = {
 };
 const rateMap = new Map<string, { count: number; resetAt: number }>();
 
+// Per-user rate keys: the old code sliced the first 20 chars of the JWT,
+// but every Supabase JWT shares the same header prefix — so the "per-user"
+// bucket was effectively GLOBAL (one busy user starved everyone). Hash the
+// full credential instead.
+async function rateKey(type: string, authHeader: string): Promise<string> {
+  const bytes = new TextEncoder().encode(authHeader || "anonymous");
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  const hex = [...new Uint8Array(hash)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 32);
+  return `${type}:${hex}`;
+}
+
 function checkRateLimit(key: string, max: number): boolean {
   const now = Date.now();
   const entry = rateMap.get(key);
@@ -44,8 +65,13 @@ function checkRateLimit(key: string, max: number): boolean {
 function corsHeaders(origin: string): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    // supabase-js functions.invoke sends apikey + X-Client-Info alongside
+    // Content-Type/Authorization — all four must be allow-listed or browser
+    // preflights fail and the real request is never sent (curl bypasses
+    // preflight, which is why direct calls worked while the app failed).
+    "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, apikey, x-client-info",
   };
 }
 
@@ -55,12 +81,34 @@ const ALLOWED_TOPICS = [
   "tingloy", "eco-dive", "certification", "safety", "equipment",
   "current", "visibility", "weather", "nudibranch", "turtle",
   "frogfish", "whale shark", "coral", "reef", "sin say",
+  // Tourist-practical questions the gate used to refuse (looked broken):
+  "price", "cost", "fee", "pass", "passes", "booking", "book",
+  "resort", "payment", "gcash", "itinerary", "trip", "plan",
+  // Transport to/around Mabini:
+  "commute", "transport", "bus", "jeep", "jeepney", "tricycle",
+  "terminal", "directions", "going to", "getting to", "fare",
+  // Dining near dive sites:
+  "eat", "eating", "food", "restaurant", "resto", "lomi", "bulalo", "dining",
+  // Visitor practicalities:
+  "hotel", "accommodation", "stay", "staying", "atm", "hospital", "clinic",
+  "emergency", "island hopping", "church", "market",
 ];
 
 function isDiveRelated(text: string): boolean {
   const lower = text.toLowerCase();
   return ALLOWED_TOPICS.some((t) => lower.includes(t));
 }
+
+// Standalone greetings ("hello", "hi", "kumusta"…) match no topic keyword,
+// so without this the bot refuses to say hi back. Answered statically —
+// no Gemini call needed.
+const GREETING_ONLY_RE =
+  /^(hi+|hello+|hey+|yo|kumusta|kamusta|good\s?(morning|afternoon|evening|day)|magandang\s?(umaga|hapon|gabi))[\s!.?]*$/i;
+const LEADING_GREETING_RE =
+  /^(hi+|hello+|hey+|yo|kumusta|kamusta|good\s?(morning|afternoon|evening|day)|magandang\s?(umaga|hapon|gabi))[\s,!.?]+/i;
+
+const GREETING_REPLY =
+  "Hello! I'm Sinsay, your Mabini dive assistant. Ask me about dive sites, safety, marine life, commuting here, food spots, or stays — or tap Plan Your Trip and I'll build you a day-by-day itinerary!";
 
 async function callGemini(contents: unknown, systemInstruction: string): Promise<string> {
   const res = await fetch(GEMINI_URL, {
@@ -108,10 +156,10 @@ Deno.serve(async (req: Request) => {
     const { type } = body;
 
     const authHeader = req.headers.get("Authorization") || "";
-    const userId = authHeader.replace("Bearer ", "").slice(0, 20) || "anonymous";
+    const key = await rateKey(type, authHeader);
     const rateLimit = RATE_LIMITS[type as string] || 10;
 
-    if (!checkRateLimit(`${type}:${userId}`, rateLimit)) {
+    if (!checkRateLimit(key, rateLimit)) {
       return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again later." }), {
         status: 429,
         headers: { ...headers, "Content-Type": "application/json" },
@@ -120,8 +168,19 @@ Deno.serve(async (req: Request) => {
 
     if (type === "chat") {
       const { history = [], userMessage = "" } = body;
+      const trimmed = userMessage.trim();
 
-      if (!isDiveRelated(userMessage)) {
+      // "hello" alone → warm greeting, no model call, no refusal.
+      if (GREETING_ONLY_RE.test(trimmed)) {
+        return new Response(JSON.stringify({ reply: GREETING_REPLY }), {
+          status: 200,
+          headers: { ...headers, "Content-Type": "application/json" },
+        });
+      }
+      // "hi, where to eat?" → gate the remainder, not the greeting.
+      const effective = trimmed.replace(LEADING_GREETING_RE, "").trim() || trimmed;
+
+      if (!isDiveRelated(effective)) {
         return new Response(
           JSON.stringify({
             reply: "I can only answer questions related to diving, marine life, and SINSAY Eco-Dive tourism in Mabini, Batangas. Please ask a dive-related question!",
@@ -152,9 +211,10 @@ Deno.serve(async (req: Request) => {
 - Dates: ${params.startDate} to ${params.endDate}
 - Number of divers: ${params.divers}
 - Dive type: ${params.diveType}
+- Budget (PHP): ${params.budget || "Not specified — suggest a reasonable mid-range breakdown"}
 - Special interests: ${params.interests || "None"}
 
-Generate a complete day-by-day itinerary.`;
+Generate a complete day-by-day itinerary. Keep paid activities within the stated budget where one is given.`;
 
       const contents = [{ role: "user", parts: [{ text: prompt }] }];
       const reply = await callGemini(contents, PLANNER_SYSTEM);

@@ -83,6 +83,10 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    // Web flex items default to min-width:auto and refuse to shrink below
+    // content width — in narrow columns (planner date halves) the text
+    // field overflowed the row and pushed the icon outside the border.
+    minWidth: 0,
     fontSize: 14,
     color: colors.darkText,
     padding: 0,
@@ -92,9 +96,11 @@ const styles = StyleSheet.create({
   },
   leftIcon: {
     marginRight: 10,
+    flexShrink: 0,
   },
   rightIcon: {
     marginLeft: 10,
+    flexShrink: 0,
   },
   errorText: {
     fontSize: 11,

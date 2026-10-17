@@ -15,7 +15,7 @@ interface FaqItem {
 const faqs: FaqItem[] = [
   {
     q: "How do I get my Eco-Dive ID activated?",
-    a: "Your Eco-Dive ID is automatically activated when a registered dive operator adds you to their dive manifest. You'll receive a notification once it's active. Until then, your status will show as 'Complete'.",
+    a: "Your Eco-Dive ID is automatically activated when a registered dive operator adds you to their dive manifest. You'll receive a notification once it's active. Until then, your status will show as 'Ready'.",
   },
   {
     q: "How do I become a dive operator?",
