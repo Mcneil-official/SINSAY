@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
-import { confirmDialog } from "../../../lib/confirm";
+import ConfirmModal from "../../../components/ConfirmModal";
 import { t, Locale } from "../../../lib/i18n";
 import ContentContainer from "../../../components/ContentContainer";
 
@@ -45,6 +45,8 @@ export default function ProfileScreen() {
   const { user, profile, operatorApplication, isOperator, signOut, isLoading, updateProfile, setViewAsTourist, viewAsTourist } = useAuth();
   const locale: Locale = (profile?.language_preference as Locale) || "en";
   const [returnToOperator, setReturnToOperator] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Return leg of tourist-view: navigate after the flag clears so
   // TouristGate doesn't bounce us back to /(tabs) on a stale read.
@@ -55,15 +57,17 @@ export default function ProfileScreen() {
     }
   }, [returnToOperator, viewAsTourist, isOperator, router]);
 
-  const handleLogout = async () => {
-    const confirmed = await confirmDialog(
-      t("logout_confirm_title", locale),
-      t("logout_confirm_message", locale),
-      { cancelText: t("cancel", locale), confirmText: t("confirm", locale) },
-    );
-    if (!confirmed) return;
-    // Gate-owned navigation: TouristGate redirects !user → /loginpage.
-    await signOut();
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+    } catch (err) {
+      console.warn("Logout error:", err);
+    } finally {
+      setShowLogoutModal(false);
+      setIsLoggingOut(false);
+      router.replace("/loginpage");
+    }
   };
 
   if (isLoading) {
@@ -190,7 +194,7 @@ export default function ProfileScreen() {
             icon="log-out-outline"
             label={t("log_out", locale)}
             subtitle={t("log_out_sub", locale)}
-            onPress={handleLogout}
+            onPress={() => setShowLogoutModal(true)}
             destructive
           />
         </View>
@@ -230,6 +234,19 @@ export default function ProfileScreen() {
         <View style={{ height: 120 }} />
         </ContentContainer>
       </ScrollView>
+
+      <ConfirmModal
+        visible={showLogoutModal}
+        title={t("logout_confirm_title", locale)}
+        message={t("logout_confirm_message", locale)}
+        cancelText={t("cancel", locale)}
+        confirmText={t("confirm", locale)}
+        icon="log-out-outline"
+        destructive
+        isLoading={isLoggingOut}
+        onCancel={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+      />
     </SafeAreaView>
   );
 }

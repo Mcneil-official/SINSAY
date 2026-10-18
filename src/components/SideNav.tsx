@@ -1,8 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
+import ConfirmModal from "./ConfirmModal";
 
 type TabRoute = { key: string; name: string };
 
@@ -31,11 +34,22 @@ export default function SideNav({
   onSelect,
   width = 240,
 }: SideNavProps) {
+  const router = useRouter();
   const { signOut } = useAuth();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
-    // Gate-owned navigation: TouristGate/OperatorGate redirect !user → /loginpage.
-    await signOut();
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+    } catch (err) {
+      console.warn("Logout error:", err);
+    } finally {
+      setShowLogoutModal(false);
+      setIsLoggingOut(false);
+      router.replace("/loginpage");
+    }
   };
 
   const navRoutes = state?.routes ?? Object.keys(tabLabels).map((name) => ({ key: name, name }));
@@ -60,8 +74,13 @@ export default function SideNav({
   return (
     <View style={[styles.sidebar, { width }]}>
       <View style={styles.logoSection}>
-        <Ionicons name="water" size={28} color={colors.white} />
-        <Text style={styles.logoText}>SINSAY</Text>
+        <Image
+          source={require("../../assets/images/logo.png")}
+          style={styles.logoImage}
+          contentFit="contain"
+          tintColor="#FFFFFF"
+          accessibilityLabel="SINSAY"
+        />
       </View>
 
       <View style={styles.navSection}>
@@ -104,7 +123,7 @@ export default function SideNav({
 
       <TouchableOpacity
         style={styles.logoutButton}
-        onPress={handleLogout}
+        onPress={() => setShowLogoutModal(true)}
         activeOpacity={0.7}
       >
         <Ionicons
@@ -114,6 +133,19 @@ export default function SideNav({
         />
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
+
+      <ConfirmModal
+        visible={showLogoutModal}
+        title="Log Out"
+        message="Are you sure you want to log out?"
+        cancelText="Cancel"
+        confirmText="Log Out"
+        icon="log-out-outline"
+        destructive
+        isLoading={isLoggingOut}
+        onCancel={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+      />
     </View>
   );
 }
@@ -139,11 +171,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.08)",
   },
-  logoText: {
-    color: colors.white,
-    fontSize: 18,
-    fontWeight: "700",
-    letterSpacing: 1,
+  logoImage: {
+    width: 130,
+    height: 30,
   },
   navSection: {
     flex: 1,

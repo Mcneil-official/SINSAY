@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useLayout } from "../context/LayoutContext";
+import WaveDivider from "../components/WaveDivider";
 
 export default function Index() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function Index() {
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.wideCard}>
           <View style={styles.wideLeft}>
+            <WaveDivider width={84} />
             <Image
               source={require("../../assets/images/logo.png")}
               style={styles.wideLogo}
@@ -36,8 +38,7 @@ export default function Index() {
                 <Text style={styles.wideCtaText}>Explore</Text>
               </Pressable>
               <Text style={styles.wideNote}>
-                Before you explore, learn how to protect Mabini's marine
-                ecosystem.
+                {"Before you explore, learn how to protect Mabini's marine ecosystem."}
               </Text>
             </View>
           </View>
@@ -78,7 +79,7 @@ export default function Index() {
           </Pressable>
 
           <Text style={styles.note}>
-            Before you explore, learn how to protect Mabini's marine ecosystem.
+            {"Before you explore, learn how to protect Mabini's marine ecosystem."}
           </Text>
         </View>
       </View>
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     paddingTop: 90,
     paddingBottom: 32,
-    backgroundColor: "#f7f3ea",
+    backgroundColor: "#ffffff",
     overflow: "hidden",
   },
   content: {
@@ -166,35 +167,29 @@ const styles = StyleSheet.create({
   },
   wideRoot: {
     flex: 1,
-    backgroundColor: "#DCEBFB",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 32,
+    backgroundColor: "#ffffff",
+    padding: 0,
+    margin: 0,
+    width: "100%",
+    height: "100%",
   },
   wideCard: {
     flexDirection: "row",
     width: "100%",
-    maxWidth: 1280,
     height: "100%",
-    maxHeight: 780,
-    borderRadius: 32,
+    backgroundColor: "#ffffff",
+    borderRadius: 0,
     overflow: "hidden",
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
   },
   wideLeft: {
-    width: "42%",
-    backgroundColor: "#fff",
-    borderTopRightRadius: 160,
-    borderBottomRightRadius: 160,
-    paddingHorizontal: 48,
-    paddingVertical: 40,
+    width: "46%",
+    maxWidth: 600,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 56,
+    paddingVertical: 56,
     justifyContent: "space-between",
     zIndex: 2,
+    position: "relative",
   },
   wideLogo: { width: 160, height: 44 },
   wideBody: { gap: 16, marginBottom: 24 },
@@ -208,6 +203,6 @@ const styles = StyleSheet.create({
   },
   wideCtaText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   wideNote: { fontSize: 12, color: "#6B7280" },
-  wideRight: { flex: 1 },
+  wideRight: { flex: 1, height: "100%" },
   wideImage: { width: "100%", height: "100%" },
 });

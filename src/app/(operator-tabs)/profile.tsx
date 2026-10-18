@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -13,8 +13,8 @@ import {
 } from "react-native";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
-import { confirmDialog, showAlert } from "../../lib/confirm";
-import { ContentContainer } from "../../components";
+import { showAlert } from "../../lib/confirm";
+import { ConfirmModal, ContentContainer } from "../../components";
 
 interface ProfileRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -42,6 +42,8 @@ function ProfileRow({ icon, label, subtitle, onPress, destructive }: ProfileRowP
 export default function OperatorProfileScreen() {
   const { user, profile, signOut, isLoading, setViewAsTourist, viewAsTourist } = useAuth();
   const router = useRouter();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Navigate only after the flag propagates so OperatorGate sees the new
   // value (avoids the set-then-replace race that bounced back on slow devices).
@@ -49,15 +51,17 @@ export default function OperatorProfileScreen() {
     if (viewAsTourist) router.replace("/(tabs)");
   }, [viewAsTourist, router]);
 
-  const handleLogout = async () => {
-    const confirmed = await confirmDialog(
-      "Log out",
-      "Are you sure you want to log out?",
-      { cancelText: "Cancel", confirmText: "Log out" },
-    );
-    if (!confirmed) return;
-    // Gate-owned navigation: OperatorGate redirects !user → /loginpage.
-    await signOut();
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+    } catch (err) {
+      console.warn("Logout error:", err);
+    } finally {
+      setShowLogoutModal(false);
+      setIsLoggingOut(false);
+      router.replace("/loginpage");
+    }
   };
 
   if (isLoading) {
@@ -108,7 +112,7 @@ export default function OperatorProfileScreen() {
         <View style={styles.sectionCard}>
           <ProfileRow icon="settings-outline" label="My Account" subtitle="Manage resort settings" onPress={() => showAlert("My Account", "Operator account settings are coming soon.")} />
           <View style={styles.divider} />
-          <ProfileRow icon="log-out-outline" label="Log out" subtitle="Secure your account" onPress={handleLogout} destructive />
+          <ProfileRow icon="log-out-outline" label="Log out" subtitle="Secure your account" onPress={() => setShowLogoutModal(true)} destructive />
         </View>
 
         <Text style={styles.sectionLabel}>More</Text>
@@ -121,6 +125,19 @@ export default function OperatorProfileScreen() {
         <View style={{ height: 120 }} />
         </ContentContainer>
       </ScrollView>
+
+      <ConfirmModal
+        visible={showLogoutModal}
+        title="Log out"
+        message="Are you sure you want to log out?"
+        cancelText="Cancel"
+        confirmText="Log out"
+        icon="log-out-outline"
+        destructive
+        isLoading={isLoggingOut}
+        onCancel={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+      />
     </SafeAreaView>
   );
 }

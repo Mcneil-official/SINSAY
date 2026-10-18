@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
+import OperatorWiderScreenNavbar from "../../components/OperatorWiderScreenNavbar";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
@@ -68,8 +69,9 @@ export default function OperatorTabLayout() {
   }
 
   return (
-    <>
+    <View style={styles.container}>
       <OperatorGate />
+      {isDesktop && <OperatorWiderScreenNavbar />}
       <Tabs
         screenOptions={{ headerShown: false }}
         tabBar={(props) =>
@@ -87,6 +89,13 @@ export default function OperatorTabLayout() {
         <Tabs.Screen name="buy-pass" />
         <Tabs.Screen name="profile" />
       </Tabs>
-    </>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+});

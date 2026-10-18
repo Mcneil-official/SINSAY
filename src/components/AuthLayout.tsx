@@ -2,14 +2,14 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  ImageBackground,
   Pressable,
+  SafeAreaView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { useLayout } from "../context/LayoutContext";
+import WaveDivider from "./WaveDivider";
 
 interface AuthLayoutProps {
   activeTab: "login" | "signup";
@@ -20,8 +20,6 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
   const router = useRouter();
   const { isTablet, isDesktop } = useLayout();
   const isWide = isTablet || isDesktop;
-  const { height: screenHeight } = useWindowDimensions();
-  const [contentBottom, setContentBottom] = useState<number | null>(null);
 
   const tabRow = (
     <View style={styles.tabRow} accessibilityRole="tablist">
@@ -65,6 +63,7 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
       <View style={styles.wideRoot}>
         <View style={styles.wideCard}>
           <View style={styles.wideLeft}>
+            <WaveDivider width={84} />
             <Pressable
               onPress={() => router.push("/next5")}
               hitSlop={12}
@@ -98,157 +97,131 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
     );
   }
 
-  // ── MOBILE — unchanged ──
+  // ── MOBILE ──
   return (
-    <ImageBackground
-      source={require("../../assets/images/1.png")}
-      style={styles.container}
-    >
-      <View
-        style={styles.content}
-        onLayout={(e) => {
-          const { y, height } = e.nativeEvent.layout;
-          setContentBottom(y + height);
-        }}
-      >
-        <Pressable
-          onPress={() => router.push("/next5")}
-          hitSlop={12}
-          style={styles.backButton}
-        >
-          <Text style={styles.backArrow}>‹</Text>
-        </Pressable>
-        <Image
-          source={require("../../assets/images/logo.png")}
-          style={styles.logo}
-          contentFit="contain"
-        />
-        <Text style={styles.subtitle}>Tara, Sinsay na sa Mabini!</Text>
-        {tabRow}
+    <SafeAreaView style={styles.mobileSafe}>
+      <View style={styles.mobileContainer}>
+        <View style={styles.mobileHeader}>
+          <Pressable
+            onPress={() => router.push("/next5")}
+            hitSlop={12}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <Text style={styles.backArrow}>‹</Text>
+          </Pressable>
+          <Image
+            source={require("../../assets/images/logo.png")}
+            style={styles.logo}
+            contentFit="contain"
+          />
+          <Text style={styles.subtitle}>Tara, Sinsay na sa Mabini!</Text>
+          {tabRow}
+        </View>
+        <View style={styles.mobileBody}>{children}</View>
       </View>
-      <View
-        pointerEvents="none"
-        style={[
-          styles.oval,
-          {
-            height:
-              contentBottom == null
-                ? screenHeight * 0.74
-                : Math.min(
-                    Math.max(screenHeight - contentBottom + 20, 200),
-                    screenHeight * 0.74,
-                  ),
-          },
-        ]}
-      />
-      <View style={styles.footer}>
-        <View style={styles.bottomSection}>{children}</View>
-      </View>
-    </ImageBackground>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // ── mobile (unchanged) ──
-  container: {
+  // ── mobile ──
+  mobileSafe: {
     flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 40,
-    paddingTop: 50,
-    paddingBottom: 32,
-    backgroundColor: "#f7f3ea",
+    backgroundColor: "#ffffff",
   },
-  content: { gap: 0 },
-  backButton: { padding: 0 },
+  mobileContainer: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 28,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  mobileHeader: {
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginLeft: -8,
+  },
   backArrow: {
     fontSize: 32,
     lineHeight: 32,
     color: "#1f1a17",
     fontWeight: "400",
-    left: -32,
-    top: -6,
   },
-  logo: { width: 250, height: 60 },
+  logo: { width: 220, height: 54, marginTop: 4 },
   subtitle: {
     fontSize: 14,
-    lineHeight: 22,
-    color: "#000000",
+    lineHeight: 20,
+    color: "#334155",
     textAlign: "center",
     fontWeight: "700",
-    marginTop: -8,
+    marginTop: 2,
   },
   tabRow: {
     flexDirection: "row",
-    marginTop: 12,
+    marginTop: 16,
     gap: 32,
     justifyContent: "center",
     alignItems: "center",
-  },
-  tabButton: { alignItems: "center", gap: 8, paddingBottom: 40 },
-  tabText: { fontSize: 15, fontWeight: "600", color: "#9b9b9b" },
-  tabTextActive: { color: "#1f1a17" },
-  tabUnderline: {
-    height: 2,
     width: "100%",
-    backgroundColor: "#1f1a17",
-    borderRadius: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
-  oval: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "#ffffff",
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -6 },
-    elevation: 8,
+  tabButton: { alignItems: "center", gap: 6, paddingBottom: 12 },
+  tabText: { fontSize: 15, fontWeight: "600", color: "#94A3B8" },
+  tabTextActive: { color: "#0F172A" },
+  tabUnderline: {
+    height: 2.5,
+    width: "100%",
+    backgroundColor: "#005EEC",
+    borderRadius: 2,
   },
-  footer: { alignSelf: "stretch", gap: 10, zIndex: 1, flex: 1 },
-  bottomSection: { width: "100%", gap: 12, flex: 1 },
+  mobileBody: {
+    flex: 1,
+    marginTop: 12,
+  },
 
-  // ── desktop (new — matches reference) ──
+  // ── desktop / wide ──
   wideRoot: {
     flex: 1,
-    backgroundColor: "#DCEBFB",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 32,
+    backgroundColor: "#ffffff",
+    padding: 0,
+    margin: 0,
+    width: "100%",
+    height: "100%",
   },
   wideCard: {
     flexDirection: "row",
     width: "100%",
-    maxWidth: 1280,
     height: "100%",
-    maxHeight: 780,
-    borderRadius: 32,
+    backgroundColor: "#ffffff",
+    borderRadius: 0,
     overflow: "hidden",
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
   },
   wideLeft: {
-    width: "42%",
-    backgroundColor: "#fff",
-    borderTopRightRadius: 160,
-    borderBottomRightRadius: 160,
-    paddingHorizontal: 48,
+    width: "45%",
+    maxWidth: 580,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 56,
     paddingVertical: 40,
     gap: 16,
+    justifyContent: "center",
     zIndex: 2,
+    borderRightWidth: 1,
+    borderRightColor: "#F1F5F9",
   },
-  wideBackRow: { flexDirection: "row", alignItems: "center", gap: 2 },
-  wideBackArrow: { fontSize: 20, color: "#16145A", fontWeight: "400" },
-  wideBackLabel: { fontSize: 14, fontWeight: "600", color: "#16145A" },
-  wideLogo: { width: 140, height: 36, alignSelf: "flex-start", marginTop: 4 },
-  wideSubtitle: { fontSize: 14, fontWeight: "700", color: "#000" },
-  wideFormWrap: { marginTop: 8, gap: 12, flex: 1 },
-  wideRight: { flex: 1 },
+  wideBackRow: { flexDirection: "row", alignItems: "center", gap: 2, marginBottom: 4 },
+  wideBackArrow: { fontSize: 24, color: "#0F172A", fontWeight: "400" },
+  wideBackLabel: { fontSize: 14, fontWeight: "600", color: "#0F172A" },
+  wideLogo: { width: 160, height: 42, alignSelf: "flex-start", marginTop: 4 },
+  wideSubtitle: { fontSize: 15, fontWeight: "700", color: "#334155" },
+  wideFormWrap: { marginTop: 12, gap: 12, flex: 1 },
+  wideRight: { flex: 1, height: "100%" },
   wideImage: { width: "100%", height: "100%" },
 });

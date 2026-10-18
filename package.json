@@ -53,7 +53,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web --port 3000",
     "lint": "expo lint",
-    "test": "tsc -p tsconfig.test.json && node dist-test/tests/test-password.js"
+    "test": "tsc -p tsconfig.test.json && node dist-test/tests/test-password.js",
+    "postinstall": "node scripts/patch-expo-cors.js"
   },
   "private": true
 }

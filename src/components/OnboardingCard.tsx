@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
 import { useLayout } from "../context/LayoutContext";
+import WaveDivider from "./WaveDivider";
 
 interface OnboardingFeature {
   icon: keyof typeof Ionicons.glyphMap;
@@ -52,38 +53,6 @@ function MobileDots({ active, total }: { active: number; total: number }) {
   );
 }
 
-function Stepper({ active, total }: { active: number; total: number }) {
-  return (
-    <View style={styles.stepperRow}>
-      {Array.from({ length: total }).map((_, i) => {
-        const done = i < active;
-        const isActive = i === active;
-        return (
-          <React.Fragment key={i}>
-            <View
-              style={[
-                styles.stepCircle,
-                (isActive || done) && styles.stepCircleActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.stepNumber,
-                  (isActive || done) && styles.stepNumberActive,
-                ]}
-              >
-                {i + 1}
-              </Text>
-            </View>
-            {i < total - 1 && (
-              <View style={[styles.stepLine, done && styles.stepLineDone]} />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </View>
-  );
-}
 
 function renderClosing(text: string, highlight?: string) {
   if (!highlight || !text.includes(highlight)) {
@@ -125,6 +94,7 @@ export function OnboardingCard({
       <View style={styles.desktopRoot}>
         <View style={styles.wideCard}>
           <View style={styles.leftPanel}>
+            <WaveDivider width={84} />
             <Image
               source={require("../../assets/images/logo.png")}
               style={styles.desktopLogo}
@@ -210,9 +180,6 @@ export function OnboardingCard({
           </View>
 
           <View style={styles.rightPanel}>
-            <View style={styles.stepperWrap}>
-              <Stepper active={progressActive} total={totalSteps} />
-            </View>
             <Image
               source={heroImage}
               style={styles.rightImage}
@@ -285,7 +252,7 @@ const styles = StyleSheet.create({
     flex: 1,
     position: "relative",
     paddingHorizontal: 40,
-    backgroundColor: "#f7f3ea",
+    backgroundColor: colors.white,
     overflow: "hidden",
   },
   heroImage: { position: "absolute", top: 0, left: 0, right: 0 },
@@ -354,39 +321,33 @@ const styles = StyleSheet.create({
   },
   dotActive: { width: 20, backgroundColor: colors.navy },
 
-  // ── desktop (new — matches reference) ──
+  // ── desktop / wide ──
   desktopRoot: {
     flex: 1,
-    backgroundColor: "#DCEBFB",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 32,
+    backgroundColor: colors.white,
+    padding: 0,
+    margin: 0,
+    width: "100%",
+    height: "100%",
   },
   wideCard: {
     flexDirection: "row",
     width: "100%",
-    maxWidth: 1280,
     height: "100%",
-    maxHeight: 780,
-    borderRadius: 32,
+    borderRadius: 0,
     overflow: "hidden",
     backgroundColor: colors.white,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
   },
   leftPanel: {
-    width: "42%",
+    width: "44%",
+    maxWidth: 580,
     backgroundColor: colors.white,
-    borderTopRightRadius: 160,
-    borderBottomRightRadius: 160,
-    paddingHorizontal: 48,
+    paddingHorizontal: 52,
     paddingVertical: 40,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     gap: 20,
     zIndex: 2,
+    position: "relative",
   },
   desktopLogo: { width: 140, height: 36, alignSelf: "flex-start" },
   backRow: { flexDirection: "row", alignItems: "center", gap: 2 },
@@ -457,35 +418,4 @@ const styles = StyleSheet.create({
   desktopCtaText: { color: colors.white, fontSize: 16, fontWeight: "600" },
   rightPanel: { flex: 1, position: "relative" },
   rightImage: { width: "100%", height: "100%" },
-  stepperWrap: {
-    position: "absolute",
-    top: 32,
-    left: 0,
-    right: 32,
-    zIndex: 2,
-    alignItems: "flex-end",
-  },
-  stepperRow: { flexDirection: "row", alignItems: "center" },
-  stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepCircleActive: { backgroundColor: colors.white },
-  stepNumber: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.8)",
-  },
-  stepNumberActive: { color: colors.navy },
-  stepLine: {
-    width: 32,
-    height: 2,
-    backgroundColor: "rgba(255,255,255,0.3)",
-    marginHorizontal: 6,
-  },
-  stepLineDone: { backgroundColor: colors.white },
 });

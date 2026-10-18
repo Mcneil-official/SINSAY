@@ -109,7 +109,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearLocalAuthState();
     // Logged-out snapshot is definitive for gates.
     setRoleReady(true);
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Supabase auth signOut warning:", err);
+    }
   }, [clearLocalAuthState]);
 
   const isOperator = operatorApplication?.status === "approved";

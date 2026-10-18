@@ -273,29 +273,31 @@ export default function OperatorDashboardScreen() {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
       >
-        <ContentContainer maxWidth={900}>
+        <ContentContainer maxWidth={isDesktop ? 1200 : 900}>
           {/* Greeting */}
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.greeting}>Hi, {establishmentName || "Operator"}!</Text>
               <Text style={styles.subGreeting}>Logged in as Operator</Text>
             </View>
-            <TouchableOpacity
-              style={styles.bellButton}
-              onPress={() => router.push("/notifications")}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={22}
-                color="#1E293B"
-              />
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            {!isDesktop && (
+              <TouchableOpacity
+                style={styles.bellButton}
+                onPress={() => router.push("/notifications")}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={22}
+                  color="#1E293B"
+                />
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Stat Cards */}

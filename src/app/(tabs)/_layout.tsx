@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
+import WiderScreenNavbar from "../../components/WiderScreenNavbar";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
@@ -60,6 +61,7 @@ export default function TabLayout() {
   const router = useRouter();
 
   const ready = !isLoading && roleReady;
+
   if (!ready) {
     return (
       <>
@@ -72,8 +74,9 @@ export default function TabLayout() {
   }
 
   return (
-    <>
+    <View style={styles.container}>
       <TouristGate />
+      {isDesktop && <WiderScreenNavbar />}
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -93,6 +96,13 @@ export default function TabLayout() {
         <Tabs.Screen name="dive-assistant" />
         <Tabs.Screen name="profile" />
       </Tabs>
-    </>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+});

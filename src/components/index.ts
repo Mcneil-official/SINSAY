@@ -23,4 +23,7 @@ export { StatCard } from "./StatCard";
 export { StatusBadge } from "./StatusBadge";
 export { StepProgress } from "./StepProgress";
 export { TextInput } from "./TextInput";
-
+export { default as WiderScreenNavbar } from "./WiderScreenNavbar";
+export { default as ConfirmModal } from "./ConfirmModal";
+export { default as OperatorWiderScreenNavbar } from "./OperatorWiderScreenNavbar";
+export { default as WaveDivider } from "./WaveDivider";
