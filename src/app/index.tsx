@@ -22,18 +22,20 @@ export default function Index() {
         <View style={styles.wideCard}>
           <View style={styles.wideLeft}>
             <WaveDivider width={84} />
-            <Image
-              source={require("../../assets/images/logo.png")}
-              style={styles.wideLogo}
-              contentFit="contain"
-            />
-            <View style={styles.wideBody}>
+            <View style={styles.wideHero}>
+              <Image
+                source={require("../../assets/images/logo.png")}
+                style={styles.wideLogo}
+                contentFit="contain"
+              />
               <Text style={styles.wideSubtitle}>
                 Tara, Sinsay na sa Mabini!
               </Text>
               <Pressable
                 style={styles.wideCta}
                 onPress={() => router.push("/next")}
+                accessibilityRole="button"
+                accessibilityLabel="Explore"
               >
                 <Text style={styles.wideCtaText}>Explore</Text>
               </Pressable>
@@ -185,24 +187,52 @@ const styles = StyleSheet.create({
     width: "46%",
     maxWidth: 600,
     backgroundColor: "#ffffff",
-    paddingHorizontal: 56,
-    paddingVertical: 56,
-    justifyContent: "space-between",
+    paddingHorizontal: 48,
+    paddingVertical: 48,
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 2,
     position: "relative",
   },
-  wideLogo: { width: 160, height: 44 },
-  wideBody: { gap: 16, marginBottom: 24 },
-  wideSubtitle: { fontSize: 22, fontWeight: "700", color: "#000" },
+  wideHero: {
+    width: "100%",
+    maxWidth: 380,
+    alignItems: "center",
+    gap: 16,
+  },
+  wideLogo: {
+    width: 210,
+    height: 52,
+    marginBottom: 4,
+  },
+  wideSubtitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#0F172A",
+    textAlign: "center",
+    lineHeight: 30,
+  },
   wideCta: {
-    alignSelf: "stretch",
+    width: "100%",
     backgroundColor: "#176FF2",
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: "center",
+    marginTop: 8,
+    shadowColor: "#176FF2",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
-  wideCtaText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  wideNote: { fontSize: 12, color: "#6B7280" },
+  wideCtaText: { color: "#ffffff", fontSize: 16, fontWeight: "600" },
+  wideNote: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748B",
+    textAlign: "center",
+    marginTop: 4,
+  },
   wideRight: { flex: 1, height: "100%" },
   wideImage: { width: "100%", height: "100%" },
 });

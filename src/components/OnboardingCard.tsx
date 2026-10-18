@@ -95,21 +95,24 @@ export function OnboardingCard({
         <View style={styles.wideCard}>
           <View style={styles.leftPanel}>
             <WaveDivider width={84} />
-            <Image
-              source={require("../../assets/images/logo.png")}
-              style={styles.desktopLogo}
-              contentFit="contain"
-            />
+            <View style={styles.desktopHeaderRow}>
+              <Pressable
+                onPress={onBack}
+                hitSlop={12}
+                style={styles.backRow}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
+                <Ionicons name="chevron-back" size={18} color={colors.navy} />
+                <Text style={styles.backLabel}>Back</Text>
+              </Pressable>
 
-            <Pressable
-              onPress={onBack}
-              hitSlop={12}
-              style={styles.backRow}
-              accessibilityRole="button"
-            >
-              <Ionicons name="chevron-back" size={16} color={colors.navy} />
-              <Text style={styles.backLabel}>Back</Text>
-            </Pressable>
+              <Image
+                source={require("../../assets/images/logo.png")}
+                style={styles.desktopLogo}
+                contentFit="contain"
+              />
+            </View>
 
             <View style={styles.desktopBody}>
               <Text style={styles.desktopTitle}>{desktop.title}</Text>
@@ -349,7 +352,14 @@ const styles = StyleSheet.create({
     zIndex: 2,
     position: "relative",
   },
-  desktopLogo: { width: 140, height: 36, alignSelf: "flex-start" },
+  desktopHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 8,
+  },
+  desktopLogo: { width: 140, height: 34 },
   backRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   backLabel: { fontSize: 14, fontWeight: "600", color: colors.navy },
   desktopBody: { gap: 18 },

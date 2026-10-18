@@ -1,109 +1,66 @@
-# Onboarding & Authentication Wave Boundary Design
+# Horizontal Header Alignment: Back & SINSAY Logo
 
-Adopt the organic fluid wave curve on the white content panel across both the Onboarding flow (`next.tsx` through `next5.tsx`) and the Authentication screens (`loginpage.tsx` and `signup.tsx`) on desktop and tablet wide screens, matching the uploaded design reference.
+Align the Back navigation action and SINSAY brand logo horizontally along the top header row across the Onboarding flow (`OnboardingCard.tsx`) and the Authentication screens (`AuthLayout.tsx`) on desktop and tablet wide screens, matching the confirmed user preference.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following design choices have been confirmed via clarifying answers:
-> - **Unified Design Across Onboarding & Auth**: Both `OnboardingCard.tsx` and `AuthLayout.tsx` will share the identical smooth SVG S-curve wave boundary profile for visual continuity.
-> - **Responsive Scope**: Desktop and tablet wide screens only (`isWide = isDesktop || isTablet`). Mobile layouts retain their native bottom-sheet and full-width forms.
-> - **Right-Side Imagery**:
->   - Onboarding retains the full-bleed diver/ocean illustrations per step (`2.jpeg`, `3.png`, `4.jpeg`, `5.jpeg`, `6.jpeg`).
->   - Login & Signup retain the current rich marine background image (`1.png`).
-> - **Zero Disruption to Existing Functionality**: Only the panel border geometry and wave divider are updated. All form fields, auth submissions, step flows, validation, and buttons remain untouched.
+> The following layout choices have been confirmed via clarifying answers:
+> - **Horizontal Distribution**: Back button placed on the far left, and the SINSAY logo placed on the far right within the white panel (`justifyContent: "space-between"`).
+> - **Screen Scope**: Desktop and tablet wide screens (`isWide = isTablet || isDesktop`). Mobile layouts remain untouched with their existing mobile headers.
+> - **Unified Visual Consistency**: Both Onboarding (`next.tsx`–`next5.tsx`) and Auth (`loginpage.tsx` and `signup.tsx`) will share identical horizontal header geometry and vertical alignment.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Delivers**: Replaces the standard straight vertical divider line on the desktop split-screen with an organic S-curve marine wave. The white container sweeps fluidly into the deep blue ocean artwork on the right, bringing the brand's coastal dive identity to life across both onboarding and account access.
-- **Target Experience**: Divers, tourists, and operators accessing SINSAY onboarding or signing in on desktop, laptop, and tablet browsers.
-- **Key Value**: Delivers the bespoke marine aesthetic requested in the reference image, establishing immediate visual cohesion from onboarding through login and signup.
+- **What It Delivers**: Replaces vertically stacked Back links and logos with a streamlined horizontal top header row. The Back button is immediately accessible on the left edge, while the SINSAY logo anchors the top right corner of the white panel, cleanly separating navigation and branding.
+- **Target Experience**: Divers, tourists, and operators onboarding or logging in on desktop, laptop, or tablet.
+- **Key Value**: Reclaims vertical screen height for body content, regulations, and auth inputs while establishing clean, predictable horizontal eye scanning.
 
 ---
 
 ## 2. User Experience & Visual Design
 
-### Visual Structure
-- **Left Panel (White Content Container)**:
-  - Surface: Pure `#FFFFFF`.
-  - Content: Padded safely within the straight rectangular interior (`paddingHorizontal: 48` to `56px`) so titles, regulation rows, and form inputs never clip or touch the wave.
-- **Wave Edge (Right Boundary)**:
-  - Scalable vector S-curve wave running 100% of the viewport height.
-  - S-curve geometry matching the reference image:
-    - Top: Convex crest sweeping smoothly into the ocean artwork.
-    - Mid-section: Soft trough curving inward alongside the middle content.
-    - Lower section: Gentle crest swelling outward above the primary action buttons.
-    - Bottom: Tapering inward toward the bottom left corner.
-  - Pure white fill (`#FFFFFF`), seamless with the left panel, removing all harsh border lines.
-- **Right Panel (Ocean Artwork)**:
-  - Full-bleed hero artwork (`heroImage` on onboarding; `1.png` on auth) creating the ocean backdrop visible through the wave contour.
-
----
-
-## 3. Technical Architecture & Component Mapping
-
-### Unified Component Architecture
+### Header Row Composition
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                        OnboardingCard / AuthLayout (Desktop View)                      │
+│                        White Panel Header (Desktop / Tablet View)                      │
 │                                                                                        │
-│   ┌──────────────────────────────────────────────┐░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│
-│   │  [SINSAY Logo]                               │╲                                    │
-│   │  < Back                                      │ ╲   [Ocean Hero / Marine Artwork]   │
-│   │                                              │  )                                  │
-│   │  Onboarding Content / Auth Form              │ (                                   │
-│   │  - Headlines & Subtitles                     │  )                                  │
-│   │  - Regulation Cards / Login & Signup Tabs    │   ╲                                 │
-│   │  - Inputs, Checkboxes & Actions              │    )                                │
-│   │                                              │   ╱                                 │
-│   │  [ Primary Action Button ]                   │  (                                  │
-│   │                                              │   ╲                                 │
-│   │                                              │    )                                │
-│   └──────────────────────────────────────────────┘───╱░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│
-│      <─── Solid White Content Area ───>  <─ Wave Edge ─>  <── Ocean Artwork Panel ──>  │
+│   ┌────────────────────────────────────────────────────────┐                           │
+│   │  ‹ Back                                   [SINSAY]     │   <-- Horizontal Row      │
+│   └────────────────────────────────────────────────────────┘                           │
+│                                                                                        │
+│   WELCOME TO MABINI!                                                                   │
+│   Before you dive, there's something important.                                        │
+│   ...                                                                                  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Shared Wave Divider Component
-- Create a dedicated, reusable vector component `src/components/WaveDivider.tsx` using `react-native-svg` (`Svg`, `Path`).
-- Set `viewBox="0 0 100 1000"` with `preserveAspectRatio="none"` and `height: "100%"`.
-- Path runs an exact cubic Bézier S-curve filled with `#FFFFFF` extending outward from the white panel over the right-side image.
-- Reuse `WaveDivider` in both:
-  1. `src/components/OnboardingCard.tsx` (onboarding flow)
-  2. `src/components/AuthLayout.tsx` (login & signup flow)
+- **Row Geometry**:
+  - `flexDirection: "row"`, `alignItems: "center"`, `justifyContent: "space-between"`, `width: "100%"`.
+- **Left Item (Back Button)**:
+  - Clean chevron icon (`chevron-back`) paired with "Back" label in deep navy `#0F172A`.
+  - Hit slop of 12px for effortless cursor clicking.
+- **Right Item (SINSAY Logo)**:
+  - Scaled brand mark with crisp aspect ratio (approx. 140×34px), positioned neatly before the wave boundary.
+- **Content Below**:
+  - Onboarding titles and auth tabs sit immediately below the unified header with clean 20px margin.
 
 ---
 
-## 4. Implementation Steps
+## 3. Technical Implementation Plan
 
-1. **Create `src/components/WaveDivider.tsx`**:
-   - Clean vector S-curve matching the reference image.
-   - Fully responsive, stretching dynamically to any viewport height.
-2. **Update `src/components/OnboardingCard.tsx`**:
-   - Remove straight `borderRightWidth: 1` and `borderRightColor: "#F1F5F9"`.
-   - Embed `<WaveDivider />` on the right boundary of `leftPanel`.
-   - Maintain padding and layout for all 5 onboarding steps.
-3. **Update `src/components/AuthLayout.tsx`**:
-   - Remove straight `borderRightWidth: 1` and `borderRightColor: "#F1F5F9"`.
-   - Embed `<WaveDivider />` on the right boundary of `wideLeft`.
-   - Maintain tab switching and input ergonomics.
-4. **Export & Verification**:
-   - Export from `src/components/index.ts`.
-   - Run `lint_applet` and `compile_applet`.
+1. **Update `src/components/OnboardingCard.tsx`**:
+   - Wrap the Back button pressable and the SINSAY `<Image>` inside `<View style={styles.desktopHeaderRow}>`.
+   - Add `desktopHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 16 }`.
+   - Adjust `styles.desktopLogo` and `styles.backRow` margins for seamless baseline alignment.
+2. **Update `src/components/AuthLayout.tsx`**:
+   - Wrap `wideBackRow` and `wideLogo` inside `<View style={styles.wideHeaderRow}>`.
+   - Add `wideHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 16 }`.
+   - Center-align subtitle and tab row under the new header.
+3. **Verification**:
+   - Run `compile_applet`.
    - Test `/next` through `/next5`, `/loginpage`, and `/signup` on desktop.
-
----
-
-## 5. Verification Plan
-
-1. **Onboarding Verification**:
-   - Navigate to `http://localhost:3000/next` and advance through steps 1 to 5.
-   - Verify that the white panel has the smooth S-curve wave boundary blending into the ocean hero background.
-2. **Auth Verification**:
-   - Navigate to `http://localhost:3000/loginpage` and `http://localhost:3000/signup`.
-   - Verify that the identical wave boundary is applied, separating the form from `1.png`.
-3. **Mobile Isolation**:
-   - Check mobile screen width (<640px) to verify zero regressions on mobile layouts.
+   - Verify mobile screens are completely unaffected.

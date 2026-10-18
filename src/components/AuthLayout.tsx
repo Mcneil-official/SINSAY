@@ -1,6 +1,7 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import {
   Pressable,
   SafeAreaView,
@@ -64,21 +65,24 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
         <View style={styles.wideCard}>
           <View style={styles.wideLeft}>
             <WaveDivider width={84} />
-            <Pressable
-              onPress={() => router.push("/next5")}
-              hitSlop={12}
-              style={styles.wideBackRow}
-              accessibilityRole="button"
-            >
-              <Text style={styles.wideBackArrow}>‹</Text>
-              <Text style={styles.wideBackLabel}>Back</Text>
-            </Pressable>
+            <View style={styles.wideHeaderRow}>
+              <Pressable
+                onPress={() => router.push("/next5")}
+                hitSlop={12}
+                style={styles.wideBackRow}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
+                <Ionicons name="chevron-back" size={18} color="#0F172A" />
+                <Text style={styles.wideBackLabel}>Back</Text>
+              </Pressable>
 
-            <Image
-              source={require("../../assets/images/logo.png")}
-              style={styles.wideLogo}
-              contentFit="contain"
-            />
+              <Image
+                source={require("../../assets/images/logo.png")}
+                style={styles.wideLogo}
+                contentFit="contain"
+              />
+            </View>
             <Text style={styles.wideSubtitle}>Tara, Sinsay na sa Mabini!</Text>
 
             {tabRow}
@@ -162,6 +166,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "700",
     marginTop: 2,
+    alignSelf: "center",
+    width: "100%",
   },
   tabRow: {
     flexDirection: "row",
@@ -213,14 +219,26 @@ const styles = StyleSheet.create({
     gap: 16,
     justifyContent: "center",
     zIndex: 2,
-    borderRightWidth: 1,
-    borderRightColor: "#F1F5F9",
+    position: "relative",
   },
-  wideBackRow: { flexDirection: "row", alignItems: "center", gap: 2, marginBottom: 4 },
-  wideBackArrow: { fontSize: 24, color: "#0F172A", fontWeight: "400" },
+  wideHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 4,
+  },
+  wideBackRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   wideBackLabel: { fontSize: 14, fontWeight: "600", color: "#0F172A" },
-  wideLogo: { width: 160, height: 42, alignSelf: "flex-start", marginTop: 4 },
-  wideSubtitle: { fontSize: 15, fontWeight: "700", color: "#334155" },
+  wideLogo: { width: 140, height: 34 },
+  wideSubtitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#334155",
+    textAlign: "center",
+    alignSelf: "center",
+    width: "100%",
+  },
   wideFormWrap: { marginTop: 12, gap: 12, flex: 1 },
   wideRight: { flex: 1, height: "100%" },
   wideImage: { width: "100%", height: "100%" },
