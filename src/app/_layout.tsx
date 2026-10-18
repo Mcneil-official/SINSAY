@@ -5,20 +5,25 @@ import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AppShell from "../components/AppShell";
+import PWAInstallBanner from "../components/PWAInstallBanner";
+import PWAInstallModal from "../components/PWAInstallModal";
 import { AuthProvider } from "../context/AuthContext";
 import { LayoutProvider } from "../context/LayoutContext";
+import { PWAProvider } from "../context/PWAContext";
 import { registerServiceWorker } from "../lib/registerSW";
 
 function RootLayoutInner() {
   return (
     <View style={styles.root}>
       <AppShell>
+        <PWAInstallBanner />
         <Stack
           screenOptions={{
             headerShown: false,
             animation: "slide_from_right",
           }}
         />
+        <PWAInstallModal />
       </AppShell>
     </View>
   );
@@ -33,7 +38,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <LayoutProvider>
-          <RootLayoutInner />
+          <PWAProvider>
+            <RootLayoutInner />
+          </PWAProvider>
         </LayoutProvider>
       </AuthProvider>
     </SafeAreaProvider>

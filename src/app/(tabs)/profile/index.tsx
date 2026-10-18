@@ -16,6 +16,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import ConfirmModal from "../../../components/ConfirmModal";
 import { t, Locale } from "../../../lib/i18n";
 import ContentContainer from "../../../components/ContentContainer";
+import { usePWAInstall } from "../../../context/PWAContext";
 
 interface ProfileRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -43,6 +44,7 @@ function ProfileRow({ icon, label, subtitle, onPress, destructive }: ProfileRowP
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, profile, operatorApplication, isOperator, signOut, isLoading, updateProfile, setViewAsTourist, viewAsTourist } = useAuth();
+  const { isInstalled, promptInstall } = usePWAInstall();
   const locale: Locale = (profile?.language_preference as Locale) || "en";
   const [returnToOperator, setReturnToOperator] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -202,6 +204,17 @@ export default function ProfileScreen() {
         {/* More section */}
         <Text style={styles.sectionLabel}>{t("more", locale)}</Text>
         <View style={styles.sectionCard}>
+          <ProfileRow
+            icon="download-outline"
+            label={isInstalled ? "App Installed" : "Install SINSAY App"}
+            subtitle={
+              isInstalled
+                ? "Running on this device"
+                : "Add to home screen for fast & offline access"
+            }
+            onPress={() => promptInstall()}
+          />
+          <View style={styles.divider} />
           <ProfileRow
             icon="help-circle-outline"
             label={t("help_support", locale)}

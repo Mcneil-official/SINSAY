@@ -1,66 +1,45 @@
-# Horizontal Header Alignment: Back & SINSAY Logo
+# Implementation Plan: Full PWA Installability on Vercel & Mobile Browsers [COMPLETED]
 
-Align the Back navigation action and SINSAY brand logo horizontally along the top header row across the Onboarding flow (`OnboardingCard.tsx`) and the Authentication screens (`AuthLayout.tsx`) on desktop and tablet wide screens, matching the confirmed user preference.
+Resolve why SINSAY could not be installed or downloaded as a PWA when deployed to Vercel, enabling native browser install prompts (address bar icon, "Install app" menu, "Add to Home Screen") and an in-app installation sheet for both Android and iOS mobile devices.
 
-## User Review & Critical Decisions
-
-> [!IMPORTANT]
-> The following layout choices have been confirmed via clarifying answers:
-> - **Horizontal Distribution**: Back button placed on the far left, and the SINSAY logo placed on the far right within the white panel (`justifyContent: "space-between"`).
-> - **Screen Scope**: Desktop and tablet wide screens (`isWide = isTablet || isDesktop`). Mobile layouts remain untouched with their existing mobile headers.
-> - **Unified Visual Consistency**: Both Onboarding (`next.tsx`–`next5.tsx`) and Auth (`loginpage.tsx` and `signup.tsx`) will share identical horizontal header geometry and vertical alignment.
-
----
-
-## 1. Overview & Core Concept
-
-- **What It Delivers**: Replaces vertically stacked Back links and logos with a streamlined horizontal top header row. The Back button is immediately accessible on the left edge, while the SINSAY logo anchors the top right corner of the white panel, cleanly separating navigation and branding.
-- **Target Experience**: Divers, tourists, and operators onboarding or logging in on desktop, laptop, or tablet.
-- **Key Value**: Reclaims vertical screen height for body content, regulations, and auth inputs while establishing clean, predictable horizontal eye scanning.
+## Root Causes Identified & Resolved
+1. **Missing Manifest Link in HTML**: The generated `dist/index.html` lacked `<link rel="manifest" href="/manifest.json">`, `<meta name="apple-mobile-web-app-capable" content="yes">`, and Apple touch icon references.
+2. **Missing Manifest & SW in Output**: Expo web export does not automatically copy `public/manifest.json`, `public/sw.js`, or icon files to `dist/`.
+3. **Missing PWA Icon Assets**: There were no dedicated 192x192, 512x512, and maskable PNG icons in `public/`.
+4. **Vercel Rewrite Interception**: `vercel.json` rewrote `/manifest.json` and static icon files to `/index.html`, causing syntax errors when browsers fetched the manifest.
+5. **iOS Safari Requirements**: Safari requires guided user steps ("Share" ⎋ -> "Add to Home Screen").
 
 ---
 
-## 2. User Experience & Visual Design
+## Completed Implementations
 
-### Header Row Composition
+### 1. PWA Assets & Manifest Generation
+- [x] Created `scripts/generate-pwa-icons.js` and generated:
+  - `public/icon-192.png` (192x192)
+  - `public/icon-512.png` (512x512)
+  - `public/icon-maskable-512.png` (512x512 with safe zone padding)
+  - `public/apple-touch-icon.png` (180x180)
+  - `public/favicon-32x32.png` & `public/favicon-16x16.png`
+- [x] Created `/public/manifest.json` conforming to W3C Web App Manifest standards with `display: "standalone"`, `theme_color: "#005EEC"`, `start_url: "/"`, and all icon sizes.
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                        White Panel Header (Desktop / Tablet View)                      │
-│                                                                                        │
-│   ┌────────────────────────────────────────────────────────┐                           │
-│   │  ‹ Back                                   [SINSAY]     │   <-- Horizontal Row      │
-│   └────────────────────────────────────────────────────────┘                           │
-│                                                                                        │
-│   WELCOME TO MABINI!                                                                   │
-│   Before you dive, there's something important.                                        │
-│   ...                                                                                  │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-```
+### 2. Service Worker (`public/sw.js`) & Dynamic Registration
+- [x] Enhanced `src/lib/registerSW.ts` to register `/sw.js` and dynamically ensure `<link rel="manifest">` and mobile meta tags exist in the document `<head>`.
+- [x] Caches core static assets and provides offline fallback navigation via `/offline.html`.
 
-- **Row Geometry**:
-  - `flexDirection: "row"`, `alignItems: "center"`, `justifyContent: "space-between"`, `width: "100%"`.
-- **Left Item (Back Button)**:
-  - Clean chevron icon (`chevron-back`) paired with "Back" label in deep navy `#0F172A`.
-  - Hit slop of 12px for effortless cursor clicking.
-- **Right Item (SINSAY Logo)**:
-  - Scaled brand mark with crisp aspect ratio (approx. 140×34px), positioned neatly before the wave boundary.
-- **Content Below**:
-  - Onboarding titles and auth tabs sit immediately below the unified header with clean 20px margin.
+### 3. Build & Export Pipeline for Vercel
+- [x] Created `scripts/post-export-pwa.js` to copy all static PWA files from `public/` into `dist/` and inject all PWA `<link>` and `<meta>` tags into `dist/index.html`.
+- [x] Updated `package.json` build script: `"expo export -p web --output-dir dist && node scripts/post-export-pwa.js"`.
+- [x] Updated `vercel.json` to exclude `/manifest.json`, `/sw.js`, and icon files from SPA fallback rewrites, while adding proper MIME type and cache-control headers.
+
+### 4. Browser & Mobile Installation Flow
+- [x] Built `src/context/PWAContext.tsx`: captures `beforeinstallprompt`, checks standalone mode, identifies iOS/Android, and manages banner/modal visibility.
+- [x] Built `src/components/PWAInstallBanner.tsx`: floating banner with app icon, title, and "Install" button.
+- [x] Built `src/components/PWAInstallModal.tsx`: step-by-step visual instructions for iOS Safari and other browsers.
+- [x] Added "Install SINSAY App" row to both tourist and operator Profile screens.
 
 ---
 
-## 3. Technical Implementation Plan
-
-1. **Update `src/components/OnboardingCard.tsx`**:
-   - Wrap the Back button pressable and the SINSAY `<Image>` inside `<View style={styles.desktopHeaderRow}>`.
-   - Add `desktopHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 16 }`.
-   - Adjust `styles.desktopLogo` and `styles.backRow` margins for seamless baseline alignment.
-2. **Update `src/components/AuthLayout.tsx`**:
-   - Wrap `wideBackRow` and `wideLogo` inside `<View style={styles.wideHeaderRow}>`.
-   - Add `wideHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 16 }`.
-   - Center-align subtitle and tab row under the new header.
-3. **Verification**:
-   - Run `compile_applet`.
-   - Test `/next` through `/next5`, `/loginpage`, and `/signup` on desktop.
-   - Verify mobile screens are completely unaffected.
+## Verification Results
+- `npm run build`: Output confirmed `dist/manifest.json`, `dist/sw.js`, `dist/index.html` with injected manifest link, and all icons.
+- Dev Server endpoints: Verified `HTTP 200` for `/`, `/manifest.json`, `/sw.js`, and `/icon-192.png`.
+- Compilation: Ran `compile_applet` with successful build output.

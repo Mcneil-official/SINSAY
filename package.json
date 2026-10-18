@@ -49,7 +49,7 @@
   },
   "scripts": {
     "dev": "expo start --port 3000",
-    "build": "expo export -p web --output-dir dist",
+    "build": "expo export -p web --output-dir dist && node scripts/post-export-pwa.js",
     "start": "expo start --port 3000",
     "android": "expo start --android",
     "ios": "expo start --ios",

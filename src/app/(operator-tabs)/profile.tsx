@@ -15,6 +15,7 @@ import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
 import { showAlert } from "../../lib/confirm";
 import { ConfirmModal, ContentContainer } from "../../components";
+import { usePWAInstall } from "../../context/PWAContext";
 
 interface ProfileRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -41,6 +42,7 @@ function ProfileRow({ icon, label, subtitle, onPress, destructive }: ProfileRowP
 
 export default function OperatorProfileScreen() {
   const { user, profile, signOut, isLoading, setViewAsTourist, viewAsTourist } = useAuth();
+  const { isInstalled, promptInstall } = usePWAInstall();
   const router = useRouter();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -117,6 +119,17 @@ export default function OperatorProfileScreen() {
 
         <Text style={styles.sectionLabel}>More</Text>
         <View style={styles.sectionCard}>
+          <ProfileRow
+            icon="download-outline"
+            label={isInstalled ? "App Installed" : "Install SINSAY App"}
+            subtitle={
+              isInstalled
+                ? "Running on this device"
+                : "Add to home screen for fast & offline access"
+            }
+            onPress={() => promptInstall()}
+          />
+          <View style={styles.divider} />
           <ProfileRow icon="help-circle-outline" label="Help & Support" subtitle="Get help" onPress={() => showAlert("Help & Support", "Operator help is coming soon. Contact tourism@sinsay.gov.ph for assistance.")} />
           <View style={styles.divider} />
           <ProfileRow icon="document-text-outline" label="FAQ" subtitle="Frequently asked questions" onPress={() => showAlert("FAQ", "Operator FAQ is coming soon.")} />
