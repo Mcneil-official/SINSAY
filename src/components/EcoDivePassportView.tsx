@@ -1,0 +1,2372 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  Share,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient,
+  Path,
+  Rect,
+  Stop,
+} from "react-native-svg";
+import { colors } from "../constants/colors";
+import { useAuth } from "../hooks/useAuth";
+import { supabase } from "../lib/supabase";
+import { pickAvatarImage } from "../lib/pickAvatar";
+import ContentContainer from "./ContentContainer";
+import { resolveSiteImage } from "./DiveSiteCard";
+import { ErrorState } from "./ErrorState";
+
+const ID_CARD_TEMPLATE = require("../../assets/id/Sinsay Dive Pass Card Template.png");
+const SINSAY_WHITE_LOGO = require("../../assets/SINSAY white logo.png");
+
+const NATIONALITY_LABELS: Record<string, string> = {
+  filipino: "Filipino",
+  american: "American",
+  japanese: "Japanese",
+  korean: "Korean",
+  chinese: "Chinese",
+  australian: "Australian",
+  european: "European",
+  other: "International",
+};
+
+const PASS_TYPE_LABELS: Record<string, string> = {
+  "one-day": "Tourist Dive Pass",
+  annual: "Annual Dive Pass",
+};
+
+const DIVE_TYPE_LABELS: Record<string, string> = {
+  "intro-fun": "Recreational Dive",
+  certified: "Recreational Dive",
+};
+
+const CERT_LEVEL_LABELS: Record<string, string> = {
+  "open-water": "Open Water Diver",
+  advanced: "Advanced Open Water",
+  rescue: "Rescue Diver",
+  divemaster: "Dive Master",
+  "dive-master": "Dive Master",
+  instructor: "Dive Instructor",
+};
+
+export interface DiveTimelineActivity {
+  id: string;
+  diveNumber: number;
+  siteName: string;
+  dateTime: string;
+  diveCategory: string;
+  resortOrCenter: string;
+  barangay: string;
+  coordinates: string;
+  depthRange: string;
+  duration: string;
+  visibility: string;
+  waterTemp: string;
+  buddyOrGuide: string;
+  imageIndex: number;
+  photoUrl?: string | null;
+}
+
+const SAMPLE_DIVE_ACTIVITIES: DiveTimelineActivity[] = [
+  {
+    id: "dive-log-3",
+    diveNumber: 3,
+    siteName: "Cathedral Rock Sanctuary",
+    dateTime: "Oct 24, 2026 • 09:30 AM",
+    diveCategory: "Recreational Dive • Boat Dive",
+    resortOrCenter: "Anilao Awari Bay Dive Center",
+    barangay: "Bagalangit, Mabini",
+    coordinates: "13.7242° N, 120.8764° E",
+    depthRange: "15–28m",
+    duration: "46 mins",
+    visibility: "22m Crystal Clear",
+    waterTemp: "28°C",
+    buddyOrGuide: "DM Marco Reyes",
+    imageIndex: 0,
+  },
+  {
+    id: "dive-log-2",
+    diveNumber: 2,
+    siteName: "Twin Rocks Marine Sanctuary",
+    dateTime: "Oct 22, 2026 • 02:15 PM",
+    diveCategory: "Recreational Dive • Reef & Wall",
+    resortOrCenter: "Buceo Anilao Beach & Dive Resort",
+    barangay: "San Teodoro, Mabini",
+    coordinates: "13.6988° N, 120.8841° E",
+    depthRange: "12–24m",
+    duration: "52 mins",
+    visibility: "20m Clear",
+    waterTemp: "27°C",
+    buddyOrGuide: "DM Carlo Mendoza",
+    imageIndex: 1,
+  },
+  {
+    id: "dive-log-1",
+    diveNumber: 1,
+    siteName: "Sombrero Island Coral Garden",
+    dateTime: "Oct 19, 2026 • 10:00 AM",
+    diveCategory: "Recreational Dive • Sanctuary",
+    resortOrCenter: "Planet Dive Resort Anilao",
+    barangay: "Tingloy / Balayan Bay",
+    coordinates: "13.6995° N, 120.8279° E",
+    depthRange: "8–18m",
+    duration: "48 mins",
+    visibility: "25m Excellent",
+    waterTemp: "28°C",
+    buddyOrGuide: "DM Liza Santos",
+    imageIndex: 2,
+  },
+];
+
+function formatCardDate(raw?: string | null, fallback = "Mar 15, 2025"): string {
+  if (!raw || !raw.trim()) return fallback;
+  const parsed = new Date(raw.trim());
+  if (Number.isNaN(parsed.getTime())) return raw.trim();
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** Custom Dive Mask & Snorkel Icon matching the reference card */
+function DiveMaskIcon({ size = 20, color = "#0D74E7" }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Mask Frame */}
+      <Path
+        d="M3.5 9.5C3.5 7.8 4.8 6.5 6.5 6.5H15.5C17.2 6.5 18.5 7.8 18.5 9.5V12.2C18.5 13.7 17.3 15 15.7 15H13.3C12.6 15 12 14.5 11.7 13.8L11 12.4L10.3 13.8C10 14.5 9.4 15 8.7 15H6.3C4.7 15 3.5 13.7 3.5 12.2V9.5Z"
+        stroke={color}
+        strokeWidth={2.1}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Snorkel Tube */}
+      <Path
+        d="M20.5 5V16.2C20.5 18.4 18.8 20 16.7 20H14.5"
+        stroke={color}
+        strokeWidth={2.1}
+        strokeLinecap="round"
+      />
+      <Circle cx="13.5" cy="19.8" r="1.4" fill={color} />
+    </Svg>
+  );
+}
+
+/** Default Vector Portrait Silhouette matching the reference card */
+function DefaultAvatarSilhouette() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 120 160" preserveAspectRatio="xMidYMax slice">
+      <Rect x="0" y="0" width="120" height="160" fill="#C6DAF1" />
+      <Circle cx="60" cy="58" r="24" fill="#82A8D9" />
+      <Path
+        d="M16 144C16 113 34 95 60 95C86 95 104 113 104 144H16Z"
+        fill="#82A8D9"
+      />
+    </Svg>
+  );
+}
+
+export function EcoDivePassportView() {
+  const router = useRouter();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { user, profile, avatarUri, setAvatarUri, isLoading, refreshProfile } =
+    useAuth();
+
+  const [activities, setActivities] = useState<DiveTimelineActivity[]>(
+    SAMPLE_DIVE_ACTIVITIES,
+  );
+  const [selectedRecap, setSelectedRecap] =
+    useState<DiveTimelineActivity | null>(null);
+  const [showIdCardModal, setShowIdCardModal] = useState(false);
+  const [copiedBanner, setCopiedBanner] = useState(false);
+  const [toastMessage, setToastMessage] = useState(
+    "Dive recap copied to clipboard!",
+  );
+
+  const profilePhotoUri = avatarUri;
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/loginpage");
+    }
+  }, [isLoading, user, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    // Promise.resolve: PostgrestBuilder is only PromiseLike (no .catch), and
+    // the callback below awaits a second query that must stay covered too.
+    Promise.resolve(
+      supabase
+        .from("manifest_divers")
+        .select("id, manifest_id, created_at")
+        .eq("tourist_id", user.id)
+        .order("created_at", { ascending: false })
+    )
+      .then(async ({ data: diverRows }) => {
+        if (!active || !diverRows || diverRows.length === 0) return;
+        const manifestIds = diverRows.map((d) => d.manifest_id);
+        const { data: manifestRows } = await supabase
+          .from("dive_manifests")
+          .select("*")
+          .in("id", manifestIds);
+
+        if (!active || !manifestRows || manifestRows.length === 0) return;
+        const total = manifestRows.length;
+        const mapped: DiveTimelineActivity[] = manifestRows.map((m, idx) => {
+          const dt = new Date(m.dive_date || m.created_at);
+          const formattedDate = dt.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          return {
+            id: m.id,
+            diveNumber: total - idx,
+            siteName: m.location || "Cathedral Rock Sanctuary",
+            dateTime: `${formattedDate} • 09:00 AM`,
+            diveCategory: `${m.dive_type || "Recreational Dive"} • ${m.dive_mode || "Boat Dive"}`,
+            resortOrCenter: m.boat_name
+              ? `${m.boat_name} Dive Center`
+              : "Mabini Accredited Dive Center",
+            barangay: "Mabini Marine Sanctuary, Batangas",
+            coordinates: "13.7242° N, 120.8764° E",
+            depthRange: m.difficulty === "Advanced" ? "18–32m" : "12–24m",
+            duration: "45 mins",
+            visibility: "20m Clear",
+            waterTemp: "28°C",
+            buddyOrGuide:
+              m.instructor_name || m.captain_name || "Accredited Dive Guide",
+            imageIndex: idx,
+          };
+        });
+        setActivities(mapped);
+      })
+      .catch(() => {
+        if (!active) return;
+        setActivities([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const handlePickProfilePhoto = useCallback(async () => {
+    const result = await pickAvatarImage();
+    if (!result) return;
+    if (!result.ok) {
+      setToastMessage(result.error);
+      setCopiedBanner(true);
+      setTimeout(() => setCopiedBanner(false), 2600);
+      return;
+    }
+    setAvatarUri(result.uri, result.blob);
+  }, [setAvatarUri]);
+
+  const handleSaveIdCard = useCallback(() => {
+    setToastMessage("Eco-Dive ID Card saved to device!");
+    setCopiedBanner(true);
+    setTimeout(() => setCopiedBanner(false), 2600);
+  }, []);
+
+  const handleShareRecap = useCallback(
+    async (activity: DiveTimelineActivity) => {
+      const summary = [
+        `🤿 SINSAY Eco-Dive Recap — Dive #${String(activity.diveNumber).padStart(2, "0")}`,
+        `📍 Site: ${activity.siteName} (${activity.barangay})`,
+        `🗓️ Date & Time: ${activity.dateTime}`,
+        `🌊 Category: ${activity.diveCategory}`,
+        `🏝️ Dive Center: ${activity.resortOrCenter}`,
+        `📏 Depth: ${activity.depthRange} | Duration: ${activity.duration}`,
+        `Verified via SINSAY Digital Dive Tourism — Mabini, Batangas`,
+      ].join("\n");
+
+      try {
+        if (
+          Platform.OS === "web" &&
+          typeof navigator !== "undefined" &&
+          navigator.share
+        ) {
+          await navigator.share({
+            title: `Dive #${activity.diveNumber} — ${activity.siteName}`,
+            text: summary,
+          });
+          return;
+        }
+        if (Platform.OS !== "web") {
+          await Share.share({ message: summary });
+          return;
+        }
+      } catch {
+        // Fallback to clipboard copy on web
+      }
+
+      if (
+        Platform.OS === "web" &&
+        typeof navigator !== "undefined" &&
+        navigator.clipboard
+      ) {
+        await navigator.clipboard.writeText(summary);
+        setToastMessage("Dive recap copied to clipboard!");
+        setCopiedBanner(true);
+        setTimeout(() => setCopiedBanner(false), 2600);
+      }
+    },
+    [],
+  );
+
+  const handleSaveRecapImage = useCallback(
+    (activity: DiveTimelineActivity) => {
+      setToastMessage(
+        `Dive #${String(activity.diveNumber).padStart(2, "0")} story image saved!`,
+      );
+      setCopiedBanner(true);
+      setTimeout(() => setCopiedBanner(false), 2600);
+    },
+    [],
+  );
+
+  // Dynamic values for the ID card matching the reference layout
+  const cardData = useMemo(() => {
+    const fullName = profile?.full_name?.trim() || "Elaine G. Domaycos";
+    const nationality =
+      (profile?.nationality &&
+        NATIONALITY_LABELS[profile.nationality.toLowerCase()]) ||
+      profile?.nationality ||
+      "Filipino";
+    const passType =
+      (profile?.dive_pass_type &&
+        PASS_TYPE_LABELS[profile.dive_pass_type.toLowerCase()]) ||
+      "Tourist Dive Pass";
+    const typeOfDive =
+      (profile?.type_of_dive &&
+        DIVE_TYPE_LABELS[profile.type_of_dive.toLowerCase()]) ||
+      "Recreational Dive";
+    const certLevel =
+      (profile?.certification_level &&
+        CERT_LEVEL_LABELS[profile.certification_level.toLowerCase()]) ||
+      profile?.certification_level ||
+      "Dive Master";
+    const dateAccredited = formatCardDate(
+      profile?.date_accredited,
+      "Mar 15, 2025",
+    );
+    const renewalDate = formatCardDate(profile?.renewal_date, "Mar 15, 2028");
+    const emergencyName =
+      profile?.emergency_contact_name?.trim() || "Ma. Kassandra Domaycos";
+    const emergencyNumber =
+      profile?.emergency_contact_number?.trim() || "+63 917 123 4567";
+
+    return {
+      fullName,
+      nationality,
+      passType,
+      typeOfDive,
+      certLevel,
+      dateAccredited,
+      renewalDate,
+      emergencyName,
+      emergencyNumber,
+    };
+  }, [profile]);
+
+  // Compute dive profile completion progress (0% - 100%)
+  const { completionProgress, isProfileComplete, missingStepHint } =
+    useMemo(() => {
+      if (!profile) {
+        return {
+          completionProgress: 0,
+          isProfileComplete: false,
+          missingStepHint: "Add your basic dive details & emergency contact.",
+        };
+      }
+      const hasName = Boolean(profile.full_name?.trim());
+      const hasNationality = Boolean(profile.nationality?.trim());
+      const hasEmergency = Boolean(
+        profile.emergency_contact_name?.trim() &&
+          profile.emergency_contact_number?.trim(),
+      );
+      const hasPassAndType = Boolean(
+        profile.dive_pass_type?.trim() && profile.type_of_dive?.trim(),
+      );
+      const isCertifiedPath = profile.type_of_dive === "certified";
+      const hasCertDetails = !isCertifiedPath
+        ? hasPassAndType
+        : Boolean(
+            profile.certification_level?.trim() &&
+              profile.date_accredited?.trim() &&
+              profile.renewal_date?.trim(),
+          );
+
+      const checks = [
+        hasName,
+        hasNationality,
+        hasEmergency,
+        hasPassAndType,
+        hasCertDetails,
+      ];
+      const completedCount = checks.filter(Boolean).length;
+      const pct = Math.round((completedCount / checks.length) * 100);
+
+      let hint = "Your Eco-Dive ID is complete and ready for manifest verification.";
+      if (!hasNationality || !hasEmergency) {
+        hint = "Add your nationality and emergency contact details.";
+      } else if (!hasPassAndType) {
+        hint = "Select your dive pass type and preferred dive category.";
+      } else if (isCertifiedPath && !hasCertDetails) {
+        hint = "Upload your diver certification level and accreditation dates.";
+      }
+
+      return {
+        completionProgress: pct,
+        isProfileComplete: pct >= 100,
+        missingStepHint: hint,
+      };
+    }, [profile]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centerLoader}>
+          <ActivityIndicator size="large" color={colors.primaryBlue} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ErrorState
+          message="Unable to load profile data."
+          description="Your account may not be fully set up. Please contact support or try again."
+          onRetry={() => refreshProfile()}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Proportional geometry derived directly from the card's blank center height so rows fill the space cleanly without overlapping
+  const cardWidth = Math.min(screenWidth - 32, 528);
+  const cardHeight = Math.round(cardWidth / 1.5);
+  const centerTop = Math.round(cardHeight * 0.305);
+  const centerBottom = Math.round(cardHeight * 0.175);
+  const centerHeight = cardHeight - centerTop - centerBottom;
+  const u = centerHeight / 100;
+
+  const labelFs = Math.round(u * 5.8 * 10) / 10;
+  const labelLh = Math.round(u * 7.2 * 10) / 10;
+  const valFs = Math.round(u * 9.0 * 10) / 10;
+  const valLh = Math.round(u * 11.0 * 10) / 10;
+  const subValFs = Math.round(u * 7.8 * 10) / 10;
+  const subValLh = Math.round(u * 9.6 * 10) / 10;
+  const iconSz = Math.max(13, Math.round(u * 13.2));
+  const iconBoxW = Math.max(16, Math.round(u * 15));
+  const rowGap = Math.max(5, Math.round(cardWidth * 0.016));
+  const colPad = Math.max(7, Math.round(cardWidth * 0.022));
+  const midRowVerticalGap = Math.max(3, Math.round(u * 4.2));
+  const rightRowVerticalGap = Math.max(2, Math.round(u * 2.8));
+
+  // Responsive 9:16 story card size so the View Recap modal never overflows the viewport frame
+  const storyCardHeight = Math.max(
+    260,
+    Math.min(Math.round(screenHeight * 0.5), 350),
+  );
+  const storyCardWidth = Math.round(storyCardHeight * 0.6);
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <ContentContainer maxWidth={560} paddingH={16}>
+          {/* 1. SIMPLIFIED SCREEN HEADER */}
+          <View style={styles.screenHeader}>
+            <View style={styles.headerTextCol}>
+              <Text style={styles.screenTitle}>Eco-Dive ID</Text>
+              <Text style={styles.screenSubtitle}>
+                Your pass to a deeper Mabini.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.headerEditIconBtn}
+              onPress={() => router.push("/tourist/dive-details/step1")}
+              activeOpacity={0.82}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Edit Diver Profile"
+            >
+              <Ionicons
+                name="create-outline"
+                size={20}
+                color={colors.primaryBlue}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* 2. SINSAY DIVE PASS IDENTIFICATION CARD (TAP TO VIEW FULL DETAILS & SAVE) */}
+          <TouchableOpacity
+            style={[
+              styles.idCardShadowWrap,
+              { width: cardWidth, height: cardHeight },
+            ]}
+            activeOpacity={0.93}
+            onPress={() => setShowIdCardModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Open Eco-Dive ID card full details and save options"
+          >
+            <View style={styles.idCardCanvas}>
+              {/* Official SINSAY Dive Pass Card Design Background */}
+              <Image
+                source={ID_CARD_TEMPLATE}
+                style={styles.templateBgImage}
+                resizeMode="stretch"
+              />
+
+              {/* BLANK WHITE CENTER CANVAS: 3-Part Horizontal Reference Grid */}
+              <View
+                style={[
+                  styles.blankCenterCanvas,
+                  {
+                    top: centerTop,
+                    bottom: centerBottom,
+                    left: Math.round(cardWidth * 0.048),
+                    right: Math.round(cardWidth * 0.038),
+                  },
+                ]}
+              >
+                {/* PART 1: Left Portrait Box */}
+                <TouchableOpacity
+                  style={[
+                    styles.portraitBox,
+                    {
+                      width: Math.round(cardWidth * 0.25),
+                      borderRadius: Math.max(6, Math.round(u * 6.0)),
+                    },
+                  ]}
+                  onPress={handlePickProfilePhoto}
+                  activeOpacity={0.85}
+                  focusable
+                  accessibilityLabel="Upload or change diver profile photo"
+                >
+                  {profilePhotoUri ? (
+                    <Image
+                      source={{ uri: profilePhotoUri }}
+                      style={styles.portraitImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <DefaultAvatarSilhouette />
+                  )}
+                </TouchableOpacity>
+
+                {/* PART 2: Middle Identity Column (4 Icon + Label/Value Rows) */}
+                <View
+                  style={[
+                    styles.middleIdentityCol,
+                    {
+                      paddingLeft: colPad,
+                      paddingRight: Math.max(4, Math.round(colPad * 0.65)),
+                      gap: midRowVerticalGap,
+                    },
+                  ]}
+                >
+                  {/* Row 1: FULL NAME */}
+                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
+                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
+                      <Ionicons name="person" size={iconSz} color="#0D74E7" />
+                    </View>
+                    <View style={styles.cardFieldTextCol}>
+                      <Text
+                        style={[
+                          styles.cardFieldLabel,
+                          { fontSize: labelFs, lineHeight: labelLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        FULL NAME
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardFieldValue,
+                          { fontSize: valFs, lineHeight: valLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cardData.fullName}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Row 2: NATIONALITY */}
+                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
+                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
+                      <Ionicons
+                        name="globe-outline"
+                        size={iconSz}
+                        color="#0D74E7"
+                      />
+                    </View>
+                    <View style={styles.cardFieldTextCol}>
+                      <Text
+                        style={[
+                          styles.cardFieldLabel,
+                          { fontSize: labelFs, lineHeight: labelLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        NATIONALITY
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardFieldValue,
+                          { fontSize: valFs, lineHeight: valLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cardData.nationality}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Row 3: DIVE PASS TYPE */}
+                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
+                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
+                      <Ionicons
+                        name="card-outline"
+                        size={iconSz}
+                        color="#0D74E7"
+                      />
+                    </View>
+                    <View style={styles.cardFieldTextCol}>
+                      <Text
+                        style={[
+                          styles.cardFieldLabel,
+                          { fontSize: labelFs, lineHeight: labelLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        DIVE PASS TYPE
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardFieldValue,
+                          { fontSize: valFs, lineHeight: valLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cardData.passType}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Row 4: TYPE OF DIVE */}
+                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
+                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
+                      <DiveMaskIcon size={iconSz} color="#0D74E7" />
+                    </View>
+                    <View style={styles.cardFieldTextCol}>
+                      <Text
+                        style={[
+                          styles.cardFieldLabel,
+                          { fontSize: labelFs, lineHeight: labelLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        TYPE OF DIVE
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardFieldValue,
+                          { fontSize: valFs, lineHeight: valLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cardData.typeOfDive}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Thin Vertical Light-Blue Divider */}
+                <View style={styles.verticalCardDivider} />
+
+                {/* PART 3: Right Certification & Emergency Column */}
+                <View
+                  style={[
+                    styles.rightCertCol,
+                    {
+                      paddingLeft: colPad,
+                      gap: rightRowVerticalGap,
+                    },
+                  ]}
+                >
+                  {/* Row 1: CERTIFICATION LEVEL */}
+                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
+                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
+                      <Ionicons name="ribbon" size={iconSz} color="#0D74E7" />
+                    </View>
+                    <View style={styles.cardFieldTextCol}>
+                      <Text
+                        style={[
+                          styles.cardFieldLabel,
+                          { fontSize: labelFs, lineHeight: labelLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        CERTIFICATION LEVEL
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardFieldValue,
+                          { fontSize: valFs, lineHeight: valLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cardData.certLevel}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Row 2: DATE ACCREDITED */}
+                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
+                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={iconSz}
+                        color="#0D74E7"
+                      />
+                    </View>
+                    <View style={styles.cardFieldTextCol}>
+                      <Text
+                        style={[
+                          styles.cardFieldLabel,
+                          { fontSize: labelFs, lineHeight: labelLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        DATE ACCREDITED
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardFieldValue,
+                          { fontSize: subValFs, lineHeight: subValLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cardData.dateAccredited}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Row 3: RENEWAL DATE */}
+                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
+                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={iconSz}
+                        color="#0D74E7"
+                      />
+                    </View>
+                    <View style={styles.cardFieldTextCol}>
+                      <Text
+                        style={[
+                          styles.cardFieldLabel,
+                          { fontSize: labelFs, lineHeight: labelLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        RENEWAL DATE
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardFieldValue,
+                          { fontSize: subValFs, lineHeight: subValLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cardData.renewalDate}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Thin Horizontal Light-Blue Divider above Emergency Contact */}
+                  <View style={styles.horizontalCardDivider} />
+
+                  {/* Row 4: EMERGENCY CONTACT */}
+                  <View
+                    style={[
+                      styles.cardFieldRow,
+                      { gap: rowGap, alignItems: "flex-start" },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.cardIconWrap,
+                        { width: iconBoxW, paddingTop: Math.max(1, Math.round(u * 1.2)) },
+                      ]}
+                    >
+                      <Ionicons
+                        name="call"
+                        size={Math.max(12, iconSz - 1)}
+                        color="#0D74E7"
+                      />
+                    </View>
+                    <View style={styles.cardFieldTextCol}>
+                      <Text
+                        style={[
+                          styles.cardFieldLabel,
+                          { fontSize: labelFs, lineHeight: labelLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        EMERGENCY CONTACT
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardFieldValue,
+                          { fontSize: subValFs, lineHeight: subValLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cardData.emergencyName}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardFieldValue,
+                          { fontSize: subValFs, lineHeight: subValLh },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cardData.emergencyNumber}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {/* Tap Card Hint Row */}
+          <TouchableOpacity
+            style={styles.tapCardHintRow}
+            onPress={() => setShowIdCardModal(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="expand-outline"
+              size={13}
+              color={colors.primaryBlue}
+            />
+            <Text style={styles.tapCardHintText}>
+              Tap ID card to view full details &amp; save
+            </Text>
+          </TouchableOpacity>
+
+          {/* INCOMPLETE DIVE PROFILE PROMPT WITH PROGRESS BAR */}
+          {!isProfileComplete && (
+            <View style={styles.incompletePromptCard}>
+              <View style={styles.incompleteHeaderRow}>
+                <View style={styles.incompleteIconBadge}>
+                  <Ionicons
+                    name="shield-half-outline"
+                    size={18}
+                    color={colors.primaryBlue}
+                  />
+                </View>
+                <View style={styles.incompleteTitleCol}>
+                  <Text style={styles.incompleteTitle}>
+                    Complete Your Dive Profile
+                  </Text>
+                  <Text style={styles.incompleteSubtitle}>
+                    {missingStepHint}
+                  </Text>
+                </View>
+                <View style={styles.incompletePctPill}>
+                  <Text style={styles.incompletePctText}>
+                    {completionProgress}%
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.incompleteProgressTrack}>
+                <View
+                  style={[
+                    styles.incompleteProgressFill,
+                    { width: `${completionProgress}%` },
+                  ]}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.incompleteCtaBtn}
+                onPress={() => router.push("/tourist/dive-details/step1")}
+                activeOpacity={0.86}
+                accessibilityRole="button"
+                accessibilityLabel="Complete dive profile"
+              >
+                <Text style={styles.incompleteCtaText}>
+                  Complete Dive Profile
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={15}
+                  color={colors.white}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 3. VERTICAL TIMELINE FOR DIVE LOGS */}
+          <View style={styles.timelineSectionHeader}>
+            <Text style={styles.timelineTitle}>Dive Timeline</Text>
+            <View style={styles.timelineCountPill}>
+              <Text style={styles.timelineCountText}>
+                {activities.length}{" "}
+                {activities.length === 1 ? "Dive" : "Dives"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.verticalTimelineContainer}>
+            {activities.map((item, idx) => {
+              const isLast = idx === activities.length - 1;
+              return (
+                <View key={item.id} style={styles.timelineRow}>
+                  {/* Vertical Timeline Left Rail & Node */}
+                  <View style={styles.timelineRailCol}>
+                    <View style={styles.timelineNodeOuter}>
+                      <View style={styles.timelineNodeInner} />
+                    </View>
+                    {!isLast && <View style={styles.timelineConnectorLine} />}
+                  </View>
+
+                  {/* Individual White Activity Card with Subtle Blue Border */}
+                  <View style={styles.timelineCardWrap}>
+                    <View style={styles.timelineActivityCard}>
+                      {/* Card Header: Dive Number + Date/Time */}
+                      <View style={styles.activityHeaderRow}>
+                        <View style={styles.diveNumberBadge}>
+                          <Text style={styles.diveNumberText}>
+                            Dive #{String(item.diveNumber).padStart(2, "0")}
+                          </Text>
+                        </View>
+                        <Text style={styles.dateTimeText} numberOfLines={1}>
+                          {item.dateTime}
+                        </Text>
+                      </View>
+
+                      {/* Main Body: Left Details + Right Site Photo */}
+                      <View style={styles.activityMainRow}>
+                        <View style={styles.activityInfoCol}>
+                          {/* Dive Site Name */}
+                          <Text
+                            style={styles.activitySiteName}
+                            numberOfLines={1}
+                          >
+                            {item.siteName}
+                          </Text>
+
+                          {/* Dive Category, Resort / Dive Center, and Location */}
+                          <View style={styles.metaInfoStack}>
+                            <View style={styles.metaInlineRow}>
+                              <Ionicons
+                                name="water-outline"
+                                size={13}
+                                color={colors.primaryBlue}
+                              />
+                              <Text
+                                style={styles.metaCategoryText}
+                                numberOfLines={1}
+                              >
+                                {item.diveCategory}
+                              </Text>
+                            </View>
+
+                            <View style={styles.metaInlineRow}>
+                              <Ionicons
+                                name="boat-outline"
+                                size={13}
+                                color="#64748B"
+                              />
+                              <Text
+                                style={styles.metaResortText}
+                                numberOfLines={1}
+                              >
+                                {item.resortOrCenter}
+                              </Text>
+                            </View>
+
+                            <View style={styles.metaInlineRow}>
+                              <Ionicons
+                                name="location-sharp"
+                                size={13}
+                                color={colors.primaryBlue}
+                              />
+                              <Text style={styles.locBarangay} numberOfLines={1}>
+                                {item.barangay} • {item.duration}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Right-Side Dive Site Photo (Location Preview) */}
+                        <TouchableOpacity
+                          style={styles.rightPhotoBox}
+                          activeOpacity={0.86}
+                          onPress={() => router.push("/(tabs)/map")}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Preview ${item.siteName} on map`}
+                        >
+                          <Image
+                            source={resolveSiteImage(
+                              null,
+                              item.photoUrl,
+                              item.imageIndex ?? idx,
+                            )}
+                            style={styles.locThumbImg}
+                            resizeMode="cover"
+                          />
+                          <View
+                            style={styles.locThumbGrad}
+                            pointerEvents="none"
+                          >
+                            <Svg
+                              width="100%"
+                              height="100%"
+                              viewBox="0 0 100 100"
+                              preserveAspectRatio="none"
+                            >
+                              <Defs>
+                                <LinearGradient
+                                  id={`locGrad-${item.id}`}
+                                  x1="0"
+                                  y1="0"
+                                  x2="0"
+                                  y2="1"
+                                >
+                                  <Stop
+                                    offset="0"
+                                    stopColor="#020817"
+                                    stopOpacity="0"
+                                  />
+                                  <Stop
+                                    offset="1"
+                                    stopColor="#020817"
+                                    stopOpacity="0.85"
+                                  />
+                                </LinearGradient>
+                              </Defs>
+                              <Rect
+                                x="0"
+                                y="0"
+                                width="100"
+                                height="100"
+                                fill={`url(#locGrad-${item.id})`}
+                              />
+                            </Svg>
+                          </View>
+                          <Text style={styles.locDepthOverlay}>
+                            {item.depthRange}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* View / Share Dive Recap Action */}
+                      <View style={styles.cardFooterActions}>
+                        <TouchableOpacity
+                          style={styles.viewRecapBtn}
+                          onPress={() => setSelectedRecap(item)}
+                          activeOpacity={0.85}
+                          accessibilityRole="button"
+                          accessibilityLabel={`View dive recap for ${item.siteName}`}
+                        >
+                          <Ionicons
+                            name="document-text-outline"
+                            size={14}
+                            color={colors.primaryBlue}
+                          />
+                          <Text style={styles.viewRecapBtnText}>
+                            View Recap
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.shareRecapBtn}
+                          onPress={() => handleShareRecap(item)}
+                          activeOpacity={0.85}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Share dive recap for ${item.siteName}`}
+                        >
+                          <Ionicons
+                            name="share-social-outline"
+                            size={14}
+                            color={colors.white}
+                          />
+                          <Text style={styles.shareRecapBtnText}>
+                            Share Recap
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </ContentContainer>
+      </ScrollView>
+
+      {/* Copied / Saved Toast Banner */}
+      {copiedBanner && (
+        <View style={styles.toastBanner}>
+          <Ionicons name="checkmark-circle" size={16} color="#34D399" />
+          <Text style={styles.toastBannerText}>{toastMessage}</Text>
+        </View>
+      )}
+
+      {/* ECO-DIVE ID CARD FULL DETAILS & SAVE MODAL */}
+      <Modal
+        visible={showIdCardModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowIdCardModal(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setShowIdCardModal(false)}
+        >
+          <Pressable
+            style={styles.idDetailModalSheet}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.recapSheetHeader}>
+              <View style={styles.recapSheetTitleCol}>
+                <Text style={styles.recapSheetTitle}>
+                  SINSAY Eco-Dive ID Pass
+                </Text>
+                <Text style={styles.recapSheetSubtitle}>
+                  Full digital pass details &amp; offline save
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.recapSheetCloseBtn}
+                onPress={() => setShowIdCardModal(false)}
+                activeOpacity={0.8}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Close ID card details modal"
+              >
+                <Ionicons name="close" size={17} color="#0D74E7" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.idDetailModalScroll}
+              contentContainerStyle={styles.idDetailModalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Full Details Profile Header Row */}
+              <View style={styles.idFullTopProfileRow}>
+                <TouchableOpacity
+                  style={styles.idFullPortraitThumb}
+                  onPress={handlePickProfilePhoto}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change diver photo"
+                >
+                  {profilePhotoUri ? (
+                    <Image
+                      source={{ uri: profilePhotoUri }}
+                      style={styles.portraitImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <DefaultAvatarSilhouette />
+                  )}
+                  <View style={styles.idFullCameraBadge}>
+                    <Ionicons name="camera" size={11} color={colors.white} />
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.idFullTopIdentityCol}>
+                  <Text style={styles.idFullLabel}>FULL NAME</Text>
+                  <Text style={styles.idFullPrimaryName}>
+                    {cardData.fullName}
+                  </Text>
+                  <View style={styles.idFullPassBadge}>
+                    <Ionicons
+                      name="shield-checkmark"
+                      size={12}
+                      color={colors.primaryBlue}
+                    />
+                    <Text style={styles.idFullPassBadgeText}>
+                      {cardData.passType}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Complete Un-truncated Details List */}
+              <View style={styles.idFullGridCard}>
+                <View style={styles.idFullDetailItem}>
+                  <Ionicons
+                    name="globe-outline"
+                    size={16}
+                    color={colors.primaryBlue}
+                  />
+                  <View style={styles.idFullDetailTextCol}>
+                    <Text style={styles.idFullLabel}>NATIONALITY</Text>
+                    <Text style={styles.idFullValue}>
+                      {cardData.nationality}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.idFullDivider} />
+
+                <View style={styles.idFullDetailItem}>
+                  <Ionicons
+                    name="card-outline"
+                    size={16}
+                    color={colors.primaryBlue}
+                  />
+                  <View style={styles.idFullDetailTextCol}>
+                    <Text style={styles.idFullLabel}>DIVE PASS TYPE</Text>
+                    <Text style={styles.idFullValue}>{cardData.passType}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.idFullDivider} />
+
+                <View style={styles.idFullDetailItem}>
+                  <DiveMaskIcon size={16} color={colors.primaryBlue} />
+                  <View style={styles.idFullDetailTextCol}>
+                    <Text style={styles.idFullLabel}>TYPE OF DIVE</Text>
+                    <Text style={styles.idFullValue}>
+                      {cardData.typeOfDive}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.idFullDivider} />
+
+                <View style={styles.idFullDetailItem}>
+                  <Ionicons
+                    name="ribbon"
+                    size={16}
+                    color={colors.primaryBlue}
+                  />
+                  <View style={styles.idFullDetailTextCol}>
+                    <Text style={styles.idFullLabel}>CERTIFICATION LEVEL</Text>
+                    <Text style={styles.idFullValue}>{cardData.certLevel}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.idFullDivider} />
+
+                <View style={styles.idFullTwoColDates}>
+                  <View style={styles.idFullDateCell}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={15}
+                      color={colors.primaryBlue}
+                    />
+                    <View style={styles.idFullDetailTextCol}>
+                      <Text style={styles.idFullLabel}>DATE ACCREDITED</Text>
+                      <Text style={styles.idFullValue}>
+                        {cardData.dateAccredited}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.idFullDateCell}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={15}
+                      color={colors.primaryBlue}
+                    />
+                    <View style={styles.idFullDetailTextCol}>
+                      <Text style={styles.idFullLabel}>RENEWAL DATE</Text>
+                      <Text style={styles.idFullValue}>
+                        {cardData.renewalDate}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.idFullDivider} />
+
+                <View style={styles.idFullDetailItem}>
+                  <Ionicons name="call" size={16} color={colors.primaryBlue} />
+                  <View style={styles.idFullDetailTextCol}>
+                    <Text style={styles.idFullLabel}>EMERGENCY CONTACT</Text>
+                    <Text style={styles.idFullValue}>
+                      {cardData.emergencyName}
+                    </Text>
+                    <Text style={styles.idFullSubValue}>
+                      {cardData.emergencyNumber}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Save & Edit Actions */}
+            <View style={styles.idModalActionRow}>
+              <TouchableOpacity
+                style={styles.idModalEditBtn}
+                onPress={() => {
+                  setShowIdCardModal(false);
+                  router.push("/tourist/dive-details/step1");
+                }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Edit ID card details"
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={16}
+                  color={colors.primaryBlue}
+                />
+                <Text style={styles.idModalEditBtnText}>Edit Details</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.idModalSavePrimaryBtn}
+                onPress={handleSaveIdCard}
+                activeOpacity={0.86}
+                accessibilityRole="button"
+                accessibilityLabel="Save Eco-Dive ID card"
+              >
+                <Ionicons
+                  name="download-outline"
+                  size={17}
+                  color={colors.white}
+                />
+                <Text style={styles.idModalSavePrimaryText}>Save ID Card</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* SHAREABLE 9:16 STORY DIVE RECAP MODAL */}
+      <Modal
+        visible={Boolean(selectedRecap)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedRecap(null)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setSelectedRecap(null)}
+        >
+          {selectedRecap && (
+            <Pressable
+              style={styles.recapModalSheet}
+              onPress={(e) => e.stopPropagation()}
+            >
+              {/* Top Modal Header */}
+              <View style={styles.recapSheetHeader}>
+                <View style={styles.recapSheetTitleCol}>
+                  <Text style={styles.recapSheetTitle}>
+                    Your dive, worth sharing.
+                  </Text>
+                  <Text style={styles.recapSheetSubtitle}>
+                    A little Mabini for your story.
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.recapSheetCloseBtn}
+                  onPress={() => setSelectedRecap(null)}
+                  activeOpacity={0.8}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close recap modal"
+                >
+                  <Ionicons name="close" size={17} color="#0D74E7" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Centered 9:16 Vertical Story Card */}
+              <View style={styles.storyCardOuterWrap}>
+                <View
+                  style={[
+                    styles.storyCardCanvas,
+                    { width: storyCardWidth, height: storyCardHeight },
+                  ]}
+                >
+                  <Image
+                    source={resolveSiteImage(
+                      null,
+                      selectedRecap.photoUrl,
+                      selectedRecap.imageIndex,
+                    )}
+                    style={styles.storyCardBgImage}
+                    resizeMode="cover"
+                  />
+
+                  {/* Dark Underwater Gradient Overlay */}
+                  <View style={styles.storyCardGrad} pointerEvents="none">
+                    <Svg
+                      width="100%"
+                      height="100%"
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                    >
+                      <Defs>
+                        <LinearGradient
+                          id="storyCardGradSvg"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <Stop
+                            offset="0"
+                            stopColor="#020817"
+                            stopOpacity="0.32"
+                          />
+                          <Stop
+                            offset="0.4"
+                            stopColor="#020817"
+                            stopOpacity="0.1"
+                          />
+                          <Stop
+                            offset="0.68"
+                            stopColor="#020817"
+                            stopOpacity="0.65"
+                          />
+                          <Stop
+                            offset="1"
+                            stopColor="#020817"
+                            stopOpacity="0.92"
+                          />
+                        </LinearGradient>
+                      </Defs>
+                      <Rect
+                        x="0"
+                        y="0"
+                        width="100"
+                        height="100"
+                        fill="url(#storyCardGradSvg)"
+                      />
+                    </Svg>
+                  </View>
+
+                  {/* Story Card Top Brand Header */}
+                  <View style={styles.storyTopBrandBlock}>
+                    <Image
+                      source={SINSAY_WHITE_LOGO}
+                      style={styles.storyBrandLogo}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.storyBrandLocation}>
+                      MABINI, BATANGAS
+                    </Text>
+                  </View>
+
+                  {/* Story Card Bottom Details Overlay */}
+                  <View style={styles.storyBottomOverlay}>
+                    <View style={styles.storyDiveBadge}>
+                      <Text style={styles.storyDiveBadgeText}>
+                        DIVE #{String(selectedRecap.diveNumber).padStart(2, "0")}{" "}
+                        IN MABINI
+                      </Text>
+                    </View>
+
+                    <Text style={styles.storyHeroHeadline}>
+                      Just explored{"\n"}
+                      {selectedRecap.siteName}!
+                    </Text>
+
+                    <Text style={styles.storyDateCatLine} numberOfLines={1}>
+                      {selectedRecap.dateTime.split("•")[0].trim()} ·{" "}
+                      {selectedRecap.diveCategory}
+                    </Text>
+
+                    <View style={styles.storyDividerLine} />
+
+                    <View style={styles.storyDetailsStack}>
+                      <Text style={styles.storyResortLine} numberOfLines={1}>
+                        With {selectedRecap.resortOrCenter}
+                      </Text>
+
+                      <Text style={styles.storyStatsLine} numberOfLines={1}>
+                        {selectedRecap.depthRange} · {selectedRecap.duration}
+                      </Text>
+
+                      <Text style={styles.storyEcoTagline}>
+                        Look, don&apos;t touch. Leave only bubbles.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Save Image Action Button */}
+              <TouchableOpacity
+                style={styles.saveStoryImageBtn}
+                onPress={() => handleSaveRecapImage(selectedRecap)}
+                activeOpacity={0.86}
+                accessibilityRole="button"
+                accessibilityLabel="Save dive recap image"
+              >
+                <Ionicons
+                  name="download-outline"
+                  size={17}
+                  color="#0D74E7"
+                />
+                <Text style={styles.saveStoryImageBtnText}>Save Image</Text>
+              </TouchableOpacity>
+            </Pressable>
+          )}
+        </Pressable>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F6FAFF",
+  },
+  centerLoader: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 14,
+    paddingBottom: 18,
+  },
+
+  /* 1. SIMPLIFIED SCREEN HEADER */
+  screenHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+    gap: 12,
+  },
+  headerTextCol: {
+    flex: 1,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.darkText,
+  },
+  screenSubtitle: {
+    fontSize: 13,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
+    marginTop: 1,
+  },
+  headerEditIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#CFE2F6",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+
+  /* 2. SINSAY DIVE PASS IDENTIFICATION CARD (EXACT REFERENCE PROPORTIONS) */
+  idCardShadowWrap: {
+    alignSelf: "center",
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    shadowColor: "#0F294A",
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 7,
+  },
+  idCardCanvas: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 20,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: colors.white,
+  },
+  templateBgImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+  },
+
+  /* BLANK WHITE CENTER CANVAS (3-Part Reference Layout) */
+  blankCenterCanvas: {
+    position: "absolute",
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  portraitBox: {
+    height: "100%",
+    backgroundColor: "#C6DAF1",
+    overflow: "hidden",
+    flexShrink: 0,
+  },
+  portraitImage: {
+    width: "100%",
+    height: "100%",
+  },
+  middleIdentityCol: {
+    flex: 1.04,
+    justifyContent: "center",
+  },
+  verticalCardDivider: {
+    width: 1,
+    backgroundColor: "#B8D4F2",
+  },
+  rightCertCol: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  horizontalCardDivider: {
+    height: 1,
+    backgroundColor: "#B8D4F2",
+    marginRight: "6%",
+  },
+  cardFieldRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  cardIconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  cardFieldTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cardFieldLabel: {
+    fontFamily: "Quicksand_700Bold",
+    color: "#0D74E7",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  cardFieldValue: {
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F294A",
+  },
+  tapCardHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    marginTop: 8,
+  },
+  tapCardHintText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: colors.primaryBlue,
+  },
+
+  /* INCOMPLETE DIVE PROFILE PROMPT WITH PROGRESS BAR */
+  incompletePromptCard: {
+    marginTop: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#CFE2F6",
+    borderRadius: 18,
+    padding: 14,
+    gap: 10,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  incompleteHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  incompleteIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#EBF3FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  incompleteTitleCol: {
+    flex: 1,
+    gap: 1,
+  },
+  incompleteTitle: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.darkText,
+  },
+  incompleteSubtitle: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
+  },
+  incompletePctPill: {
+    backgroundColor: "#EBF3FF",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  incompletePctText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.primaryBlue,
+  },
+  incompleteProgressTrack: {
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "#E2E8F0",
+    overflow: "hidden",
+  },
+  incompleteProgressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: colors.primaryBlue,
+  },
+  incompleteCtaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: colors.primaryBlue,
+    borderRadius: 999,
+    paddingVertical: 10,
+  },
+  incompleteCtaText: {
+    fontSize: 12.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.white,
+  },
+
+  /* ID CARD FULL DETAILS & SAVE MODAL */
+  idDetailModalSheet: {
+    width: "100%",
+    maxWidth: 420,
+    maxHeight: "88%",
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 16,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  idDetailModalScroll: {
+    flexGrow: 0,
+  },
+  idDetailModalScrollContent: {
+    gap: 12,
+    paddingBottom: 4,
+  },
+  idFullTopProfileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: "#F6FAFF",
+    borderWidth: 1,
+    borderColor: "#DCEBFA",
+    borderRadius: 16,
+    padding: 12,
+  },
+  idFullPortraitThumb: {
+    width: 64,
+    height: 72,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#C6DAF1",
+    position: "relative",
+    flexShrink: 0,
+  },
+  idFullCameraBadge: {
+    position: "absolute",
+    right: 4,
+    bottom: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.primaryBlue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  idFullTopIdentityCol: {
+    flex: 1,
+    gap: 3,
+  },
+  idFullLabel: {
+    fontSize: 10,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0D74E7",
+    letterSpacing: 0.5,
+  },
+  idFullPrimaryName: {
+    fontSize: 16.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F294A",
+  },
+  idFullPassBadge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EBF3FF",
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    marginTop: 2,
+  },
+  idFullPassBadgeText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.primaryBlue,
+  },
+  idFullGridCard: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#CFE2F6",
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  idFullDetailItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 7,
+  },
+  idFullDetailTextCol: {
+    flex: 1,
+    gap: 1,
+  },
+  idFullValue: {
+    fontSize: 13.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F294A",
+  },
+  idFullSubValue: {
+    fontSize: 12.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#475569",
+  },
+  idFullDivider: {
+    height: 1,
+    backgroundColor: "#EBF2FA",
+  },
+  idFullTwoColDates: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingVertical: 7,
+  },
+  idFullDateCell: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  idModalActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 14,
+  },
+  idModalEditBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#EBF3FF",
+    borderRadius: 999,
+    paddingVertical: 11,
+  },
+  idModalEditBtnText: {
+    fontSize: 13,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.primaryBlue,
+  },
+  idModalSavePrimaryBtn: {
+    flex: 1.25,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: colors.primaryBlue,
+    borderRadius: 999,
+    paddingVertical: 11,
+  },
+  idModalSavePrimaryText: {
+    fontSize: 13,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.white,
+  },
+
+  /* 3. VERTICAL TIMELINE FOR DIVE LOGS */
+  timelineSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 22,
+    marginBottom: 14,
+  },
+  timelineTitle: {
+    fontSize: 18,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.darkText,
+  },
+  timelineCountPill: {
+    backgroundColor: "#EBF3FF",
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+  },
+  timelineCountText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.primaryBlue,
+  },
+  verticalTimelineContainer: {
+    paddingLeft: 2,
+  },
+  timelineRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 12,
+  },
+  timelineRailCol: {
+    width: 20,
+    alignItems: "center",
+  },
+  timelineNodeOuter: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#DBEAFE",
+    borderWidth: 2,
+    borderColor: colors.primaryBlue,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18,
+  },
+  timelineNodeInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primaryBlue,
+  },
+  timelineConnectorLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: "#BFDBFE",
+    marginVertical: 4,
+  },
+  timelineCardWrap: {
+    flex: 1,
+    paddingBottom: 14,
+  },
+  timelineActivityCard: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#CFE2F6",
+    borderRadius: 18,
+    padding: 14,
+    gap: 8,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  activityHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  diveNumberBadge: {
+    backgroundColor: "#EBF3FF",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  diveNumberBadgeModal: {
+    backgroundColor: colors.primaryBlue,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  diveNumberText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.primaryBlue,
+  },
+  diveNumberTextModal: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.white,
+  },
+  dateTimeText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#64748B",
+  },
+  activityMainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  activityInfoCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  activitySiteName: {
+    fontSize: 16.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.darkText,
+  },
+  metaInfoStack: {
+    gap: 4,
+  },
+  metaInlineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  metaCategoryText: {
+    flex: 1,
+    fontSize: 12.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#1E40AF",
+  },
+  metaResortText: {
+    flex: 1,
+    fontSize: 12.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#475569",
+  },
+
+  /* RIGHT-SIDE LOCATION PHOTO PREVIEW */
+  rightPhotoBox: {
+    width: 88,
+    height: 82,
+    borderRadius: 12,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: "#CBD5E1",
+    borderWidth: 1,
+    borderColor: "#DCEBFA",
+    flexShrink: 0,
+  },
+  locThumbImg: {
+    width: "100%",
+    height: "100%",
+  },
+  locThumbGrad: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "65%",
+    backgroundImage:
+      "linear-gradient(180deg, rgba(2,8,23,0) 0%, rgba(2,8,23,0.85) 100%)" as any,
+  },
+  locDepthOverlay: {
+    position: "absolute",
+    left: 4,
+    right: 4,
+    bottom: 5,
+    fontSize: 9.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.white,
+    textAlign: "center",
+  },
+  locBarangay: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#475569",
+  },
+
+  /* CARD FOOTER ACTIONS */
+  cardFooterActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  viewRecapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#EBF3FF",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  viewRecapBtnText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.primaryBlue,
+  },
+  shareRecapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.primaryBlue,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  shareRecapBtnText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.white,
+  },
+
+  /* TOAST & RECAP MODAL */
+  toastBanner: {
+    position: "absolute",
+    bottom: 96,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#0F172A",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  toastBannerText: {
+    fontSize: 12.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.white,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(4, 13, 31, 0.62)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  recapModalSheet: {
+    width: "100%",
+    maxWidth: 344,
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 15,
+    paddingBottom: 15,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  recapSheetHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 12,
+  },
+  recapSheetTitleCol: {
+    flex: 1,
+  },
+  recapSheetTitle: {
+    fontSize: 17,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F172A",
+  },
+  recapSheetSubtitle: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
+    marginTop: 1,
+  },
+  recapSheetCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  storyCardOuterWrap: {
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  storyCardCanvas: {
+    borderRadius: 18,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: "#06152D",
+    justifyContent: "space-between",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  storyCardBgImage: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+  },
+  storyCardGrad: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundImage:
+      "linear-gradient(180deg, rgba(2,8,23,0.32) 0%, rgba(2,8,23,0.10) 40%, rgba(2,8,23,0.65) 68%, rgba(2,8,23,0.92) 100%)" as any,
+  },
+  storyTopBrandBlock: {
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    gap: 2,
+  },
+  storyBrandLogo: {
+    width: 88,
+    height: 24,
+  },
+  storyBrandLocation: {
+    fontSize: 8,
+    fontFamily: "Quicksand_700Bold",
+    color: "rgba(255, 255, 255, 0.92)",
+    letterSpacing: 0.8,
+  },
+  storyBottomOverlay: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+  storyDiveBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#0D74E7",
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    marginBottom: 7,
+  },
+  storyDiveBadgeText: {
+    fontSize: 8.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.white,
+    letterSpacing: 0.4,
+  },
+  storyHeroHeadline: {
+    fontSize: 19,
+    lineHeight: 23,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.white,
+    marginBottom: 5,
+  },
+  storyDateCatLine: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "rgba(255, 255, 255, 0.92)",
+  },
+  storyDividerLine: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    marginVertical: 8,
+  },
+  storyDetailsStack: {
+    gap: 2,
+  },
+  storyResortLine: {
+    fontSize: 10,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "rgba(255, 255, 255, 0.95)",
+  },
+  storyStatsLine: {
+    fontSize: 9.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#93C5FD",
+  },
+  storyEcoTagline: {
+    fontSize: 9.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "rgba(255, 255, 255, 0.85)",
+    marginTop: 1,
+  },
+  saveStoryImageBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: "#93C5FD",
+    borderRadius: 999,
+    paddingVertical: 11,
+  },
+  saveStoryImageBtnText: {
+    fontSize: 13.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0D74E7",
+  },
+});

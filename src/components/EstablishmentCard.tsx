@@ -1,12 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "../constants/colors";
 
-interface EstablishmentCardProps {
+const FALLBACK_RESORT_IMAGES = [
+  require("../../assets/establishment-1.png"),
+  require("../../assets/establishment-2.jpg"),
+];
+
+export interface EstablishmentCardProps {
   name: string;
   location?: string | null;
   accreditation?: string | null;
+  accredited?: boolean;
+  imageUrl?: string | null;
+  avatarUrl?: string | null;
+  phone?: string | null;
+  index?: number;
   onPress?: () => void;
 }
 
@@ -14,39 +24,62 @@ export function EstablishmentCard({
   name,
   location,
   accreditation,
+  accredited = true,
+  imageUrl,
+  avatarUrl,
+  index = 0,
   onPress,
 }: EstablishmentCardProps) {
+  const badgeLabel =
+    accreditation?.trim() || (accredited ? "DOT Verified" : null);
+  const photoSource = imageUrl
+    ? { uri: imageUrl }
+    : FALLBACK_RESORT_IMAGES[index % FALLBACK_RESORT_IMAGES.length];
+
   return (
     <TouchableOpacity
       style={styles.card}
       onPress={onPress}
       activeOpacity={0.85}
       accessibilityRole="button"
-      accessibilityLabel={name}
+      accessibilityLabel={`${name}${location ? `, ${location}` : ""}`}
     >
-      <View style={styles.imagePlaceholder}>
-        <Ionicons name="business" size={28} color="rgba(255,255,255,0.7)" />
+      {/* Large resort photograph on the left */}
+      <View style={styles.imageWrap}>
+        <Image source={photoSource} style={styles.image} resizeMode="cover" />
+        {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatar} /> : null}
       </View>
 
-      {accreditation ? (
-        <View style={styles.badge}>
-          <Ionicons name="checkmark-circle" size={11} color={colors.white} />
-          <Text style={styles.badgeText}>{accreditation}</Text>
-        </View>
-      ) : null}
-
-      <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>
-          {name}
-        </Text>
-        {location ? (
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={12} color={colors.gray} />
-            <Text style={styles.location} numberOfLines={1}>
-              {location}
+      {/* Center information column */}
+      <View style={styles.infoCol}>
+        {badgeLabel ? (
+          <View style={styles.badge}>
+            <Ionicons name="checkmark-circle" size={12} color={colors.green} />
+            <Text style={styles.badgeText} numberOfLines={1}>
+              {badgeLabel}
             </Text>
           </View>
         ) : null}
+
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
+
+        <View style={styles.locationRow}>
+          <Ionicons name="location-outline" size={13} color="#657C9B" />
+          <Text style={styles.location} numberOfLines={1}>
+            {location?.trim() || "Mabini, Batangas"}
+          </Text>
+        </View>
+      </View>
+
+      {/* Right arrow button for viewing details */}
+      <View style={styles.arrowButton}>
+        <Ionicons
+          name="arrow-forward"
+          size={16}
+          color={colors.primaryBlue}
+        />
       </View>
     </TouchableOpacity>
   );
@@ -54,38 +87,77 @@ export function EstablishmentCard({
 
 const styles = StyleSheet.create({
   card: {
-    width: "48%",
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: colors.white,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  imagePlaceholder: {
     width: "100%",
-    height: 100,
-    backgroundColor: colors.navy,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    backgroundColor: colors.green,
-    borderRadius: 100,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: 18,
+    padding: 10,
+    gap: 12,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#E4EEF8",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
-  badgeText: { fontSize: 9, fontWeight: "700", color: colors.white },
-  info: { padding: 10, gap: 3 },
-  name: { fontSize: 13, fontWeight: "600", color: colors.darkText },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  location: { flex: 1, fontSize: 11, color: colors.gray },
+  image: {
+    width: 90,
+    height: 90,
+    borderRadius: 14,
+    backgroundColor: "#E2E8F0",
+  },
+  imageWrap: { width: 90, height: 90, position: "relative" },
+  avatar: { position: "absolute", width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: "#fff", left: 28, bottom: 5, backgroundColor: "#fff" },
+  infoCol: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 4,
+    minWidth: 0,
+  },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontFamily: "Quicksand_700Bold",
+    fontWeight: "700",
+    color: "#059669",
+  },
+  name: {
+    fontSize: 15,
+    fontFamily: "Quicksand_700Bold",
+    fontWeight: "700",
+    color: colors.darkText,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  location: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "#657C9B",
+  },
+  arrowButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#EBF3FF",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
 });

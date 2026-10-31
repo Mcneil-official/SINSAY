@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -11,15 +12,19 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ContentContainer, ErrorState } from "../../components";
+import { ContentContainer, ErrorState, resolveSiteImage } from "../../components";
 import { colors } from "../../constants/colors";
 import { supabase } from "../../lib/supabase";
 import { DiveSiteRow } from "../../types/supabase";
 
 const difficultyColors: Record<string, string> = {
   Beginner: "#10B981",
+  "Open Water": "#10B981",
   Intermediate: "#F59E0B",
+  Rescue: "#F59E0B",
   Advanced: "#EF4444",
+  Divemaster: "#EF4444",
+  Instructor: "#EF4444",
 };
 
 export default function DiveSiteDetailScreen() {
@@ -31,16 +36,24 @@ export default function DiveSiteDetailScreen() {
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
+    let active = true;
     supabase
       .from("dive_sites")
       .select("*")
       .eq("id", id)
-      .single()
+      .maybeSingle()
       .then(({ data, error }) => {
+        if (!active) return;
         if (!error && data) setSite(data);
         setLoading(false);
+      },
+      () => {
+        if (!active) return;
+        setLoading(false);
       });
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   return (
@@ -72,9 +85,11 @@ export default function DiveSiteDetailScreen() {
           <ContentContainer maxWidth={720} paddingH={16}>
             <>
               <View style={styles.hero}>
-                <View style={styles.heroOverlay}>
-                  <Ionicons name="water" size={40} color={colors.white} />
-                </View>
+                <Image
+                  source={resolveSiteImage(site.image_url, site.photo_url, 0)}
+                  style={styles.heroImage}
+                  resizeMode="cover"
+                />
                 <TouchableOpacity
                   style={styles.heartBtn}
                   onPress={() => setLiked(!liked)}
@@ -147,17 +162,22 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 17, fontWeight: "600", color: colors.darkText },
   hero: {
-    height: 200,
+    height: 220,
     backgroundColor: colors.navy,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    position: "relative",
   },
-  heroOverlay: {
-    alignItems: "center",
-    justifyContent: "center",
-    opacity: 0.6,
+  heroImage: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
   },
   heartBtn: {
     position: "absolute",

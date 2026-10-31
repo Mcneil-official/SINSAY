@@ -3,6 +3,7 @@ import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
+import { FloatingAssistant } from "../../components/assistant/FloatingAssistant";
 import WiderScreenNavbar from "../../components/WiderScreenNavbar";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
@@ -21,14 +22,6 @@ function TouristGate() {
     }
   }, [isLoading, roleReady, user, isOperator, viewAsTourist, router]);
 
-  if (isLoading || !roleReady) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" color={colors.primaryBlue} />
-      </View>
-    );
-  }
-
   return null;
 }
 
@@ -40,25 +33,23 @@ const tabIcons: Record<
   }
 > = {
   index: { focused: "home", unfocused: "home-outline" },
+  map: { focused: "map", unfocused: "map-outline" },
   "eco-dive-id": { focused: "id-card", unfocused: "id-card-outline" },
-  "dive-assistant": {
-    focused: "chatbubble-ellipses",
-    unfocused: "chatbubble-ellipses-outline",
-  },
   profile: { focused: "person", unfocused: "person-outline" },
 };
 
 const tabLabels: Record<string, string> = {
   index: "Home",
+  map: "Map",
   "eco-dive-id": "Eco-Dive ID",
-  "dive-assistant": "Dive Assistant",
   profile: "Profile",
 };
+
+const HIDDEN_ROUTES = ["dive-assistant"];
 
 export default function TabLayout() {
   const { isDesktop } = useLayout();
   const { isLoading, roleReady } = useAuth();
-  const router = useRouter();
 
   const ready = !isLoading && roleReady;
 
@@ -87,15 +78,20 @@ export default function TabLayout() {
               {...props}
               tabIcons={tabIcons}
               tabLabels={tabLabels}
+              hiddenRoutes={HIDDEN_ROUTES}
             />
           )
         }
       >
         <Tabs.Screen name="index" />
+        <Tabs.Screen name="map" />
         <Tabs.Screen name="eco-dive-id" />
         <Tabs.Screen name="dive-assistant" />
         <Tabs.Screen name="profile" />
       </Tabs>
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <FloatingAssistant />
+      </View>
     </View>
   );
 }

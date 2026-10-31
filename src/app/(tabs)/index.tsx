@@ -1,17 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import {
   ContentContainer,
   DiveSiteCard,
@@ -20,7 +22,6 @@ import {
   EstablishmentCard,
   HeroCarousel,
   SearchBar,
-  WiderScreenNavbar,
 } from "../../components";
 import { SearchResult } from "../../components/SearchBar";
 import { colors } from "../../constants/colors";
@@ -37,27 +38,103 @@ const categoryOptions: {
   key: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  matches: (site: DiveSiteRow) => boolean;
 }[] = [
-  { key: "all", label: "All Dives", icon: "compass-outline" },
-  { key: "Beginner", label: "Beginner", icon: "sunny-outline" },
-  { key: "Intermediate", label: "Intermediate", icon: "water-outline" },
-  { key: "Advanced", label: "Advanced", icon: "flash-outline" },
+  {
+    key: "all",
+    label: "All Dives",
+    icon: "compass-outline",
+    matches: () => true,
+  },
+  {
+    key: "Beginner",
+    label: "Beginner",
+    icon: "sunny-outline",
+    matches: (s) =>
+      s.difficulty === "Beginner" || s.difficulty === "Open Water",
+  },
+  {
+    key: "Intermediate",
+    label: "Intermediate",
+    icon: "water-outline",
+    matches: (s) =>
+      s.difficulty === "Intermediate" || s.difficulty === "Rescue",
+  },
+  {
+    key: "Advanced",
+    label: "Advanced",
+    icon: "flash-outline",
+    matches: (s) =>
+      s.difficulty === "Advanced" ||
+      s.difficulty === "Divemaster" ||
+      s.difficulty === "Instructor",
+  },
 ];
+
+const notifIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
+  eco_dive_activated: "checkmark-circle",
+  dive_plan_ready: "map",
+  operator_application_approved: "checkmark-done",
+  operator_application_rejected: "close-circle",
+  pass_purchase_verified: "wallet",
+  manifest_submitted: "document-text",
+  announcement_published: "megaphone",
+};
+
+const notifColors: Record<string, string> = {
+  eco_dive_activated: colors.green,
+  dive_plan_ready: colors.primaryBlue,
+  operator_application_approved: colors.green,
+  operator_application_rejected: colors.red,
+  pass_purchase_verified: colors.amberDark,
+  manifest_submitted: colors.primaryBlue,
+  announcement_published: colors.amberDark,
+};
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = Math.floor((now - then) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { profile, isLoading: authLoading, unreadCount, user } = useAuth();
-  const { isDesktop, isTablet } = useLayout();
-
-  const isWide = isDesktop || isTablet;
-  const [selectedWideCard, setSelectedWideCard] = useState<number>(1);
-  const [wideSearchQuery, setWideSearchQuery] = useState("");
+  const {
+    profile,
+    avatarUri,
+    isLoading: authLoading,
+    unreadCount,
+    notifications,
+    fetchNotifications,
+    markAllNotificationsRead,
+    user,
+  } = useAuth();
+  const { isDesktop } = useLayout();
+  const { width: screenWidth } = useWindowDimensions();
+  const notifWidth = Math.min(Math.max(screenWidth - 32, 220), 300);
 
   const firstName =
     profile?.full_name?.trim().split(" ")[0] ||
     user?.user_metadata?.full_name?.trim().split(" ")[0] ||
-    "Juan";
-  const greeting = `Hi, ${firstName}!`;
+    "Diver";
+
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  const handleToggleNotifications = useCallback(() => {
+    setNotifOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        fetchNotifications();
+        markAllNotificationsRead();
+      }
+      return next;
+    });
+  }, [fetchNotifications, markAllNotificationsRead]);
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -65,79 +142,145 @@ export default function HomeScreen() {
   const [diveSites, setDiveSites] = useState<DiveSiteRow[]>([]);
   const [diveSitesLoading, setDiveSitesLoading] = useState(true);
   const [diveSitesError, setDiveSitesError] = useState(false);
+  const [diveSitesReloadKey, setDiveSitesReloadKey] = useState(0);
   const [activeCategory, setActiveCategory] = useState("all");
 
   const [establishments, setEstablishments] = useState<EstablishmentRow[]>([]);
   const [establishmentsLoading, setEstablishmentsLoading] = useState(true);
   const [establishmentsError, setEstablishmentsError] = useState(false);
+  const [establishmentsReloadKey, setEstablishmentsReloadKey] = useState(0);
 
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(true);
 
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  const searchData = [...diveSites, ...establishments];
 
-  const allDiveSites = diveSites;
-  const allEstablishments = establishments;
-  const filteredDiveSites =
-    activeCategory === "all"
-      ? diveSites
-      : diveSites.filter((s) => s.difficulty === activeCategory);
+  const activeCategoryConfig =
+    categoryOptions.find((c) => c.key === activeCategory) ?? categoryOptions[0];
+  const filteredDiveSites = diveSites.filter((s) =>
+    activeCategoryConfig.matches(s),
+  );
 
-  const loadDiveSites = useCallback(() => {
-    setDiveSitesLoading(true);
-    setDiveSitesError(false);
+  // Load dive sites from Tourism Office dashboard database
+  useEffect(() => {
+    let active = true;
     supabase
       .from("dive_sites")
       .select("*")
-      .limit(10)
+      .order("created_at", { ascending: false })
       .then(({ data, error }) => {
-        setDiveSites(data ?? []);
+        if (!active) return;
+        const rows = (data ?? [])
+          .filter((row) => !row.status || row.status !== "Restricted")
+          .sort((a, b) => {
+            const aHasPhoto = Boolean(
+              a.photo_url?.trim() || a.image_url?.trim(),
+            );
+            const bHasPhoto = Boolean(
+              b.photo_url?.trim() || b.image_url?.trim(),
+            );
+            if (aHasPhoto !== bHasPhoto) return aHasPhoto ? -1 : 1;
+            const aTime = new Date(
+              a.updated_at || a.created_at || 0,
+            ).getTime();
+            const bTime = new Date(
+              b.updated_at || b.created_at || 0,
+            ).getTime();
+            return bTime - aTime;
+          });
+        setDiveSites(rows);
         setDiveSitesError(!!error);
         setDiveSitesLoading(false);
+      },
+      () => {
+        if (!active) return;
+        setDiveSitesError(true);
+        setDiveSitesLoading(false);
       });
+    return () => {
+      active = false;
+    };
+  }, [diveSitesReloadKey]);
+
+  const handleRetryDiveSites = useCallback(() => {
+    setDiveSitesLoading(true);
+    setDiveSitesError(false);
+    setDiveSitesReloadKey((k) => k + 1);
   }, []);
 
-  const loadEstablishments = useCallback(() => {
-    setEstablishmentsLoading(true);
-    setEstablishmentsError(false);
+  // Load accredited dive resorts / establishments
+  useEffect(() => {
+    let active = true;
     supabase
       .from("establishments")
       .select("*")
       .eq("accredited", true)
       .limit(10)
       .then(({ data, error }) => {
+        if (!active) return;
         setEstablishments(data ?? []);
         setEstablishmentsError(!!error);
         setEstablishmentsLoading(false);
+      },
+      () => {
+        if (!active) return;
+        setEstablishmentsError(true);
+        setEstablishmentsLoading(false);
       });
+    return () => {
+      active = false;
+    };
+  }, [establishmentsReloadKey]);
+
+  const handleRetryEstablishments = useCallback(() => {
+    setEstablishmentsLoading(true);
+    setEstablishmentsError(false);
+    setEstablishmentsReloadKey((k) => k + 1);
   }, []);
 
+  // Load active announcements from Tourism Office dashboard
   useEffect(() => {
-    loadDiveSites();
-    loadEstablishments();
-  }, [loadDiveSites, loadEstablishments]);
-
-  useEffect(() => {
-    setAnnouncementsLoading(true);
+    let active = true;
     supabase
       .from("announcements")
       .select("*")
+      .eq("active", true)
+      .order("priority", { ascending: false })
+      .order("created_at", { ascending: false })
       .then(({ data }) => {
+        if (!active) return;
         setAnnouncements(data ?? []);
         setAnnouncementsLoading(false);
+      },
+      () => {
+        if (!active) return;
+        setAnnouncements([]);
+        setAnnouncementsLoading(false);
       });
+    return () => {
+      active = false;
+    };
   }, []);
 
+  // Load tourist favorites
   useEffect(() => {
     if (!user) return;
+    let active = true;
     supabase
       .from("tourist_favorites")
       .select("dive_site_id")
       .eq("tourist_id", user.id)
       .then(({ data }) => {
+        if (!active) return;
         setFavoriteIds(new Set((data ?? []).map((f) => f.dive_site_id)));
+      },
+      () => {
+        if (!active) return;
+        setFavoriteIds(new Set());
       });
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   const handleToggleFavorite = useCallback(
@@ -167,31 +310,48 @@ export default function HomeScreen() {
 
   const handleSearch = useCallback(
     (query: string) => {
-      if (query.length < 2) {
+      const q = query.trim().toLowerCase();
+      if (q.length < 2) {
         setSearchResults([]);
         return;
       }
       setSearchLoading(true);
-      const q = query.toLowerCase();
-      const sites: SearchResult[] = allDiveSites
-        .filter((s) => s.name.toLowerCase().includes(q))
+      const sites: SearchResult[] = diveSites
+        .filter(
+          (s) =>
+            s.name.toLowerCase().includes(q) ||
+            (s.barangay && s.barangay.toLowerCase().includes(q)) ||
+            (s.site_type && s.site_type.toLowerCase().includes(q)) ||
+            (s.difficulty && s.difficulty.toLowerCase().includes(q)) ||
+            (s.description && s.description.toLowerCase().includes(q)),
+        )
         .map((s) => ({
           id: s.id,
           type: "dive-site" as const,
           title: s.name,
-          subtitle: s.rating ? `Rating: ${s.rating}` : undefined,
+          subtitle: [s.barangay || "Mabini, Batangas", s.difficulty]
+            .filter(Boolean)
+            .join(" • "),
         }));
-      const ests: SearchResult[] = allEstablishments
-        .filter((e) => e.name.toLowerCase().includes(q))
+
+      const ests: SearchResult[] = establishments
+        .filter(
+          (e) =>
+            e.name.toLowerCase().includes(q) ||
+            (e.location && e.location.toLowerCase().includes(q)) ||
+            (e.description && e.description.toLowerCase().includes(q)),
+        )
         .map((e) => ({
           id: e.id,
           type: "establishment" as const,
           title: e.name,
+          subtitle: e.location || "Accredited Dive Resort",
         }));
+
       setSearchResults([...sites, ...ests]);
       setSearchLoading(false);
     },
-    [allDiveSites, allEstablishments],
+    [diveSites, establishments],
   );
 
   if (authLoading) {
@@ -206,228 +366,6 @@ export default function HomeScreen() {
     );
   }
 
-  const showcaseSites = [
-    {
-      id: allDiveSites[0]?.id || "showcase-1",
-      name: "Alley Palace",
-      rating: "4.1",
-      image: require("../../../assets/dive-alley-palace.png"),
-    },
-    {
-      id: allDiveSites[1]?.id || "showcase-2",
-      name: "Coeurdes Alpes",
-      rating: "4.5",
-      image: require("../../../assets/dive-coeurdes-alpes.png"),
-    },
-    {
-      id: allDiveSites[2]?.id || "showcase-3",
-      name: "Alley Palace",
-      rating: "4.1",
-      image: require("../../../assets/dive-alley-palace.png"),
-    },
-    {
-      id: allDiveSites[3]?.id || "showcase-4",
-      name: "Alley Palace",
-      rating: "4.1",
-      image: require("../../../assets/dive-alley-palace.png"),
-    },
-    {
-      id: allDiveSites[4]?.id || "showcase-5",
-      name: "Alley Palace",
-      rating: "4.1",
-      image: require("../../../assets/dive-alley-palace.png"),
-    },
-    {
-      id: allDiveSites[5]?.id || "showcase-6",
-      name: "Alley Palace",
-      rating: "4.1",
-      image: require("../../../assets/dive-alley-palace.png"),
-    },
-  ];
-
-  if (isWide) {
-    return (
-      <SafeAreaView style={styles.wideSafeArea}>
-        <StatusBar barStyle="dark-content" />
-        {!isDesktop && (
-          <WiderScreenNavbar
-            onSearch={handleSearch}
-            searchQuery={wideSearchQuery}
-            setSearchQuery={setWideSearchQuery}
-          />
-        )}
-
-        {wideSearchQuery.length >= 2 && searchResults.length > 0 && (
-          <View style={styles.wideSearchResultsBox}>
-            <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B", marginBottom: 8 }}>
-              Search Results
-            </Text>
-            {searchResults.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.searchResultRow}
-                onPress={() => {
-                  setWideSearchQuery("");
-                  if (item.type === "dive-site") {
-                    router.push({ pathname: "/dive-site/[id]", params: { id: item.id } });
-                  } else {
-                    router.push({ pathname: "/establishment/[id]", params: { id: item.id } });
-                  }
-                }}
-              >
-                <Ionicons
-                  name={item.type === "dive-site" ? "water" : "business"}
-                  size={16}
-                  color={colors.primaryBlue}
-                />
-                <Text style={{ fontSize: 14, fontWeight: "600", color: "#0F172A", flex: 1 }}>
-                  {item.title}
-                </Text>
-                <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <ScrollView
-          style={styles.wideScroll}
-          contentContainerStyle={styles.wideScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.wideContainer}>
-            {/* Greeting */}
-            <View style={styles.wideWelcomeBlock}>
-              <Text style={styles.wideHiTitle}>Hi, {firstName || "Juan"}!</Text>
-              <Text style={styles.wideWelcomeSub}>Welcome to Mabini, Batangas</Text>
-            </View>
-
-            {/* Panoramic Hero Banner */}
-            <View style={styles.wideHeroBannerWrap}>
-              <Image
-                source={require("../../../assets/images/AbzuGame-Win64-Shipping_2017_02_05_17_10_31_655.jpeg")}
-                style={styles.wideHeroImage}
-                contentFit="cover"
-              />
-            </View>
-
-            {/* Pagination Dots */}
-            <View style={styles.wideDotsRow}>
-              <View style={styles.wideDotActive} />
-              <View style={styles.wideDot} />
-              <View style={styles.wideDot} />
-            </View>
-
-            {/* Popular Dive Sites header */}
-            <View style={styles.wideSectionHeader}>
-              <Text style={styles.wideSectionTitle}>Popular Dive Sites</Text>
-              <TouchableOpacity onPress={() => router.push("/dive-sites")}>
-                <Text style={styles.wideSeeAll}>See all</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* 6 Cards Row */}
-            <View style={styles.wideCardsRow}>
-              {showcaseSites.map((site, index) => {
-                const isSelected = selectedWideCard === index;
-                const isFav = favoriteIds.has(site.id);
-                return (
-                  <TouchableOpacity
-                    key={site.id + index}
-                    style={[
-                      styles.wideCard,
-                      isSelected && styles.wideCardActive,
-                    ]}
-                    onPress={() => {
-                      setSelectedWideCard(index);
-                      if (site.id && !site.id.startsWith("showcase-")) {
-                        router.push({
-                          pathname: "/dive-site/[id]",
-                          params: { id: site.id },
-                        });
-                      } else {
-                        router.push("/dive-sites");
-                      }
-                    }}
-                    activeOpacity={0.9}
-                  >
-                    <Image
-                      source={site.image}
-                      style={styles.wideCardImage}
-                      contentFit="cover"
-                    />
-                    <View style={styles.wideCardOverlay}>
-                      <View style={styles.wideCardBottomLeft}>
-                        <View style={styles.wideCardPill}>
-                          <Text style={styles.wideCardPillText}>{site.name}</Text>
-                        </View>
-                        <View style={styles.wideRatingRow}>
-                          <Ionicons name="star" size={11} color="#FBBF24" />
-                          <Text style={styles.wideRatingText}>{site.rating}</Text>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.wideHeartBtn}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleToggleFavorite(site.id);
-                        }}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Favorite"
-                      >
-                        <Ionicons
-                          name={isFav ? "heart" : "heart-outline"}
-                          size={13}
-                          color="#EF4444"
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Accredited Establishments Section */}
-            <View style={[styles.wideSectionHeader, { marginTop: 36 }]}>
-              <Text style={styles.wideSectionTitle}>Dive Establishments Near You</Text>
-              <TouchableOpacity onPress={() => router.push("/establishments")}>
-                <Text style={styles.wideSeeAll}>See all</Text>
-              </TouchableOpacity>
-            </View>
-
-            {establishmentsLoading ? (
-              <View style={styles.railPlaceholder}>
-                <ActivityIndicator size="small" color={colors.primaryBlue} />
-              </View>
-            ) : establishments.length === 0 ? (
-              <EmptyState icon="business-outline" message="No accredited establishments yet." />
-            ) : (
-              <View style={styles.establishmentsGrid}>
-                {establishments.slice(0, 4).map((est) => (
-                  <EstablishmentCard
-                    key={est.id}
-                    name={est.name}
-                    location={est.location}
-                    imageUrl={est.image_url}
-                    accredited={est.accredited}
-                    phone={est.phone}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/establishment/[id]",
-                        params: { id: est.id },
-                      })
-                    }
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -435,51 +373,84 @@ export default function HomeScreen() {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <ContentContainer maxWidth={900} paddingH={20}>
-          {/* Greeting + avatar + notification bell */}
-          <View style={styles.headerRow}>
-            <View style={styles.headerLeft}>
-              <View style={styles.avatarCircle}>
-                <Ionicons name="person" size={20} color={colors.white} />
-              </View>
-              <View style={styles.headerTextWrap}>
-                <Text style={styles.greeting}>{greeting}</Text>
-                <Text style={styles.subGreeting}>Let's dive now</Text>
+          {/* Top Bar: SINSAY blue logo on upper left, Notification + Profile on upper right */}
+          {!isDesktop && (
+            <View style={styles.topBar}>
+              <Image
+                source={require("../../../assets/SINSAY blue logo.png")}
+                style={styles.logoImage}
+                contentFit="contain"
+                accessibilityLabel="SINSAY"
+              />
+
+              <View style={styles.topBarActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.iconButton,
+                    notifOpen && styles.iconButtonActive,
+                  ]}
+                  onPress={handleToggleNotifications}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Notifications"
+                >
+                  <Ionicons
+                    name={
+                      notifOpen ? "notifications" : "notifications-outline"
+                    }
+                    size={20}
+                    color={notifOpen ? colors.primaryBlue : colors.darkText}
+                  />
+                  {unreadCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.avatarCircle}
+                  onPress={() => router.push("/(tabs)/profile")}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="User profile"
+                >
+                  {avatarUri ? (
+                    <Image
+                      source={{ uri: avatarUri }}
+                      style={{ width: "100%", height: "100%", borderRadius: 19 }}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <Ionicons name="person" size={18} color={colors.white} />
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => router.push("/notifications")}
-                accessibilityRole="button"
-                accessibilityLabel="Notifications"
-              >
-                <Ionicons
-                  name="notifications-outline"
-                  size={20}
-                  color={colors.darkText}
-                />
-                {unreadCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
+          )}
+
+          {/* Greeting Section */}
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greetingTitle}>Hi {firstName}!</Text>
+            <Text style={styles.greetingSubtitle}>
+              Welcome to Mabini, Batangas
+            </Text>
           </View>
 
-          {/* Search bar */}
+          {/* Full-width rounded search bar underneath */}
           <SearchBar
-            placeholder="Search dive sites or establishments"
+            placeholder="Search dive sites, resorts, or activities..."
             results={searchResults}
             loading={searchLoading}
             onSearch={handleSearch}
             renderResult={(item) => (
               <TouchableOpacity
-                key={item.id}
+                key={`${item.type}-${item.id}`}
                 style={styles.searchResultRow}
                 onPress={() => {
                   if (item.type === "dive-site") {
@@ -495,16 +466,18 @@ export default function HomeScreen() {
                   }
                 }}
               >
-                <Ionicons
-                  name={item.type === "dive-site" ? "water" : "business"}
-                  size={18}
-                  color={colors.primaryBlue}
-                />
+                <View style={styles.searchResultIcon}>
+                  <Ionicons
+                    name={item.type === "dive-site" ? "water" : "business"}
+                    size={16}
+                    color={colors.primaryBlue}
+                  />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.searchResultTitle}>{item.title}</Text>
-                  {item.subtitle && (
+                  {item.subtitle ? (
                     <Text style={styles.searchResultSub}>{item.subtitle}</Text>
-                  )}
+                  ) : null}
                 </View>
                 <Ionicons
                   name="chevron-forward"
@@ -519,6 +492,7 @@ export default function HomeScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.categoryScroll}
             contentContainerStyle={styles.categoryRow}
           >
             {categoryOptions.map((cat) => {
@@ -532,10 +506,13 @@ export default function HomeScreen() {
                   ]}
                   onPress={() => setActiveCategory(cat.key)}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isActive }}
+                  accessibilityLabel={cat.label}
                 >
                   <Ionicons
                     name={cat.icon}
-                    size={16}
+                    size={14}
                     color={isActive ? colors.white : colors.primaryBlue}
                   />
                   <Text
@@ -543,6 +520,7 @@ export default function HomeScreen() {
                       styles.categoryText,
                       isActive && styles.categoryTextActive,
                     ]}
+                    numberOfLines={1}
                   >
                     {cat.label}
                   </Text>
@@ -551,11 +529,9 @@ export default function HomeScreen() {
             })}
           </ScrollView>
 
-          {/* Hero banner carousel */}
+          {/* Hero Section: Announcements from the Tourism Office Dashboard */}
           {announcementsLoading ? (
-            <View style={styles.heroPlaceholder}>
-              <ActivityIndicator size="small" color={colors.primaryBlue} />
-            </View>
+            <View style={styles.heroPlaceholder} />
           ) : announcements.length > 0 ? (
             <HeroCarousel
               items={announcements.map((a) => ({
@@ -563,160 +539,228 @@ export default function HomeScreen() {
                   ? { uri: a.image_url }
                   : require("../../../assets/hero-banner.jpg"),
                 announcement: a.title,
+                body: a.body,
               }))}
-              ctaLabel="Find Trip"
-              onCtaPress={() => router.push("/dive-sites")}
-              onPress={() => {}}
             />
           ) : (
             <HeroCarousel
               items={[
                 {
                   image: require("../../../assets/hero-banner.jpg"),
-                  announcement: "Let's Make Our\nOcean Come Alive",
+                  announcement: "Protect Mabini's Vibrant Coral Reefs",
+                  body: "Keep your Eco-Dive ID active before every dive.",
                 },
               ]}
-              ctaLabel="Find Trip"
-              onCtaPress={() => router.push("/dive-sites")}
             />
           )}
 
-          {/* Popular Dive Sites */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Popular Dive Sites</Text>
-            <TouchableOpacity onPress={() => router.push("/dive-sites")}>
-              <Text style={styles.seeAll}>See all</Text>
-            </TouchableOpacity>
-          </View>
-
-          {diveSitesLoading ? (
+          {diveSitesLoading && establishmentsLoading ? (
             <View style={styles.railPlaceholder}>
               <ActivityIndicator size="small" color={colors.primaryBlue} />
             </View>
-          ) : diveSitesError ? (
-            <ErrorState
-              message="Failed to load dive sites."
-              onRetry={loadDiveSites}
-            />
-          ) : diveSites.length === 0 ? (
-            <EmptyState
-              icon="map-outline"
-              message="No dive sites available yet."
-            />
-          ) : filteredDiveSites.length === 0 ? (
-            <EmptyState
-              icon="funnel-outline"
-              message="No dive sites match this filter."
-            />
-          ) : isDesktop || isTablet ? (
-            <View style={styles.gridRow}>
-              {filteredDiveSites.slice(0, 6).map((site, index) => (
-                <DiveSiteCard
-                  key={site.id}
-                  name={site.name}
-                  rating={site.rating}
-                  imageUrl={site.image_url}
-                  index={index}
-                  liked={favoriteIds.has(site.id)}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/dive-site/[id]",
-                      params: { id: site.id },
-                    })
-                  }
-                  onLike={() => handleToggleFavorite(site.id)}
-                />
-              ))}
-            </View>
           ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.diveSitesRow}
-            >
-              {filteredDiveSites.slice(0, 6).map((site, index) => (
-                <DiveSiteCard
-                  key={site.id}
-                  name={site.name}
-                  rating={site.rating}
-                  imageUrl={site.image_url}
-                  index={index}
-                  liked={favoriteIds.has(site.id)}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/dive-site/[id]",
-                      params: { id: site.id },
-                    })
-                  }
-                  onLike={() => handleToggleFavorite(site.id)}
+            <>
+              {/* Popular Dive Sites: Horizontal Carousel of Large Photographic Cards */}
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Popular Dive Sites</Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/dive-sites")}
+                  accessibilityRole="button"
+                  accessibilityLabel="See all popular dive sites"
+                >
+                  <Text style={styles.seeAll}>See all</Text>
+                </TouchableOpacity>
+              </View>
+
+              {diveSitesLoading ? (
+                <View style={styles.railPlaceholder}>
+                  <ActivityIndicator size="small" color={colors.primaryBlue} />
+                </View>
+              ) : diveSitesError ? (
+                <ErrorState
+                  message="Failed to load dive sites."
+                  onRetry={handleRetryDiveSites}
                 />
-              ))}
-            </ScrollView>
+              ) : diveSites.length === 0 ? (
+                <EmptyState
+                  icon="map-outline"
+                  message="No dive sites available yet."
+                />
+              ) : filteredDiveSites.length === 0 ? (
+                <EmptyState
+                  icon="funnel-outline"
+                  message="No dive sites match this filter."
+                />
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.diveSitesScroll}
+                  contentContainerStyle={styles.diveSitesCarousel}
+                >
+                  {filteredDiveSites.slice(0, 4).map((site, index) => (
+                    <DiveSiteCard
+                      key={site.id}
+                      name={site.name}
+                      location={site.barangay || "Mabini, Batangas"}
+                      depthRange={site.depth_range}
+                      difficulty={site.difficulty}
+                      rating={site.rating}
+                      imageUrl={site.image_url}
+                      photoUrl={site.photo_url}
+                      index={index}
+                      liked={favoriteIds.has(site.id)}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/dive-site/[id]",
+                          params: { id: site.id },
+                        })
+                      }
+                      onLike={() => handleToggleFavorite(site.id)}
+                    />
+                  ))}
+                </ScrollView>
+              )}
+
+              {/* Dive Resorts: Horizontal Information-Card Layout */}
+              <View style={[styles.sectionHeaderRow, { marginTop: 26 }]}>
+                <Text style={styles.sectionTitle}>Dive Resorts</Text>
+              </View>
+
+              {establishmentsLoading ? (
+                <View style={styles.railPlaceholder}>
+                  <ActivityIndicator size="small" color={colors.primaryBlue} />
+                </View>
+              ) : establishmentsError ? (
+                <ErrorState
+                  message="Failed to load dive resorts."
+                  onRetry={handleRetryEstablishments}
+                />
+              ) : establishments.length === 0 ? (
+                <EmptyState
+                  icon="business-outline"
+                  message="No accredited dive resorts yet."
+                />
+              ) : (
+                <View style={styles.resortsList}>
+                  {establishments.slice(0, 6).map((item, idx) => (
+                    <EstablishmentCard
+                      key={item.id}
+                      name={item.name}
+                      location={item.location}
+                      accreditation={item.accreditation}
+                      accredited={item.accredited}
+                      imageUrl={item.image_url}
+                      index={idx}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/establishment/[id]",
+                          params: { id: item.id },
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+              )}
+            </>
           )}
 
-          {/* Dive Establishments Near You */}
-          <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
-            <Text style={styles.sectionTitle}>
-              Dive Establishments Near You
-            </Text>
-            <TouchableOpacity onPress={() => router.push("/establishments")}>
-              <Text style={styles.seeAll}>See all</Text>
-            </TouchableOpacity>
-          </View>
-
-          {establishmentsLoading ? (
-            <View style={styles.railPlaceholder}>
-              <ActivityIndicator size="small" color={colors.primaryBlue} />
-            </View>
-          ) : establishmentsError ? (
-            <ErrorState
-              message="Failed to load establishments."
-              onRetry={loadEstablishments}
-            />
-          ) : establishments.length === 0 ? (
-            <EmptyState
-              icon="business-outline"
-              message="No accredited establishments yet."
-            />
-          ) : isDesktop || isTablet ? (
-            <View style={styles.establishmentsGrid}>
-              {establishments.slice(0, 4).map((item) => (
-                <EstablishmentCard
-                  key={item.id}
-                  name={item.name}
-                  location={item.location}
-                  accreditation={item.accreditation}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/establishment/[id]",
-                      params: { id: item.id },
-                    })
-                  }
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.establishmentsRow}>
-              {establishments.slice(0, 4).map((item) => (
-                <EstablishmentCard
-                  key={item.id}
-                  name={item.name}
-                  location={item.location}
-                  accreditation={item.accreditation}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/establishment/[id]",
-                      params: { id: item.id },
-                    })
-                  }
-                />
-              ))}
-            </View>
-          )}
-
-          <View style={{ height: 120 }} />
+          <View style={{ height: 24 }} />
         </ContentContainer>
       </ScrollView>
+
+      {/* Floating Notifications Popover (rendered above ScrollView so it never clips) */}
+      {notifOpen && (
+        <>
+          <Pressable
+            style={styles.notifBackdrop}
+            onPress={() => setNotifOpen(false)}
+            accessibilityLabel="Close notifications"
+          />
+          <View style={[styles.notifPopover, { width: notifWidth }]}>
+            <View style={styles.notifHeaderRow}>
+              <Text style={styles.notifHeaderTitle}>Notifications</Text>
+              <TouchableOpacity
+                onPress={() => setNotifOpen(false)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Close notifications panel"
+              >
+                <Ionicons name="close" size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {notifications.length === 0 ? (
+              <View style={styles.notifEmptyWrap}>
+                <Ionicons
+                  name="notifications-off-outline"
+                  size={28}
+                  color="#94A3B8"
+                />
+                <Text style={styles.notifEmptyText}>
+                  No notifications yet
+                </Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.notifListScroll}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                {notifications.map((notif) => {
+                  const icon = notifIcons[notif.type] || "ellipse";
+                  const iconColor = notifColors[notif.type] || colors.gray;
+                  return (
+                    <TouchableOpacity
+                      key={notif.id}
+                      style={[
+                        styles.notifItemRow,
+                        !notif.is_read && styles.notifItemUnread,
+                      ]}
+                      activeOpacity={0.75}
+                      onPress={() => {
+                        setNotifOpen(false);
+                        if (notif.deep_link) {
+                          router.push(notif.deep_link as any);
+                        }
+                      }}
+                    >
+                      <View
+                        style={[
+                          styles.notifItemIcon,
+                          { backgroundColor: iconColor + "18" },
+                        ]}
+                      >
+                        <Ionicons name={icon} size={16} color={iconColor} />
+                      </View>
+                      <View style={styles.notifItemBodyCol}>
+                        <Text
+                          style={styles.notifItemTitle}
+                          numberOfLines={1}
+                        >
+                          {notif.title}
+                        </Text>
+                        <Text
+                          style={styles.notifItemBody}
+                          numberOfLines={2}
+                        >
+                          {notif.body}
+                        </Text>
+                        <Text style={styles.notifItemTime}>
+                          {timeAgo(notif.created_at)}
+                        </Text>
+                      </View>
+                      {!notif.is_read && (
+                        <View style={styles.notifUnreadDot} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -725,6 +769,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.white,
+    position: "relative",
   },
   container: {
     flex: 1,
@@ -732,42 +777,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
-  headerRow: {
+  topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 24,
+    paddingTop: 2,
+    zIndex: 120,
   },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1,
+  logoImage: {
+    width: 152,
+    height: 42,
   },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primaryBlue,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTextWrap: {
-    alignItems: "flex-start",
-    flex: 1,
-  },
-  greeting: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.navy,
-  },
-  subGreeting: {
-    fontSize: 13,
-    color: colors.primaryBlue,
-    marginTop: 2,
-    fontWeight: "500",
-  },
-  headerActions: {
+  topBarActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -776,30 +798,165 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.white,
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#DBE8F4",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+  },
+  iconButtonActive: {
+    backgroundColor: "#EBF3FF",
+    borderColor: colors.primaryBlue,
+  },
+  notifBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 200,
+  },
+  notifPopover: {
+    position: "absolute",
+    top: 72,
+    right: 16,
+    maxWidth: 300,
+    maxHeight: 370,
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#DBE8F4",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 16,
+    zIndex: 210,
+    overflow: "hidden",
+  },
+  notifHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EDF2F7",
+    backgroundColor: "#F8FBFF",
+  },
+  notifHeaderTitle: {
+    fontSize: 15,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.darkText,
+  },
+  notifEmptyWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  notifEmptyText: {
+    fontSize: 13,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
+  },
+  notifListScroll: {
+    maxHeight: 310,
+  },
+  notifItemRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  notifItemUnread: {
+    backgroundColor: "#F0F7FF",
+  },
+  notifItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  notifItemBodyCol: {
+    flex: 1,
+    gap: 2,
+  },
+  notifItemTitle: {
+    fontSize: 13,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.darkText,
+  },
+  notifItemBody: {
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "#475569",
+    lineHeight: 16,
+  },
+  notifItemTime: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#94A3B8",
+    marginTop: 2,
+  },
+  notifUnreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primaryBlue,
+    marginTop: 6,
   },
   badge: {
     position: "absolute",
     top: -2,
     right: -2,
-    width: 16,
+    minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: colors.accentBlue,
+    paddingHorizontal: 3,
+    backgroundColor: colors.red,
     alignItems: "center",
     justifyContent: "center",
   },
   badgeText: {
     color: colors.white,
     fontSize: 9,
-    fontWeight: "600",
+    fontFamily: "Quicksand_700Bold",
+  },
+  avatarCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primaryBlue,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  greetingBlock: {
+    marginTop: 14,
+    paddingLeft: 10,
+  },
+  greetingTitle: {
+    fontSize: 22,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.darkText,
+    lineHeight: 28,
+  },
+  greetingSubtitle: {
+    fontSize: 13,
+    fontFamily: "Quicksand_500Medium",
+    color: "#657C9B",
+    marginTop: 2,
   },
   searchResultRow: {
     flexDirection: "row",
@@ -808,32 +965,46 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.grayBorder,
+    borderBottomColor: "#EDF2F7",
+  },
+  searchResultIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#EBF3FF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchResultTitle: {
     fontSize: 14,
-    fontWeight: "500",
+    fontFamily: "Quicksand_700Bold",
     color: colors.darkText,
   },
   searchResultSub: {
     fontSize: 12,
-    color: colors.gray,
-    marginTop: 2,
+    fontFamily: "Quicksand_500Medium",
+    color: "#657C9B",
+    marginTop: 1,
+  },
+  categoryScroll: {
+    flexGrow: 0,
+    marginTop: 12,
   },
   categoryRow: {
-    gap: 10,
-    paddingVertical: 4,
-    marginTop: 16,
+    gap: 8,
+    paddingVertical: 2,
   },
   categoryPill: {
+    flexGrow: 0,
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: colors.accentBlue,
-    borderRadius: 100,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "#DBE8F4",
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     backgroundColor: colors.white,
   },
   categoryPillActive: {
@@ -841,259 +1012,55 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryBlue,
   },
   categoryText: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
+    fontFamily: "Quicksand_600SemiBold",
     color: colors.primaryBlue,
   },
   categoryTextActive: {
     color: colors.white,
   },
+  heroPlaceholder: {
+    marginTop: 14,
+    height: 176,
+    borderRadius: 20,
+    backgroundColor: colors.grayLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 28,
+    marginTop: 20,
   },
   sectionTitle: {
-    fontSize: 19,
-    fontWeight: "700",
+    fontSize: 17,
+    fontFamily: "Quicksand_700Bold",
     color: colors.darkText,
     flexShrink: 1,
     paddingRight: 8,
   },
   seeAll: {
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: 12.5,
+    fontFamily: "Quicksand_600SemiBold",
     color: colors.primaryBlue,
   },
-  diveSitesRow: {
-    paddingTop: 16,
-    paddingBottom: 4,
-    gap: 14,
+  diveSitesScroll: {
+    flexGrow: 0,
   },
-  gridRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 14,
-    paddingTop: 16,
+  diveSitesCarousel: {
+    paddingTop: 12,
+    paddingBottom: 6,
+    gap: 12,
   },
-  establishmentsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: 16,
-  },
-  establishmentsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 14,
-    marginTop: 16,
-  },
-  heroPlaceholder: {
-    marginTop: 16,
-    height: 190,
-    borderRadius: 24,
-    backgroundColor: colors.grayLight,
-    alignItems: "center",
-    justifyContent: "center",
+  resortsList: {
+    marginTop: 12,
+    gap: 12,
   },
   railPlaceholder: {
     marginTop: 16,
-    height: 100,
+    height: 110,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  // ── Wider Screen Layout Styles ──
-  wideSafeArea: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  wideScroll: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  wideScrollContent: {
-    alignItems: "center",
-    paddingBottom: 60,
-  },
-  wideContainer: {
-    width: "94%",
-    maxWidth: 1200,
-  },
-  wideWelcomeBlock: {
-    marginTop: 12,
-    marginBottom: 16,
-  },
-  wideHiTitle: {
-    fontSize: 38,
-    fontWeight: "900",
-    color: "#0F172A",
-    letterSpacing: -0.5,
-  },
-  wideWelcomeSub: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#475569",
-    marginTop: 4,
-  },
-  wideHeroBannerWrap: {
-    width: "100%",
-    height: 380,
-    borderRadius: 28,
-    overflow: "hidden",
-    backgroundColor: "#0B192C",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-  },
-  wideHeroImage: {
-    width: "100%",
-    height: "100%",
-  },
-  wideDotsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 14,
-    marginBottom: 20,
-  },
-  wideDotActive: {
-    width: 22,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#16145A",
-  },
-  wideDot: {
-    width: 6,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#CBD5E1",
-  },
-  wideSectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  wideSectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-  wideSeeAll: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#005EEC",
-  },
-  wideCardsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 14,
-    paddingVertical: 14,
-    width: "100%",
-  },
-  wideCard: {
-    flex: 1,
-    height: 245,
-    borderRadius: 22,
-    overflow: "hidden",
-    backgroundColor: "#0F172A",
-    position: "relative",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    borderWidth: 1.5,
-    borderColor: "transparent",
-  },
-  wideCardActive: {
-    height: 260,
-    transform: [{ translateY: -8 }],
-    shadowColor: "#005EEC",
-    shadowOpacity: 0.45,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 12,
-    borderColor: "rgba(0, 94, 236, 0.45)",
-    borderWidth: 2,
-    zIndex: 10,
-  },
-  wideCardImage: {
-    width: "100%",
-    height: "100%",
-  },
-  wideCardOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 10,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
-  },
-  wideCardBottomLeft: {
-    alignItems: "flex-start",
-  },
-  wideCardPill: {
-    backgroundColor: "rgba(15, 23, 42, 0.72)",
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  wideCardPillText: {
-    color: "#FFFFFF",
-    fontSize: 10.5,
-    fontWeight: "700",
-  },
-  wideRatingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 2,
-  },
-  wideRatingText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  wideHeartBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  wideSearchResultsBox: {
-    position: "absolute",
-    top: 75,
-    left: "5%",
-    right: "5%",
-    maxWidth: 1200,
-    alignSelf: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 12,
-    zIndex: 150,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 10,
   },
 });

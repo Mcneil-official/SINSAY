@@ -22,6 +22,7 @@ interface DropdownProps {
   options: DropdownOption[];
   onSelect: (value: string) => void;
   error?: string;
+  fontFamily?: string;
 }
 
 export function Dropdown({
@@ -31,13 +32,14 @@ export function Dropdown({
   options,
   onSelect,
   error,
+  fontFamily,
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
 
   return (
     <View style={styles.wrapper}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text style={[styles.label, fontFamily ? { fontFamily } : null]}>{label}</Text> : null}
       <TouchableOpacity
         style={[styles.trigger, error && styles.triggerError]}
         onPress={() => setOpen(true)}
@@ -46,12 +48,12 @@ export function Dropdown({
         accessibilityState={{ expanded: open }}
         accessibilityLabel={label ? `${label}: ${selected ? selected.label : placeholder}` : placeholder}
       >
-        <Text style={[styles.triggerText, !selected && styles.placeholder]}>
+        <Text style={[styles.triggerText, !selected && styles.placeholder, fontFamily ? { fontFamily } : null]}>
           {selected ? selected.label : placeholder}
         </Text>
         <Ionicons name="chevron-down" size={16} color={colors.gray} />
       </TouchableOpacity>
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? <Text style={[styles.errorText, fontFamily ? { fontFamily } : null]}>{error}</Text> : null}
 
       <Modal visible={open} transparent animationType="fade">
         <TouchableOpacity
@@ -60,7 +62,7 @@ export function Dropdown({
           onPress={() => setOpen(false)}
         >
           <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>{label || placeholder}</Text>
+            <Text style={[styles.sheetTitle, fontFamily ? { fontFamily } : null]}>{label || placeholder}</Text>
             <FlatList
               data={options}
               keyExtractor={(item) => item.value}
@@ -82,6 +84,7 @@ export function Dropdown({
                     style={[
                       styles.optionText,
                       item.value === value && styles.optionTextSelected,
+                      fontFamily ? { fontFamily } : null,
                     ]}
                   >
                     {item.label}

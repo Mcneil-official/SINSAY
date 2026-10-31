@@ -21,14 +21,6 @@ function OperatorGate() {
     }
   }, [isLoading, roleReady, user, isOperator, viewAsTourist, router]);
 
-  if (isLoading || !roleReady) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" color={colors.primaryBlue} />
-      </View>
-    );
-  }
-
   return null;
 }
 

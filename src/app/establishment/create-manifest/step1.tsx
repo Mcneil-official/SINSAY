@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -14,7 +16,7 @@ import {
   TextInput as NativeInput,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { TextInput, Dropdown, ContentContainer, DateField } from "../../../components";
+import { TextInput as SharedTextInput, Dropdown as SharedDropdown, ContentContainer, DateField as SharedDateField } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 import { deleteDraft, saveDraft } from "../../../lib/manifestDrafts";
@@ -32,15 +34,13 @@ const diveModes = [
   { label: "Night Dive", value: "Night Dive" },
 ];
 
-const locations = [
-  { label: "Anilao Cove, Mabini", value: "Anilao Cove, Mabini" },
-  { label: "Sombrero Island", value: "Sombrero Island" },
-  { label: "Sepoc Beach", value: "Sepoc Beach" },
-  { label: "Mainit Point", value: "Mainit Point" },
-  { label: "Tingloy Reef", value: "Tingloy Reef" },
-  { label: "Arthur's Rock", value: "Arthur's Rock" },
-  { label: "Secret Bay", value: "Secret Bay" },
-];
+const FORM_FONT = "Quicksand_500Medium";
+const TextInput = (props: React.ComponentProps<typeof SharedTextInput>) =>
+  <SharedTextInput {...props} fontFamily={FORM_FONT} />;
+const Dropdown = (props: React.ComponentProps<typeof SharedDropdown>) =>
+  <SharedDropdown {...props} fontFamily={FORM_FONT} />;
+const DateField = (props: React.ComponentProps<typeof SharedDateField>) =>
+  <SharedDateField {...props} fontFamily={FORM_FONT} />;
 
 const difficulties = [
   { label: "Beginner", value: "Beginner" },
@@ -153,15 +153,19 @@ export default function CreateManifestStep1() {
 
   const [diveType, setDiveType] = useState((initialDraft.diveType as string) ?? "Scuba Diving");
   const [diveMode, setDiveMode] = useState((initialDraft.diveMode as string) ?? "Boat Dive");
-  const [location, setLocation] = useState((initialDraft.location as string) ?? "Anilao Cove, Mabini");
+  const [location, setLocation] = useState((initialDraft.location as string) ?? "");
+  const [diveSiteOptions, setDiveSiteOptions] = useState<{ label: string; value: string }[]>([]);
+  const [diveSitesLoading, setDiveSitesLoading] = useState(true);
+  const [diveSitesError, setDiveSitesError] = useState(false);
+  const [diveSitesReloadKey, setDiveSitesReloadKey] = useState(0);
   const [difficulty, setDifficulty] = useState((initialDraft.difficulty as string) ?? "Beginner");
 
   // Boat details
-  const [boatName, setBoatName] = useState((initialDraft.boatName as string) ?? "MV Bantay Dagat II");
-  const [captainName, setCaptainName] = useState((initialDraft.captainName as string) ?? "Capt. Roberto Cruz");
-  const [crewCount, setCrewCount] = useState((initialDraft.crewCount as string) ?? "3");
+  const [boatName, setBoatName] = useState((initialDraft.boatName as string) ?? "");
+  const [captainName, setCaptainName] = useState((initialDraft.captainName as string) ?? "");
+  const [crewCount, setCrewCount] = useState((initialDraft.crewCount as string) ?? "");
   const [maxDivers, setMaxDivers] = useState((initialDraft.maxDivers as string) ?? "22");
-  const [boatContact, setBoatContact] = useState((initialDraft.boatContact as string) ?? "+63 917 123 4567");
+  const [boatContact, setBoatContact] = useState((initialDraft.boatContact as string) ?? "");
 
   // Instructor / Duty of Care
   const [instructorName, setInstructorName] = useState((initialDraft.instructorName as string) ?? "Instructor Marco Valerio");
@@ -194,6 +198,17 @@ export default function CreateManifestStep1() {
   // touristIds the operator chose to cover with an annual slot on submit.
   const [annualAssigned, setAnnualAssigned] = useState<string[]>([]);
   const [searchError, setSearchError] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const isBoatDive = diveMode === "Boat Dive";
+  const wizardSteps = isBoatDive
+    ? ["Dive Details", "Boat & Crew", "Divers", "Safety & Review"]
+    : ["Dive Details", "Divers", "Safety & Review"];
+  const stepDescriptions = isBoatDive
+    ? ["Set the date, dive type, and site", "Add the vessel and crew", "Build the diver roster", "Review safety and pass use"]
+    : ["Set the date, dive type, and site", "Build the diver roster", "Review safety and pass use"];
+  const diverStepIndex = isBoatDive ? 2 : 1;
+  const reviewStepIndex = wizardSteps.length - 1;
 
   // Modal State for Add Diver
   const [showAddModal, setShowAddModal] = useState(false);
@@ -210,6 +225,42 @@ export default function CreateManifestStep1() {
       router.replace("/loginpage");
     }
   }, [user, router]);
+
+  useEffect(() => {
+    let active = true;
+    setDiveSitesLoading(true);
+    setDiveSitesError(false);
+    (async () => {
+      try {
+        const { data, error: sitesError } = await supabase
+          .from("dive_sites")
+          .select("id, name, barangay, status")
+          .order("name", { ascending: true });
+        if (sitesError) throw sitesError;
+        if (!active) return;
+        const options = (data ?? [])
+          .filter((site) => !site.status || site.status.toLowerCase() !== "restricted")
+          .map((site) => ({
+            label: site.barangay ? `${site.name} · ${site.barangay}` : site.name,
+            value: site.name,
+          }));
+        setDiveSiteOptions(options);
+        setDiveSitesLoading(false);
+      } catch (sitesError) {
+        console.warn("Failed to load dive sites:", sitesError);
+        if (!active) return;
+        setDiveSitesError(true);
+        setDiveSitesLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [diveSitesReloadKey]);
+
+  // Retain a saved location from an older local draft even if that site is no
+  // longer listed. New selections always come from the current database list.
+  const locationOptions = location && !diveSiteOptions.some((site) => site.value === location)
+    ? [...diveSiteOptions, { label: `${location} (saved draft)`, value: location }]
+    : diveSiteOptions;
 
   const loadLedger = async () => {
     if (!user) return;
@@ -319,8 +370,11 @@ export default function CreateManifestStep1() {
   const hasEnoughPasses = !passesLoading && !passesError && remainingPasses >= passesNeeded;
   const dateValid =
     isValidCalendarDate(diveDate) && diveDate >= todayLocal();
+  const locationValid = diveSiteOptions.some((site) => site.value === location);
   const maxDiversNum = Number(maxDivers);
   const maxDiversValid = Number.isInteger(maxDiversNum) && maxDiversNum > 0;
+  const capacityPercent = maxDiversValid ? Math.min(100, (divers.length / maxDiversNum) * 100) : 0;
+  const maxDiversDisplay = maxDiversValid ? String(maxDiversNum) : "—";
   // crew_count is an integer column — reject "3.5"/"abc" up front instead of
   // surfacing a raw PG error after submit.
   const crewTrimmed = crewCount.trim();
@@ -328,16 +382,26 @@ export default function CreateManifestStep1() {
   const crewCountValid =
     crewTrimmed === "" ||
     (Number.isInteger(crewCountNum) && (crewCountNum as number) >= 0);
-  const canSubmit =
+  const boatDetailsValid =
+    !isBoatDive ||
+    Boolean(
+      boatName.trim() &&
+      captainName.trim() &&
+      crewTrimmed !== "" &&
+      crewCountValid &&
+      boatContact.trim(),
+    );
+  const canSubmit = Boolean(
     divers.length > 0 &&
-    boatName.trim() &&
-    captainName.trim() &&
+    locationValid &&
+    boatDetailsValid &&
     maxDiversValid &&
-    crewCountValid &&
+    (!isBoatDive || crewCountValid) &&
     divers.length <= maxDiversNum &&
     hasEnoughPasses &&
     dateValid &&
-    !saving;
+    !saving
+  );
 
   // Search tourists in Supabase: name contains-match + exact Eco-Dive ID
   // match (Eco IDs look like ECO-2026-…, so only attempt the ID lookup for
@@ -512,6 +576,60 @@ export default function CreateManifestStep1() {
     }
   };
 
+  const goToPreviousStep = () => {
+    setError("");
+    setDateError("");
+    setCurrentStep((step) => Math.max(0, step - 1));
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  const goToNextStep = () => {
+    setError("");
+    if (currentStep === 0) {
+      if (diveSitesLoading || diveSitesError || diveSiteOptions.length === 0) {
+        setError(diveSitesLoading ? "Wait for dive sites to load before continuing." : "Dive sites are unavailable. Try reloading the list.");
+        return;
+      }
+      if (!location || !diveSiteOptions.some((site) => site.value === location)) {
+        setError("Choose a dive location from the available dive sites.");
+        return;
+      }
+      if (!isValidCalendarDate(diveDate)) {
+        setDateError("Enter a valid dive date (YYYY-MM-DD).");
+        setError("Check the dive date before continuing.");
+        return;
+      }
+      if (diveDate < todayLocal()) {
+        setDateError("Dive date cannot be in the past.");
+        setError("Choose today or a future date to continue.");
+        return;
+      }
+      setDateError("");
+    }
+    if (isBoatDive && currentStep === 1) {
+      if (!boatName.trim() || !captainName.trim() || !boatContact.trim()) {
+        setError("Enter the boat name, captain, and boat contact to continue.");
+        return;
+      }
+      if (crewTrimmed === "" || !crewCountValid) {
+        setError("Enter a whole-number crew count to continue.");
+        return;
+      }
+    }
+    if (currentStep === diverStepIndex) {
+      if (divers.length === 0) {
+        setError("Add at least one diver to continue.");
+        return;
+      }
+      if (!maxDiversValid || divers.length > maxDiversNum) {
+        setError("The diver roster exceeds the maximum group capacity. Update the capacity or roster.");
+        return;
+      }
+    }
+    setCurrentStep((step) => Math.min(wizardSteps.length - 1, step + 1));
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
     if (!isValidCalendarDate(diveDate)) {
@@ -523,8 +641,12 @@ export default function CreateManifestStep1() {
       return;
     }
     if (!canSubmit) {
-      if (!crewCountValid) {
+      if (isBoatDive && !crewCountValid) {
         setError("Crew count must be a whole number.");
+        return;
+      }
+      if (isBoatDive && !boatDetailsValid) {
+        setError("Complete the boat and crew details before submitting.");
         return;
       }
       setError("Please complete all required fields and add at least one diver.");
@@ -551,10 +673,10 @@ export default function CreateManifestStep1() {
           p_dive_mode: diveMode,
           p_location: location,
           p_difficulty: difficulty,
-          p_boat_name: boatName.trim(),
-          p_captain_name: captainName.trim() || null,
-          p_boat_contact: boatContact.trim() || null,
-          p_crew_count: crewCountNum,
+          p_boat_name: isBoatDive ? boatName.trim() : null,
+          p_captain_name: isBoatDive ? captainName.trim() : null,
+          p_boat_contact: isBoatDive ? boatContact.trim() : null,
+          p_crew_count: isBoatDive ? crewCountNum : null,
           p_instructor_name: instructorName.trim() || null,
           p_max_divers: maxDiversNum,
           p_dive_date: diveDate,
@@ -589,8 +711,8 @@ export default function CreateManifestStep1() {
           manifestId: String(result.manifest_id),
           location,
           diverCount: divers.length,
-          boatName: boatName.trim(),
-          captainName: captainName.trim(),
+          boatName: isBoatDive ? boatName.trim() : "",
+          captainName: isBoatDive ? captainName.trim() : "",
           remainingBalance: String(result.remaining),
         },
       });
@@ -614,102 +736,75 @@ export default function CreateManifestStep1() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Top Bar matching design */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color="#0F172A" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back to manifests"
+        >
+          <Ionicons name="chevron-back" size={22} color="#12316c" />
         </TouchableOpacity>
         <View style={styles.headerTitles}>
-          <Text style={styles.headerTitle}>Create Dive Manifest</Text>
-          <Text style={styles.headerSubtitle}>Submit a digital manifest to the Tourism Office</Text>
+          <Text style={styles.headerEyebrow}>OPERATOR · MANIFESTS</Text>
+          <Text style={styles.headerTitle}>New dive manifest</Text>
+          <Text style={styles.headerSubtitle}>A guided setup for your next trip</Text>
+        </View>
+        <View style={styles.headerStepPill}>
+          <Text style={styles.headerStepText}>{currentStep + 1}/{wizardSteps.length}</Text>
         </View>
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <ContentContainer maxWidth={720}>
-          {/* 4-Step Progress Indicator */}
-          <View style={styles.stepperWrap}>
-            <View style={styles.stepItem}>
-              <View style={[styles.stepCircle, styles.stepCompleted]}>
-                <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+      <KeyboardAvoidingView
+        style={styles.formBody}
+        behavior={Platform.OS === "ios" ? "padding" : Platform.OS === "android" ? "height" : undefined}
+      >
+      <ScrollView
+        ref={scrollRef}
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <ContentContainer maxWidth={480} paddingH={14}>
+          <View style={styles.progressCard} accessibilityRole="progressbar" accessibilityValue={{ min: 1, max: wizardSteps.length, now: currentStep + 1 }}>
+            <View style={styles.progressHeadingRow}>
+              <View style={styles.progressTitleGroup}>
+                <Text style={styles.progressEyebrow}>STEP {currentStep + 1} OF {wizardSteps.length}</Text>
+                <Text style={styles.progressCurrent}>{wizardSteps[currentStep]}</Text>
               </View>
-              <Text style={styles.stepLabel}>Dive Info</Text>
+              <Text style={styles.progressDescription}>{stepDescriptions[currentStep]}</Text>
             </View>
-
-            <View style={[styles.stepLine, styles.stepLineActive]} />
-
-            <View style={styles.stepItem}>
-              <View style={[styles.stepCircle, styles.stepActive]}>
-                <Text style={styles.stepNumberActive}>2</Text>
-              </View>
-              <Text style={[styles.stepLabel, styles.stepLabelActive]}>Boat Details</Text>
-            </View>
-
-            <View style={styles.stepLine} />
-
-            <View style={styles.stepItem}>
-              <View style={styles.stepCircle}>
-                <Text style={styles.stepNumber}>3</Text>
-              </View>
-              <Text style={styles.stepLabel}>Add Divers</Text>
-            </View>
-
-            <View style={styles.stepLine} />
-
-            <View style={styles.stepItem}>
-              <View style={styles.stepCircle}>
-                <Text style={styles.stepNumber}>4</Text>
-              </View>
-              <Text style={styles.stepLabel}>Submit</Text>
+            <View style={styles.progressSteps}>
+              {wizardSteps.map((label, index) => {
+                const active = index === currentStep;
+                const complete = index < currentStep;
+                return (
+                  <View key={label} style={styles.progressStep}>
+                    <View style={[styles.progressNode, active && styles.progressNodeActive, complete && styles.progressNodeComplete]}>
+                      {complete ? <Ionicons name="checkmark" size={11} color="#FFFFFF" /> : <Text style={[styles.progressNodeText, active && styles.progressNodeTextActive]}>{index + 1}</Text>}
+                    </View>
+                    {index < wizardSteps.length - 1 && <View style={[styles.progressConnector, complete && styles.progressConnectorComplete]} />}
+                    <Text numberOfLines={2} style={[styles.progressStepLabel, active && styles.progressStepLabelActive, complete && styles.progressStepLabelComplete]}>
+                      {label}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
 
-          {/* Form Fields - Two Columns */}
-          <View style={styles.twoColRow}>
-            <View style={{ flex: 1 }}>
-              <Dropdown
-                label="Dive Type"
-                placeholder="Select dive type"
-                value={diveType}
-                options={diveTypes}
-                onSelect={setDiveType}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Dropdown
-                label="Mode of Diving"
-                placeholder="Select mode"
-                value={diveMode}
-                options={diveModes}
-                onSelect={setDiveMode}
-              />
-            </View>
-          </View>
-
-          <View style={styles.twoColRow}>
-            <View style={{ flex: 1 }}>
-              <Dropdown
-                label="Dive Location"
-                placeholder="Select location"
-                value={location}
-                options={locations}
-                onSelect={setLocation}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Dropdown
-                label="Diving Difficulty"
-                placeholder="Select difficulty"
-                value={difficulty}
-                options={difficulties}
-                onSelect={setDifficulty}
-              />
-            </View>
-          </View>
-
-          {/* Boat Details Card */}
+          {/* Dive Details */}
+          {currentStep === 0 && (
           <View style={styles.cardBox}>
-            <Text style={styles.cardHeaderTitle}>⛵ Boat Details</Text>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.sectionIcon}><Ionicons name="water" size={17} color="#087bff" /></View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={styles.cardHeaderTitle}>Dive Details</Text>
+                <Text style={styles.sectionHint}>Choose the trip type, date, and conditions</Text>
+              </View>
+            </View>
             <DateField
               label="Dive Date"
               value={diveDate}
@@ -720,6 +815,60 @@ export default function CreateManifestStep1() {
               error={dateError || undefined}
               min={todayLocal()}
             />
+            <Dropdown
+              label="Dive Type"
+              placeholder="Select dive type"
+              value={diveType}
+              options={diveTypes}
+              onSelect={setDiveType}
+            />
+            <Dropdown
+              label="Mode of Diving"
+              placeholder="Select mode"
+              value={diveMode}
+              options={diveModes}
+              onSelect={setDiveMode}
+            />
+            <Dropdown
+              label="Dive Location"
+              placeholder={diveSitesLoading ? "Loading dive sites…" : diveSitesError ? "Dive sites unavailable" : "Select a dive site"}
+              value={location}
+              options={locationOptions}
+              onSelect={setLocation}
+            />
+            {diveSitesError ? (
+              <TouchableOpacity
+                style={styles.siteRetryButton}
+                onPress={() => setDiveSitesReloadKey((key) => key + 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Reload dive sites"
+              >
+                <Ionicons name="refresh" size={14} color="#006bff" />
+                <Text style={styles.siteRetryText}>Couldn&apos;t load dive sites · Tap to retry</Text>
+              </TouchableOpacity>
+            ) : !diveSitesLoading && diveSiteOptions.length === 0 ? (
+              <Text style={styles.siteRetryText}>No dive sites are available right now.</Text>
+            ) : null}
+            <Dropdown
+              label="Diving Difficulty"
+              placeholder="Select difficulty"
+              value={difficulty}
+              options={difficulties}
+              onSelect={setDifficulty}
+            />
+          </View>
+          )}
+
+          {/* Boat Details */}
+          {isBoatDive && currentStep === 1 && (
+          <View style={styles.cardBox}>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.sectionIcon}><Ionicons name="boat" size={17} color="#087bff" /></View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={styles.cardHeaderTitle}>Boat & Crew</Text>
+                <Text style={styles.sectionHint}>Required for a boat dive</Text>
+              </View>
+            </View>
             <TextInput
               label="Boat Name"
               placeholder="MV Bantay Dagat II"
@@ -732,26 +881,13 @@ export default function CreateManifestStep1() {
               value={captainName}
               onChangeText={setCaptainName}
             />
-            <View style={styles.twoColRow}>
-              <View style={{ flex: 1 }}>
-                <TextInput
-                  label="Crew Count"
-                  placeholder="3"
-                  value={crewCount}
-                  onChangeText={setCrewCount}
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <TextInput
-                  label="Max Capacity"
-                  placeholder="22"
-                  value={maxDivers}
-                  onChangeText={setMaxDivers}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
+            <TextInput
+              label="Crew Count"
+              placeholder="Enter crew count"
+              value={crewCount}
+              onChangeText={setCrewCount}
+              keyboardType="numeric"
+            />
             <TextInput
               label="Boat Contact #"
               placeholder="+63 917 xxx xxxx"
@@ -759,24 +895,69 @@ export default function CreateManifestStep1() {
               onChangeText={setBoatContact}
             />
           </View>
+          )}
 
           {/* Diver List Section */}
+          {currentStep === diverStepIndex && (
+          <>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeading}>Diver List ({divers.length} added)</Text>
+            <View style={styles.diverSectionTitle}>
+              <View style={styles.sectionIcon}><Ionicons name="people" size={17} color="#087bff" /></View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={styles.sectionHeading}>Divers</Text>
+                <Text style={styles.sectionHint}>{divers.length} added · {maxDiversDisplay} maximum</Text>
+              </View>
+            </View>
             <TouchableOpacity
               style={styles.orangeAddPill}
               activeOpacity={0.85}
               onPress={() => setShowAddModal(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Add diver"
             >
-              <Text style={styles.orangeAddPillText}>+ Add Diver</Text>
+              <Ionicons name="add" size={17} color="#FFFFFF" />
+              <Text style={styles.orangeAddPillText}>Add Diver</Text>
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.capacityCard}>
+            <View style={styles.capacityTopRow}>
+              <View style={styles.capacityCopy}>
+                <Text style={styles.capacityTitle}>Group capacity</Text>
+                <Text style={styles.capacityHint}>{divers.length} of {maxDiversDisplay} spots filled</Text>
+              </View>
+              <View style={styles.capacityInputWrap}>
+                <NativeInput
+                  value={maxDivers}
+                  onChangeText={setMaxDivers}
+                  keyboardType="number-pad"
+                  style={styles.capacityInput}
+                  accessibilityLabel="Maximum divers for this manifest"
+                />
+                <Text style={styles.capacityUnit}>max</Text>
+              </View>
+            </View>
+            <View style={styles.capacityProgressTrack} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: maxDiversValid ? maxDiversNum : 0, now: divers.length }}>
+              <View style={[styles.capacityProgressFill, { width: `${capacityPercent}%` }]} />
+            </View>
           </View>
 
           <View style={styles.diverCardList}>
             {divers.length === 0 && (
-              <Text style={styles.noDiversText}>
-                No divers added yet. Tap + Add Diver to search registered tourists or encode a walk-in.
-              </Text>
+              <View style={styles.noDiversCard}>
+                <Ionicons name="person-add-outline" size={22} color="#1682ff" />
+                <Text style={styles.noDiversText}>
+                  No divers added yet. Search for a registered tourist or add a walk-in.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyAddButton}
+                  onPress={() => setShowAddModal(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add the first diver"
+                >
+                  <Text style={styles.emptyAddText}>Add the first diver</Text>
+                </TouchableOpacity>
+              </View>
             )}
             {divers.map((d) => {
               const covered = isCovered(d);
@@ -867,96 +1048,181 @@ export default function CreateManifestStep1() {
               );
             })}
           </View>
+          </>
+          )}
 
-          {/* Duty of Care Section */}
-          <View style={[styles.sectionHeaderRow, { marginTop: 20 }]}>
-            <Text style={styles.sectionHeading}>Duty of Care</Text>
+          {/* Duty of Care */}
+          {currentStep === reviewStepIndex && (
+          <>
+          <View style={styles.cardBox}>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.sectionIcon}><Ionicons name="shield-checkmark" size={17} color="#087bff" /></View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={styles.cardHeaderTitle}>Duty of Care</Text>
+                <Text style={styles.sectionHint}>Instructor and optional briefing notes</Text>
+              </View>
+            </View>
+            <TextInput
+              label="Instructor Name"
+              placeholder="Instructor name"
+              value={instructorName}
+              onChangeText={setInstructorName}
+            />
+            <TextInput
+              label="Duty of Care Notes (optional)"
+              placeholder="Briefing points or relevant safety notes"
+              value={dutyNotes}
+              onChangeText={setDutyNotes}
+              multiline
+            />
           </View>
-          <TextInput
-            placeholder="Instructor Name"
-            value={instructorName}
-            onChangeText={setInstructorName}
-          />
-          {/* Optional free-text notes (briefing points, medical notes,
-              special needs). Stored on the manifest only — never affects
-              credits and never blocks submit. */}
-          <TextInput
-            label="Duty of Care Notes (optional)"
-            placeholder="e.g. Beginner-heavy group, extra briefing on equalizing; one diver with mild asthma — cleared to dive"
-            value={dutyNotes}
-            onChangeText={setDutyNotes}
-            multiline
-          />
 
-          {/* Pass Deduction Alert Banner */}
-          <View style={styles.deductionBanner}>
-            <Text style={styles.deductionText}>
-              {passesLoading
-                ? "Checking your dive passes…"
-                : `${passesNeeded} dive pass${passesNeeded === 1 ? "" : "es"} will be deducted. Remaining after submission: ${Math.max(0, remainingPasses - passesNeeded)} passes`}
-            </Text>
-            {annualSlots > 0 && !passesLoading && (
-              <Text style={styles.deductionSub}>
-                {annualSlots} annual slot{annualSlots === 1 ? "" : "s"} available
+          <View style={styles.cardBox}>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.sectionIcon}><Ionicons name="clipboard-outline" size={17} color="#087bff" /></View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={styles.cardHeaderTitle}>Review Manifest</Text>
+                <Text style={styles.sectionHint}>Confirm the trip and diver details before submitting</Text>
+              </View>
+            </View>
+            <View style={styles.reviewList}>
+              {[
+                ["Dive", `${diveDate} · ${diveType} · ${diveMode}`],
+                ["Location", `${location} · ${difficulty}`],
+                ...(isBoatDive ? [["Boat", `${boatName} · ${captainName}`]] : []),
+                ["Divers", `${divers.length} of ${maxDiversDisplay} spots`],
+              ].map(([label, value]) => (
+                <View key={label} style={styles.reviewRow}>
+                  <Text style={styles.reviewLabel}>{label}</Text>
+                  <Text style={styles.reviewValue}>{value}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Passes & Submission */}
+          <View style={styles.cardBox}>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.sectionIcon}><Ionicons name="ticket" size={17} color="#087bff" /></View>
+              <View style={styles.sectionTitleCopy}>
+                <Text style={styles.cardHeaderTitle}>Passes & Submission</Text>
+                <Text style={styles.sectionHint}>Review pass use before submitting</Text>
+              </View>
+            </View>
+            <View style={styles.deductionBanner}>
+              <View style={styles.deductionIcon}><Ionicons name="ticket-outline" size={17} color="#16835e" /></View>
+              <View style={styles.deductionCopy}>
+                <Text style={styles.deductionText}>
+                  {passesLoading
+                    ? "Checking your dive passes?"
+                    : `${passesNeeded} dive pass${passesNeeded === 1 ? "" : "es"} will be deducted. Remaining after submission: ${Math.max(0, remainingPasses - passesNeeded)} passes`}
+                </Text>
+                {annualSlots > 0 && !passesLoading && (
+                  <Text style={styles.deductionSub}>
+                    {annualSlots} annual slot{annualSlots === 1 ? "" : "s"} available
+                  </Text>
+                )}
+              </View>
+            </View>
+            {passesError && (
+              <View style={styles.passesErrorRow}>
+                <Text style={styles.errorText}>Couldn&apos;t load your dive passes.</Text>
+                <TouchableOpacity onPress={loadLedger} hitSlop={8}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {divers.length > 0 && !passesLoading && !passesError && !hasEnoughPasses && (
+              <Text style={styles.insufficientText}>
+                Not enough dive passes remaining ({remainingPasses}). You need {passesNeeded - remainingPasses} more.
               </Text>
             )}
+
           </View>
-          {passesError && (
-            <View style={styles.passesErrorRow}>
-              <Text style={styles.errorText}>Couldn&apos;t load your dive passes.</Text>
-              <TouchableOpacity onPress={loadLedger} hitSlop={8}>
-                <Text style={styles.retryText}>Retry</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {divers.length > 0 && !passesLoading && !passesError && !hasEnoughPasses && (
-            <Text style={styles.insufficientText}>
-              Not enough dive passes remaining ({remainingPasses}). You need {passesNeeded - remainingPasses} more.
-            </Text>
+          </>
           )}
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.blueSubmitBtn, !canSubmit && styles.blueSubmitBtnDisabled]}
-            activeOpacity={0.88}
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-          >
-            {saving ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.blueSubmitBtnText}>Submit</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Local draft: unsubmitted forms live on this device only (see
-              Drafts tab) — never sent to the DB, never consuming passes. */}
-          <TouchableOpacity
-            style={styles.draftBtn}
-            activeOpacity={0.85}
-            onPress={handleSaveDraft}
-            accessibilityRole="button"
-            accessibilityLabel="Save draft on this device"
-          >
-            <Text style={styles.draftBtnText}>
-              {draftSavedTick ? "Draft saved on this device ✓" : "Save Draft"}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={{ height: 100 }} />
         </ContentContainer>
       </ScrollView>
 
+      <View style={styles.wizardFooter}>
+        {error ? (
+          <View style={styles.wizardErrorBox}>
+            <Ionicons name="alert-circle" size={16} color="#b6223a" />
+            <Text style={styles.wizardError}>{error}</Text>
+          </View>
+        ) : null}
+        <TouchableOpacity
+          style={styles.draftBtn}
+          activeOpacity={0.85}
+          onPress={handleSaveDraft}
+          accessibilityRole="button"
+          accessibilityLabel="Save draft on this device"
+        >
+          <Ionicons name={draftSavedTick ? "checkmark-circle" : "save-outline"} size={17} color="#006bff" />
+          <Text style={styles.draftBtnText}>
+            {draftSavedTick ? "Draft saved on this device" : "Save Draft"}
+          </Text>
+        </TouchableOpacity>
+        <View style={styles.wizardNavRow}>
+          {currentStep > 0 ? (
+            <TouchableOpacity
+              style={styles.wizardBackBtn}
+              onPress={goToPreviousStep}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Go to previous step"
+            >
+              <Ionicons name="arrow-back" size={17} color="#006bff" />
+              <Text style={styles.wizardBackText}>Back</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity
+            style={[
+              styles.wizardNextBtn,
+              currentStep === 0 && styles.wizardNextBtnFirst,
+            currentStep === reviewStepIndex && (!canSubmit || saving) && styles.wizardActionDisabled,
+            ]}
+            activeOpacity={0.88}
+            onPress={currentStep === reviewStepIndex ? handleSubmit : goToNextStep}
+            disabled={currentStep === reviewStepIndex && (!canSubmit || saving)}
+            accessibilityRole="button"
+            accessibilityLabel={currentStep === reviewStepIndex ? "Submit manifest" : `Continue to ${wizardSteps[currentStep + 1]}`}
+            accessibilityState={{ disabled: currentStep === reviewStepIndex && (!canSubmit || saving) }}
+          >
+            {currentStep === reviewStepIndex && saving ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.wizardNextText}>{currentStep === reviewStepIndex ? "Submit Manifest" : "Continue"}</Text>
+                <Ionicons name={currentStep === reviewStepIndex ? "checkmark" : "arrow-forward"} size={17} color="#FFFFFF" />
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+      </KeyboardAvoidingView>
+
       {/* Add Diver Modal matching add-diver-divemanifesto.jpg */}
-      <Modal visible={showAddModal} transparent animationType="fade">
+      <Modal
+        visible={showAddModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalHeading}>Add Diver to Manifest</Text>
             <Text style={styles.modalSubheading}>
               Search existing tourist or encode new
             </Text>
+
+            <ScrollView
+              style={styles.modalContentScroll}
+              contentContainerStyle={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
 
             {/* Search Tourist: name contains-match + exact Eco-Dive ID */}
             <Text style={styles.fieldTitle}>Search Tourist (Name or exact Eco-Dive ID)</Text>
@@ -1041,6 +1307,8 @@ export default function CreateManifestStep1() {
               </View>
             </View>
 
+            </ScrollView>
+
             {/* Modal Buttons Row */}
             <View style={styles.modalBtnRow}>
               <TouchableOpacity
@@ -1066,430 +1334,367 @@ export default function CreateManifestStep1() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
+  safeArea: { flex: 1, backgroundColor: "#f4f8fd" },
   container: { flex: 1 },
-  scrollContent: { paddingTop: 12, paddingBottom: 24, paddingHorizontal: 16 },
+  scrollContent: { paddingTop: 18, paddingBottom: 30 },
   topBar: {
+    minHeight: 88,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.white,
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: "#e8eef6",
   },
-  backBtn: { paddingRight: 8 },
-  headerTitles: { flex: 1 },
-  headerTitle: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
-  headerSubtitle: { fontSize: 13, color: "#64748B", marginTop: 2 },
-  stepperWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginVertical: 18,
-    paddingHorizontal: 8,
-  },
-  stepItem: { alignItems: "center", width: 64 },
-  stepCircle: {
-    width: 28,
-    height: 28,
+  backBtn: {
+    width: 42,
+    height: 42,
     borderRadius: 14,
-    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
+    backgroundColor: "#e7f3ff",
   },
-  stepCompleted: {
-    backgroundColor: "#10B981",
+  headerTitles: { flex: 1, minWidth: 0 },
+  headerEyebrow: { fontSize: 9, letterSpacing: 0.9, fontFamily: "Quicksand_700Bold", color: "#7890b2", marginBottom: 2 },
+  headerTitle: {
+    fontSize: 19,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
   },
-  stepActive: {
-    backgroundColor: colors.primaryBlue,
+  headerSubtitle: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#647797",
+    marginTop: 2,
   },
-  stepNumber: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#94A3B8",
-  },
-  stepNumberActive: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.white,
-  },
-  stepLabel: {
-    fontSize: 11,
-    color: "#64748B",
-    fontWeight: "500",
-    textAlign: "center",
-  },
-  stepLabelActive: {
-    color: colors.primaryBlue,
-    fontWeight: "700",
-  },
-  stepLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: "#E2E8F0",
-    marginHorizontal: 4,
-    marginBottom: 16,
-  },
-  stepLineActive: {
-    backgroundColor: "#10B981",
-  },
-  twoColRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 4,
-  },
+  headerStepPill: { minWidth: 42, height: 32, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#edf5ff", borderWidth: 1, borderColor: "#dbeaff" },
+  headerStepText: { fontSize: 11, fontFamily: "Quicksand_700Bold", color: "#176be0" },
+  formBody: { flex: 1 },
+  twoColRow: { flexDirection: "column", gap: 2, marginBottom: 0 },
   cardBox: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 16,
-    marginTop: 12,
+    borderColor: "#e7edf5",
+    padding: 18,
+    marginTop: 3,
     marginBottom: 16,
-    gap: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
+    gap: 15,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.045,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  progressCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e7edf5",
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#2f5684",
+    shadowOpacity: 0.045,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  progressHeadingRow: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 3,
+    marginBottom: 14,
+  },
+  progressTitleGroup: { gap: 2 },
+  progressEyebrow: { fontSize: 9, letterSpacing: 0.8, fontFamily: "Quicksand_700Bold", color: "#8191a9" },
+  progressCurrent: { flexShrink: 1, fontSize: 17, fontFamily: "Quicksand_700Bold", color: "#102e59" },
+  progressDescription: { fontSize: 11, lineHeight: 15, fontFamily: "Quicksand_500Medium", color: "#70819a" },
+  progressSteps: { flexDirection: "row", gap: 2, alignItems: "flex-start" },
+  progressStep: { flex: 1, minWidth: 0, alignItems: "center", gap: 6, position: "relative" },
+  progressNode: { width: 25, height: 25, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#f1f4f8", borderWidth: 1, borderColor: "#e0e7f0", zIndex: 1 },
+  progressNodeActive: { backgroundColor: "#176fe8", borderColor: "#176fe8", shadowColor: "#176fe8", shadowOpacity: 0.2, shadowRadius: 5, elevation: 2 },
+  progressNodeComplete: { backgroundColor: "#21a67a", borderColor: "#21a67a" },
+  progressNodeText: { fontSize: 10, fontFamily: "Quicksand_700Bold", color: "#8795a9" },
+  progressNodeTextActive: { color: "#FFFFFF" },
+  progressConnector: { position: "absolute", height: 2, left: "50%", right: "-50%", top: 12, backgroundColor: "#e3eaf2" },
+  progressConnectorComplete: { backgroundColor: "#8bd8bc" },
+  progressStepLabel: { maxWidth: "100%", fontSize: 8.5, lineHeight: 11, fontFamily: "Quicksand_600SemiBold", color: "#8795a9", textAlign: "center" },
+  progressStepLabelActive: { color: "#176fe8", fontFamily: "Quicksand_700Bold" },
+  progressStepLabelComplete: { color: "#16835e" },
+  capacityCard: {
+    minHeight: 88,
+    gap: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    marginBottom: 11,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: "#e5edf7",
+    backgroundColor: "#fbfdff",
+  },
+  capacityTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  capacityProgressTrack: { height: 6, borderRadius: 5, overflow: "hidden", backgroundColor: "#e8eff7" },
+  capacityProgressFill: { height: "100%", borderRadius: 5, backgroundColor: "#2177ea" },
+  capacityCopy: { flex: 1, minWidth: 0 },
+  capacityTitle: { fontSize: 12, fontFamily: "Quicksand_700Bold", color: "#07156c" },
+  capacityHint: { fontSize: 9.5, lineHeight: 13, fontFamily: "Quicksand_500Medium", color: "#7183a4", marginTop: 2 },
+  capacityInputWrap: {
+    minWidth: 86,
+    height: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#dce6f1",
+    backgroundColor: "#FFFFFF",
+  },
+  capacityInput: { flex: 1, minWidth: 0, padding: 0, textAlign: "center", fontSize: 13, fontFamily: "Quicksand_700Bold", color: "#07156c", outlineStyle: "none" as any, outlineWidth: 0 },
+  capacityUnit: { fontSize: 9, fontFamily: "Quicksand_600SemiBold", color: "#7183a4" },
+  wizardFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 11,
+    paddingBottom: 10,
+    gap: 7,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#e7edf5",
+    shadowColor: "#21456c",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 8,
+  },
+  wizardErrorBox: { minHeight: 34, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 11, backgroundColor: "#fff1f2", borderWidth: 1, borderColor: "#ffe0e4" },
+  wizardError: { flexShrink: 1, fontSize: 10.5, lineHeight: 14, fontFamily: "Quicksand_600SemiBold", color: "#b6223a", textAlign: "center" },
+  wizardNavRow: { flexDirection: "row", alignItems: "center", gap: 9 },
+  wizardBackBtn: {
+    minHeight: 48,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 14,
+    borderWidth: 1.3,
+    borderColor: "#9dc5ff",
+    backgroundColor: "#FFFFFF",
+  },
+  wizardBackText: { fontSize: 12, fontFamily: "Quicksand_700Bold", color: "#006bff" },
+  wizardNextBtn: {
+    minHeight: 48,
+    flex: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 14,
+    backgroundColor: "#087bff",
+    shadowColor: "#0065fa",
+    shadowOpacity: 0.16,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
+  wizardNextBtnFirst: { flex: 1 },
+  wizardActionDisabled: { opacity: 0.48 },
+  wizardNextText: { fontSize: 12.5, fontFamily: "Quicksand_700Bold", color: "#FFFFFF" },
+  reviewList: { gap: 0, marginTop: 3, paddingHorizontal: 12, borderRadius: 14, backgroundColor: "#f7faff" },
+  reviewRow: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: "#e8eef6" },
+  reviewLabel: { width: 62, fontSize: 10, fontFamily: "Quicksand_700Bold", color: "#8191a9" },
+  reviewValue: { flex: 1, fontSize: 10.5, lineHeight: 15, fontFamily: "Quicksand_600SemiBold", color: "#17366e" },
+  sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 2 },
+  sectionIcon: {
+    width: 40,
+    height: 40,
+    flexShrink: 0,
+    borderRadius: 14,
+    backgroundColor: "#edf5ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionTitleCopy: { flex: 1, minWidth: 0 },
   cardHeaderTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 4,
+    fontSize: 15,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
   },
+  sectionHint: {
+    fontSize: 10.5,
+    lineHeight: 15,
+    fontFamily: "Quicksand_500Medium",
+    color: "#7183a4",
+    marginTop: 2,
+  },
+  siteRetryButton: {
+    minHeight: 38,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: 11,
+    backgroundColor: "#eef6ff",
+  },
+  siteRetryText: { fontSize: 10.5, lineHeight: 15, fontFamily: "Quicksand_600SemiBold", color: "#006bff" },
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 9,
   },
-  sectionHeading: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
+  diverSectionTitle: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 9 },
+  sectionHeading: { fontSize: 15, fontFamily: "Quicksand_700Bold", color: "#07156c" },
   orangeAddPill: {
-    backgroundColor: "#FF7A00",
-    borderRadius: 100,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  orangeAddPillText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.white,
-  },
-  diverCardList: {
-    gap: 10,
-    marginBottom: 14,
-  },
-  diverCard: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderRadius: 14,
+    justifyContent: "center",
+    gap: 3,
+    paddingHorizontal: 10,
+    borderRadius: 13,
+    backgroundColor: "#087bff",
+  },
+  orangeAddPillText: { fontSize: 10.5, fontFamily: "Quicksand_700Bold", color: "#FFFFFF" },
+  diverCardList: { gap: 9, marginBottom: 12 },
+  diverCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 17,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 12,
-    gap: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    borderColor: "#e8edf4",
+    padding: 13,
+    gap: 9,
+    shadowColor: "#334e70",
+    shadowOpacity: 0.035,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
   diverAvatar: {
     width: 38,
     height: 38,
-    borderRadius: 19,
-    backgroundColor: "#FF7A00",
+    borderRadius: 14,
+    backgroundColor: "#e7f3ff",
     alignItems: "center",
     justifyContent: "center",
   },
-  diverAvatarText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: colors.white,
-  },
-  diverContent: { flex: 1 },
-  diverCardName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  diverCardMeta: {
-    fontSize: 11,
-    color: "#64748B",
-    marginTop: 2,
-  },
-  editAttrsLink: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.primaryBlue,
-    marginTop: 4,
-  },
-  attrEditRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 6,
-  },
-  activePill: {
-    backgroundColor: "#10B981",
-    borderRadius: 100,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  activePillText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.white,
-  },
-  noDiversText: {
-    fontSize: 13,
-    color: "#64748B",
-    textAlign: "center",
-    lineHeight: 19,
-    paddingVertical: 12,
-  },
-  diverBadges: {
-    flexDirection: "row",
+  diverAvatarText: { fontSize: 12, fontFamily: "Quicksand_700Bold", color: "#006bff" },
+  diverContent: { flex: 1, minWidth: 0 },
+  diverCardName: { fontSize: 13, fontFamily: "Quicksand_700Bold", color: "#07156c" },
+  diverCardMeta: { fontSize: 10, lineHeight: 14, fontFamily: "Quicksand_500Medium", color: "#647797", marginTop: 2 },
+  editAttrsLink: { fontSize: 10.5, fontFamily: "Quicksand_700Bold", color: "#006bff", marginTop: 5 },
+  attrEditRow: { flexDirection: "column", gap: 0, marginTop: 8 },
+  activePill: { backgroundColor: "#dcfce7", borderRadius: 10, paddingHorizontal: 7, paddingVertical: 4 },
+  activePillText: { fontSize: 8, fontFamily: "Quicksand_700Bold", color: "#16835e" },
+  noDiversCard: {
     alignItems: "center",
-    gap: 6,
-    marginTop: 4,
-  },
-  annualBadge: {
-    borderRadius: 100,
-    backgroundColor: "#DCFCE7",
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-  },
-  annualText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#15803D",
-  },
-  assignBadge: {
-    borderRadius: 100,
+    paddingHorizontal: 17,
+    paddingVertical: 18,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.primaryBlue,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+    borderStyle: "dashed",
+    borderColor: "#b6d6fa",
+    backgroundColor: "rgba(255,255,255,0.75)",
   },
-  assignBadgeActive: {
-    backgroundColor: colors.primaryBlue,
-  },
-  assignText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.primaryBlue,
-  },
-  assignTextActive: {
-    color: colors.white,
-  },
-  deductionSub: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#15803D",
-    textAlign: "center",
-    marginTop: 4,
-  },
-  passesErrorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  retryText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.primaryBlue,
-  },
-  insufficientText: {
-    fontSize: 13,
-    color: colors.red,
-    textAlign: "center",
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  searchErrorText: {
-    fontSize: 12,
-    color: colors.red,
-    marginTop: 8,
-  },
+  noDiversText: { fontSize: 11, lineHeight: 16, fontFamily: "Quicksand_500Medium", color: "#647797", textAlign: "center", marginTop: 8 },
+  emptyAddButton: { minHeight: 40, justifyContent: "center", paddingHorizontal: 12, marginTop: 4 },
+  emptyAddText: { fontSize: 11, fontFamily: "Quicksand_700Bold", color: "#006bff" },
+  diverBadges: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 5 },
+  annualBadge: { borderRadius: 10, backgroundColor: "#dcfce7", paddingVertical: 3, paddingHorizontal: 8 },
+  annualText: { fontSize: 9, fontFamily: "Quicksand_700Bold", color: "#16835e" },
+  assignBadge: { minHeight: 28, justifyContent: "center", borderRadius: 10, borderWidth: 1, borderColor: "#75adff", paddingVertical: 4, paddingHorizontal: 8 },
+  assignBadgeActive: { backgroundColor: "#087bff", borderColor: "#087bff" },
+  assignText: { fontSize: 9, fontFamily: "Quicksand_700Bold", color: "#006bff" },
+  assignTextActive: { color: "#FFFFFF" },
   deductionBanner: {
-    backgroundColor: "#F0FDF4",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#f0faf6",
     borderWidth: 1,
-    borderColor: "#BBF7D0",
-    borderRadius: 12,
+    borderColor: "#d4eee3",
+    borderRadius: 16,
     padding: 14,
-    marginTop: 18,
-    marginBottom: 20,
+    marginTop: 2,
+    marginBottom: 5,
   },
-  deductionText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#059669",
-    textAlign: "center",
-  },
-  blueSubmitBtn: {
-    backgroundColor: colors.primaryBlue,
-    borderRadius: 24,
-    height: 52,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.primaryBlue,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  blueSubmitBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.white,
-  },
-  blueSubmitBtnDisabled: {
-    opacity: 0.5,
-  },
+  deductionIcon: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#d7f4e8" },
+  deductionCopy: { flex: 1, minWidth: 0 },
+  deductionText: { fontSize: 10.5, lineHeight: 15, fontFamily: "Quicksand_600SemiBold", color: "#16835e" },
+  deductionSub: { fontSize: 10, fontFamily: "Quicksand_700Bold", color: "#16835e", marginTop: 3 },
+  passesErrorRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 },
+  retryText: { fontSize: 11, fontFamily: "Quicksand_700Bold", color: "#006bff" },
+  insufficientText: { fontSize: 11, lineHeight: 16, fontFamily: "Quicksand_600SemiBold", color: "#b6223a", textAlign: "center", marginBottom: 7 },
+  searchErrorText: { fontSize: 11, lineHeight: 15, fontFamily: "Quicksand_500Medium", color: "#b6223a", marginTop: 5 },
   draftBtn: {
-    marginTop: 10,
-    borderRadius: 24,
-    height: 48,
+    minHeight: 38,
+    alignSelf: "flex-start",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: colors.primaryBlue,
-    backgroundColor: colors.white,
+    gap: 7,
+    borderRadius: 11,
+    paddingHorizontal: 8,
+    backgroundColor: "transparent",
   },
-  draftBtnText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.primaryBlue,
-  },
-  errorText: {
-    fontSize: 13,
-    color: colors.red,
-    textAlign: "center",
-    marginBottom: 10,
-  },
+  draftBtnText: { fontSize: 11.5, fontFamily: "Quicksand_700Bold", color: "#006bff" },
+  errorText: { fontSize: 11, lineHeight: 16, fontFamily: "Quicksand_600SemiBold", color: "#b6223a", textAlign: "center", marginBottom: 8 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    backgroundColor: "rgba(5,23,59,0.58)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
+    padding: 12,
   },
   modalBox: {
     width: "100%",
-    maxWidth: 440,
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
+    maxWidth: 460,
+    maxHeight: "94%",
+    flexShrink: 1,
+    backgroundColor: "#f4f9ff",
+    borderRadius: 22,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.85)",
+    shadowColor: "#153d75",
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
-  modalHeading: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 2,
-  },
-  modalSubheading: {
-    fontSize: 13,
-    color: "#64748B",
-    marginBottom: 16,
-  },
-  fieldTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#334155",
-    marginBottom: 6,
-  },
+  modalHeading: { fontSize: 17, fontFamily: "Quicksand_700Bold", color: "#07156c" },
+  modalSubheading: { fontSize: 11, lineHeight: 15, fontFamily: "Quicksand_500Medium", color: "#647797", marginTop: 2, marginBottom: 8 },
+  modalContentScroll: { flexShrink: 1, minHeight: 0 },
+  modalContent: { paddingBottom: 8 },
+  fieldTitle: { fontSize: 10.5, fontFamily: "Quicksand_700Bold", color: "#31466e", marginBottom: 5 },
   searchBarWrap: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 10,
+    borderColor: "#cbdcf0",
+    borderRadius: 13,
     paddingHorizontal: 12,
-    height: 44,
-    backgroundColor: colors.white,
-    marginBottom: 8,
+    minHeight: 46,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 7,
   },
-  nativeSearchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: "#0F172A",
-  },
-  resultsDrop: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    backgroundColor: colors.white,
-    marginBottom: 12,
-    overflow: "hidden",
-  },
-  resultItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  resultItemName: { fontSize: 13, fontWeight: "600", color: "#0F172A" },
-  ecoMatchBadge: {
-    borderRadius: 100,
-    backgroundColor: "#DCFCE7",
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    marginLeft: "auto",
-  },
-  ecoMatchText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#15803D",
-  },
-  orEncodeLabel: {
-    fontSize: 12,
-    color: "#64748B",
-    marginVertical: 10,
-  },
-  modalBtnRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 18,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalCancelText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#334155",
-  },
-  modalAddBtn: {
-    flex: 1.4,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#FF7A00",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalAddText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.white,
-  },
+  nativeSearchInput: { flex: 1, minWidth: 0, fontSize: 12, fontFamily: "Quicksand_500Medium", color: "#07156c", outlineStyle: "none" as any, outlineWidth: 0 },
+  resultsDrop: { borderWidth: 1, borderColor: "#dce8f5", borderRadius: 13, backgroundColor: "#FFFFFF", marginBottom: 8, overflow: "hidden" },
+  resultItem: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: "#edf2f8" },
+  resultItemName: { flex: 1, fontSize: 11.5, fontFamily: "Quicksand_600SemiBold", color: "#07156c" },
+  ecoMatchBadge: { borderRadius: 10, backgroundColor: "#dcfce7", paddingVertical: 3, paddingHorizontal: 8, marginLeft: "auto" },
+  ecoMatchText: { fontSize: 9, fontFamily: "Quicksand_700Bold", color: "#16835e" },
+  orEncodeLabel: { fontSize: 10.5, lineHeight: 15, fontFamily: "Quicksand_600SemiBold", color: "#526789", marginVertical: 8 },
+  modalBtnRow: { flexDirection: "row", gap: 9, marginTop: 8 },
+  modalCancelBtn: { flex: 1, minHeight: 46, borderRadius: 13, borderWidth: 1.3, borderColor: "#9dc5ff", backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
+  modalCancelText: { fontSize: 11.5, fontFamily: "Quicksand_700Bold", color: "#006bff" },
+  modalAddBtn: { flex: 1.4, minHeight: 46, borderRadius: 13, backgroundColor: "#087bff", alignItems: "center", justifyContent: "center" },
+  modalAddText: { fontSize: 11.5, fontFamily: "Quicksand_700Bold", color: "#FFFFFF" },
 });

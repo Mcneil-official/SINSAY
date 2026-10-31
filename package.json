@@ -3,6 +3,9 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/afacad": "^0.4.1",
+    "@expo-google-fonts/jost": "^0.4.2",
+    "@expo-google-fonts/quicksand": "^0.4.1",
     "@expo/cli": "^58.1.11",
     "@expo/ui": "~57.0.15",
     "@expo/vector-icons": "^15.0.2",
@@ -56,7 +59,7 @@
     "web": "expo start --web --port 3000",
     "lint": "expo lint",
     "test": "tsc -p tsconfig.test.json && node dist-test/tests/test-password.js",
-    "postinstall": "node scripts/patch-expo-cors.js"
+    "postinstall": "node scripts/patch-expo-cors.js && node scripts/patch-console-warnings.js"
   },
   "private": true
 }

@@ -194,7 +194,7 @@ export default function DiveDetailsStep2() {
           .from("eco_dive_ids")
           .select("id")
           .eq("tourist_id", profile.id)
-          .single();
+          .maybeSingle();
 
         if (existing) {
           const { error: updateError } = await supabase

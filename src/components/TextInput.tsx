@@ -12,6 +12,7 @@ interface TextInputProps {
   keyboardType?: "default" | "numeric" | "phone-pad" | "email-address";
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  fontFamily?: string;
 }
 
 export function TextInput({
@@ -24,10 +25,11 @@ export function TextInput({
   keyboardType = "default",
   leftIcon,
   rightIcon,
+  fontFamily,
 }: TextInputProps) {
   return (
     <View style={styles.wrapper}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text style={[styles.label, fontFamily ? { fontFamily } : null]}>{label}</Text> : null}
       <View
         style={[
           styles.inputRow,
@@ -37,7 +39,7 @@ export function TextInput({
       >
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <RNTextInput
-          style={[styles.input, multiline && styles.multilineInput]}
+          style={[styles.input, multiline && styles.multilineInput, fontFamily ? { fontFamily } : null]}
           placeholder={placeholder}
           placeholderTextColor={colors.gray}
           value={value}
@@ -47,7 +49,7 @@ export function TextInput({
         />
         {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
       </View>
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? <Text style={[styles.errorText, fontFamily ? { fontFamily } : null]}>{error}</Text> : null}
     </View>
   );
 }

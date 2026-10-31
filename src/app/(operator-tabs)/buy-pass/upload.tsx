@@ -1,18 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import Svg, {
+  Defs,
+  LinearGradient,
+  Path,
+  Rect,
+  Stop,
+} from "react-native-svg";
+import { BuyPassProgress, ContentContainer } from "../../../components";
 import { colors } from "../../../constants/colors";
-import { ContentContainer, TextInput, FileUpload } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 import { uploadFile, validateFile } from "../../../lib/storage";
@@ -21,23 +31,21 @@ import type { FileInfo } from "../../../lib/storage";
 export default function UploadReceiptScreen() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
-  const { passId, passLabel, passCount, quantity, total } = useLocalSearchParams<{
-    passId?: string;
-    passLabel?: string;
-    passCount?: string;
-    quantity?: string;
-    total?: string;
-  }>();
+  const { passId, passLabel, passCount, quantity, total } =
+    useLocalSearchParams<{
+      passId?: string;
+      passLabel?: string;
+      passCount?: string;
+      quantity?: string;
+      total?: string;
+    }>();
 
   const [referenceNumber, setReferenceNumber] = useState("");
   const [receiptFile, setReceiptFile] = useState<FileInfo | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  // Server-truth pricing: the index screen sends type slugs
-  // ("one-day-pass" | "annual-pass"), resolved here to pass_pricing.code.
-  // Route params are display hints only — the DB insert below uses
-  // re-read values exclusively (deep-links can be tampered with).
+
   const [unitPrice, setUnitPrice] = useState<number | null>(null);
   const [passesPerPack, setPassesPerPack] = useState<number | null>(null);
   const [passCode, setPassCode] = useState<string | null>(null);
@@ -45,7 +53,11 @@ export default function UploadReceiptScreen() {
   const [priceError, setPriceError] = useState(false);
 
   const pricingCode =
-    passId === "annual-pass" ? "annual" : passId === "one-day-pass" ? "one_day" : null;
+    passId === "annual-pass"
+      ? "annual"
+      : passId === "one-day-pass"
+        ? "one_day"
+        : null;
 
   useEffect(() => {
     if (!pricingCode) {
@@ -80,14 +92,13 @@ export default function UploadReceiptScreen() {
   const rawQty = Number(quantity) || 0;
   const qtyValid = Number.isInteger(rawQty) && rawQty >= 1 && rawQty <= 50;
   const qty = qtyValid ? rawQty : 0;
-  // Unit-priced rows (passes = 1) sell a custom count from passCount;
-  // pack rows multiply by qty. Same 1–50 bounds the selection screen enforces.
   const rawCustomCount = Number(passCount) || 0;
   const customCountValid =
-    Number.isInteger(rawCustomCount) && rawCustomCount >= 1 && rawCustomCount <= 50;
+    Number.isInteger(rawCustomCount) &&
+    rawCustomCount >= 1 &&
+    rawCustomCount <= 50;
   const isUnitRow = passesPerPack === 1;
-  // Cap at MAX_PER_ORDER even if TO ever adds a pack row (passes=10):
-  // without this, 10×50=500 passes would silently break the 50-cap intent.
+
   const verifiedPasses =
     passesPerPack !== null
       ? Math.min(50, isUnitRow ? rawCustomCount : passesPerPack * qty)
@@ -95,7 +106,12 @@ export default function UploadReceiptScreen() {
   const verifiedTotal =
     unitPrice !== null ? unitPrice * (isUnitRow ? rawCustomCount : qty) : 0;
   const verifiedPassType =
-    passCode === "annual" ? "annual" : passesPerPack !== null && passesPerPack > 1 ? "multi" : "single";
+    passCode === "annual"
+      ? "annual"
+      : passesPerPack !== null && passesPerPack > 1
+        ? "multi"
+        : "single";
+
   const pricingReady =
     !priceLoading &&
     !priceError &&
@@ -109,14 +125,42 @@ export default function UploadReceiptScreen() {
   const refDigits = referenceNumber.replace(/\D/g, "");
   const refValid = /^\d{13}$/.test(refDigits);
 
-  const handlePickFile = (file: FileInfo) => {
-    const validationError = validateFile(file);
-    if (validationError) {
-      setError(validationError);
-      return;
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["image/jpeg", "image/png", "application/pdf"],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      const file: FileInfo = {
+        uri: asset.uri,
+        name: asset.name,
+        size: asset.size || 0,
+        mimeType: asset.mimeType || "image/jpeg",
+      };
+
+      const validationError = validateFile(file);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
+      setError("");
+      setReceiptFile(file);
+    } catch (e) {
+      console.warn("Document picker error:", e);
+      setError("Failed to open file picker. Please try again.");
     }
+  };
+
+  const handleRemoveFile = () => {
+    setReceiptFile(null);
     setError("");
-    setReceiptFile(file);
   };
 
   const handleSubmit = async () => {
@@ -129,24 +173,26 @@ export default function UploadReceiptScreen() {
       return;
     }
     if (!pricingReady) {
-      setError("Pricing isn't verified yet. Please go back and reselect your passes.");
+      setError(
+        "Pricing isn't verified yet. Please go back and reselect your passes.",
+      );
       return;
     }
     if (!user) {
       setError("Please sign in to continue.");
       return;
     }
+
     setSaving(true);
     setError("");
 
-    let receiptPath: string | null = null;
+    let receiptPath = "";
     try {
-      // 1. Upload receipt to storage (required — no placeholder fallback).
       const { path: uploadedPath, error: uploadError } = await uploadFile(
         "operator_uploads",
         "receipts",
         receiptFile,
-        user.id
+        user.id,
       );
       if (uploadError || !uploadedPath) {
         setError(uploadError || "Upload failed. Please try again.");
@@ -155,9 +201,6 @@ export default function UploadReceiptScreen() {
       }
       receiptPath = uploadedPath;
 
-      // 2+3. Atomic order: inventory + payment in one RPC (040). Either both
-      // land or neither does — no client compensating deletes needed (they
-      // would be denied by RLS anyway: 001 is SELECT+INSERT-only).
       const { error: rpcError } = await supabase.rpc("create_buy_pass_order", {
         p_pass_type: verifiedPassType,
         p_pass_label: passLabel || "",
@@ -166,13 +209,14 @@ export default function UploadReceiptScreen() {
         p_reference_number: refDigits,
         p_receipt_path: receiptPath,
       });
+
       if (rpcError) {
-        // Best-effort storage cleanup (may be denied — harmless either way
-        // since no DB orphan escapes the failed transaction).
         try {
-          await supabase.storage.from("operator_uploads").remove([receiptPath]);
+          await supabase.storage
+            .from("operator_uploads")
+            .remove([receiptPath]);
         } catch {
-          // ignore — TO queue stays clean, blob is inert
+          // ignore
         }
         const msg = rpcError.message.includes("already submitted")
           ? "This GCash reference number was already submitted. Please check your history."
@@ -185,160 +229,391 @@ export default function UploadReceiptScreen() {
       setSubmitted(true);
     } catch (e) {
       console.error("Receipt submit failed:", e);
-      // Best-effort storage cleanup only — the RPC never leaves DB orphans.
       if (receiptPath) {
         try {
-          await supabase.storage.from("operator_uploads").remove([receiptPath]);
+          await supabase.storage
+            .from("operator_uploads")
+            .remove([receiptPath]);
         } catch {
           // ignore
         }
       }
-      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Something went wrong. Please try again.",
+      );
     }
     setSaving(false);
   };
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      router.replace("/loginpage");
-    }
+    if (!user) router.replace("/loginpage");
   }, [authLoading, user, router]);
 
-  if (submitted) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" />
-        <ScrollView contentContainerStyle={styles.successContent}>
-          <ContentContainer maxWidth={540}>
-            {/* Centered Check Icon */}
-            <View style={styles.checkOuter}>
-              <View style={styles.checkInner}>
-                <Ionicons name="checkmark" size={32} color="#FFFFFF" />
-              </View>
-            </View>
-
-            <Text style={styles.successHeading}>Receipt Submitted!</Text>
-            <Text style={styles.successSub}>
-              Your payment is now pending verification by the Tourism Office.
-            </Text>
-
-            <View style={styles.successCard}>
-              <View style={styles.successRow}>
-                <Text style={styles.successLabel}>Package</Text>
-                <Text style={styles.successVal}>{verifiedPasses} Dive Passes</Text>
-              </View>
-              <View style={styles.cardDivider} />
-              <View style={styles.successRow}>
-                <Text style={styles.successLabel}>Amount Paid</Text>
-                <Text style={styles.successVal}>₱{verifiedTotal.toLocaleString()}.00</Text>
-              </View>
-              <View style={styles.cardDivider} />
-              <View style={styles.successRow}>
-                <Text style={styles.successLabel}>Reference No.</Text>
-                <Text style={styles.successVal}>{refDigits}</Text>
-              </View>
-              <View style={styles.cardDivider} />
-              <View style={styles.successRow}>
-                <Text style={styles.successLabel}>Status</Text>
-                <View style={styles.pendingBadge}>
-                  <Text style={styles.pendingBadgeText}>PENDING</Text>
-                </View>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.primaryBlueBtn}
-              activeOpacity={0.88}
-              onPress={() => router.replace("/(operator-tabs)")}
-            >
-              <Text style={styles.primaryBlueBtnText}>Back to Dashboard</Text>
-            </TouchableOpacity>
-          </ContentContainer>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
+  const formattedFileSize = receiptFile?.size
+    ? `${Math.ceil(receiptFile.size / 1024)} KB`
+    : "245 KB";
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" />
 
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color="#0F172A" />
-        </TouchableOpacity>
-        <View style={styles.topTitles}>
-          <Text style={styles.topHeader}>Upload Payment Receipt</Text>
-          <Text style={styles.topSubtitle}>Submit proof of payment for verification</Text>
-        </View>
+      {/* Top Ocean Gradient and Wave Background Header */}
+      <View style={styles.headerBackgroundWrap} pointerEvents="none">
+        <Svg
+          width="100%"
+          height={220}
+          preserveAspectRatio="none"
+          style={StyleSheet.absoluteFill}
+        >
+          <Defs>
+            <LinearGradient id="screenTopGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#0061f5" />
+              <Stop offset="0.3" stopColor="#208bff" />
+              <Stop offset="0.6" stopColor="#97ddfa" />
+              <Stop offset="0.85" stopColor="#e4f5ff" />
+              <Stop offset="1" stopColor="#f1f9ff" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height={220} fill="url(#screenTopGrad)" />
+        </Svg>
+
+        <Svg
+          viewBox="0 0 1024 496"
+          preserveAspectRatio="none"
+          style={styles.headerWaveSvg}
+        >
+          <Path
+            d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z"
+            fill="#FFFFFF"
+            opacity={0.16}
+          />
+        </Svg>
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <ContentContainer maxWidth={540}>
-          {/* Order Summary Strip (server-verified once pricing loads) */}
-          <View style={styles.recapStrip}>
-            <Text style={styles.recapText}>
-              <Text style={{ fontWeight: "700" }}>{verifiedPasses} Dive Passes</Text> · ₱{verifiedTotal.toLocaleString()}.00 · GCash Reference
-            </Text>
-          </View>
-          {priceLoading && (
-            <Text style={styles.verifyText}>Verifying pricing…</Text>
-          )}
-          {priceError && (
-            <Text style={styles.errorText}>
-              Couldn&apos;t verify pricing for this pass. Please go back and reselect it.
-            </Text>
-          )}
-          {!priceLoading && !priceError && !isUnitRow && !qtyValid && (
-            <Text style={styles.errorText}>Quantity must be between 1 and 50.</Text>
-          )}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <ContentContainer maxWidth={480} paddingH={14}>
+          {/* Top Atmospheric Header Row */}
+          <View style={styles.topHeaderRow}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              hitSlop={10}
+              style={styles.headerCircleBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
+              <Ionicons name="chevron-back" size={22} color="#07156c" />
+            </TouchableOpacity>
 
-          {/* Upload Area */}
-          <FileUpload
-            label="Upload Receipt"
-            onFileSelect={handlePickFile}
-            fileName={receiptFile?.name}
-            showCamera
-          />
+            <View style={styles.headerCenterCol}>
+              <Text style={styles.headerTitleText}>
+                {submitted ? "Receipt Submitted" : "Submit Receipt"}
+              </Text>
+              <Text style={styles.headerSubtitleText}>
+                {submitted ? "Verification in progress" : "Upload proof of payment"}
+              </Text>
+            </View>
 
-          {/* GCash Reference Input */}
-          <View style={{ marginTop: 14 }}>
-            <TextInput
-              label="GCash Reference Number (13 digits)"
-              placeholder="e.g. 1002 9384 7561"
-              value={referenceNumber}
-              onChangeText={setReferenceNumber}
-              keyboardType="phone-pad"
-            />
+            <View style={{ width: 36 }} />
           </View>
 
-          {/* Notice Banner */}
-          <View style={styles.noticeBox}>
-            <Ionicons name="information-circle" size={18} color="#0284C7" style={{ marginTop: 1 }} />
-            <Text style={styles.noticeText}>
-              Passes will be credited automatically once verified by the Tourism Office (usually within 15-30 minutes).
+          <BuyPassProgress currentStep={3} />
+
+          {/* If Submitted: Celebration Confirmation Card */}
+          {submitted ? (
+            <View style={styles.confirmedCard}>
+              <View style={styles.successIconCircle}>
+                <Ionicons name="checkmark" size={32} color="#FFFFFF" />
+              </View>
+
+              <Text style={styles.confirmedTitle}>Receipt Submitted!</Text>
+              <Text style={styles.confirmedSubtitle}>
+                Your payment is recorded and sent to the Tourism Office queue for review.
+              </Text>
+
+              <View style={styles.recapDetailsTable}>
+                <View style={styles.recapDetailRow}>
+                  <Text style={styles.recapDetailLabel}>Package</Text>
+                  <Text style={styles.recapDetailValue}>
+                    {verifiedPasses} Dive Passes
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.recapDetailRow}>
+                  <Text style={styles.recapDetailLabel}>Amount</Text>
+                  <Text style={styles.recapDetailValue}>
+                    ₱{verifiedTotal.toLocaleString()}.00
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.recapDetailRow}>
+                  <Text style={styles.recapDetailLabel}>Reference No.</Text>
+                  <Text style={styles.recapDetailValue}>{refDigits}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.recapDetailRow}>
+                  <Text style={styles.recapDetailLabel}>Status</Text>
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>UNDER REVIEW</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <>
+              {/* Order Summary Recap Strip */}
+              <View style={styles.recapCard}>
+                <View style={styles.recapRow}>
+                  <View style={styles.recapIconBubble}>
+                    <Ionicons name="ticket" size={15} color="#006bff" />
+                  </View>
+                  <Text style={styles.recapText} numberOfLines={1}>
+                    <Text style={{ fontFamily: "Quicksand_700Bold" }}>
+                      {verifiedPasses} Dive Passes
+                    </Text>{" "}
+                    · ₱{verifiedTotal.toLocaleString()}.00
+                  </Text>
+                  <View style={styles.verifiedBadge}>
+                    <Text style={styles.verifiedBadgeText}>VERIFIED</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Upload Zone (or Selected Receipt Preview) */}
+              {!receiptFile ? (
+                <TouchableOpacity
+                  style={styles.uploadZone}
+                  activeOpacity={0.8}
+                  onPress={handlePickDocument}
+                  accessibilityRole="button"
+                  accessibilityLabel="Upload GCash e-receipt"
+                >
+                  <View style={styles.uploadCloudBubble}>
+                    <Ionicons name="cloud-upload" size={32} color="#006bff" />
+                  </View>
+                  <Text style={styles.uploadZoneTitle}>
+                    Upload GCash E-Receipt
+                  </Text>
+                  <Text style={styles.uploadZoneSub}>
+                    Tap to choose JPG, PNG or PDF (Max 5MB)
+                  </Text>
+                  <View style={styles.browsePill}>
+                    <Text style={styles.browsePillText}>Browse Document</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.previewContainer}>
+                  <Text style={styles.sectionHeaderTitle}>Selected Receipt</Text>
+                  <View style={styles.receiptPreviewCard}>
+                    <View style={styles.receiptThumbBox}>
+                      {receiptFile.mimeType?.startsWith("image/") ? (
+                        <Image
+                          source={{ uri: receiptFile.uri }}
+                          style={styles.receiptThumbImg}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Text style={styles.receiptThumbPdfText}>PDF</Text>
+                      )}
+                    </View>
+
+                    <View style={styles.receiptInfoCol}>
+                      <Text style={styles.receiptName} numberOfLines={1}>
+                        {receiptFile.name}
+                      </Text>
+                      <Text style={styles.receiptSize}>{formattedFileSize}</Text>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={handleRemoveFile}
+                      hitSlop={8}
+                      style={styles.removeFileBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove receipt file"
+                    >
+                      <Ionicons name="close" size={18} color="#6c7caa" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* GCash Reference Number Input */}
+              <View style={styles.inputCard}>
+                <Text style={styles.inputLabel}>
+                  GCash Reference Number (13 digits)
+                </Text>
+                <TextInput
+                  style={[
+                    styles.refInput,
+                    referenceNumber.length > 0 &&
+                      !refValid &&
+                      styles.refInputError,
+                  ]}
+                  placeholder="e.g. 1002 9384 7561"
+                  placeholderTextColor="#94A3B8"
+                  value={referenceNumber}
+                  onChangeText={setReferenceNumber}
+                  keyboardType="phone-pad"
+                  maxLength={16}
+                  accessibilityLabel="GCash Reference Number"
+                />
+                {referenceNumber.length > 0 && !refValid && (
+                  <Text style={styles.inlineErrorText}>
+                    Please enter the complete 13-digit reference number.
+                  </Text>
+                )}
+              </View>
+            </>
+          )}
+
+          {error ? <Text style={styles.mainErrorText}>{error}</Text> : null}
+
+          {/* Transaction Status Timeline */}
+          <View style={styles.timelineSection}>
+            <Text style={styles.timelineTitle}>Verification Workflow</Text>
+
+            <View style={styles.timeline}>
+              {/* Step 1 */}
+              <View style={styles.timelineItem}>
+                <View
+                  style={[
+                    styles.timelineDot,
+                    submitted ? styles.timelineDotDone : styles.timelineDotActive,
+                  ]}
+                >
+                  <Ionicons
+                    name="checkmark"
+                    size={13}
+                    color="#FFFFFF"
+                  />
+                </View>
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineStepTitle}>
+                    {submitted ? "Receipt submitted" : "Submit receipt"}
+                  </Text>
+                  <Text style={styles.timelineStepSub}>
+                    {submitted ? "Recorded in verification queue" : "Ready for submission"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Connecting line 1 */}
+              <View
+                style={[
+                  styles.timelineConnector,
+                  submitted && styles.timelineConnectorActive,
+                ]}
+              />
+
+              {/* Step 2 */}
+              <View style={styles.timelineItem}>
+                <View
+                  style={[
+                    styles.timelineDot,
+                    submitted ? styles.timelineDotCurrent : styles.timelineDotPending,
+                  ]}
+                >
+                  <View style={styles.innerDot} />
+                </View>
+                <View style={styles.timelineContent}>
+                  <Text
+                    style={[
+                      styles.timelineStepTitle,
+                      submitted && styles.timelineStepTitleActive,
+                    ]}
+                  >
+                    Under Tourism Office Review
+                  </Text>
+                  <Text style={styles.timelineStepSub}>
+                    {submitted ? "Review in progress..." : "Queued upon submission"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Connecting line 2 */}
+              <View style={styles.timelineConnector} />
+
+              {/* Step 3 */}
+              <View style={styles.timelineItem}>
+                <View style={[styles.timelineDot, styles.timelineDotPending]}>
+                  <Ionicons name="card" size={11} color="#94A3B8" />
+                </View>
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineStepTitle}>
+                    Approved – Credits Added
+                  </Text>
+                  <Text style={styles.timelineStepSub}>
+                    Pass inventory automatically credited
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Notice Alert */}
+          <View style={styles.reviewNotice}>
+            <Ionicons name="time" size={17} color="#003cda" />
+            <Text style={styles.reviewNoticeText}>
+              Turnaround time: usually verified within 24–48 hours.
             </Text>
           </View>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitBtn, !pricingReady && styles.submitBtnDisabled]}
-            activeOpacity={0.88}
-            onPress={handleSubmit}
-            disabled={saving || !pricingReady}
-          >
-            {saving ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.submitBtnText}>Submit for Verification</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={{ height: 120 }} />
+          {/* Action Button */}
+          {!submitted ? (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={[
+                styles.primarySubmitBtn,
+                (!refValid || !receiptFile || saving) &&
+                  styles.primarySubmitBtnDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={!refValid || !receiptFile || saving}
+              accessibilityRole="button"
+              accessibilityLabel="Submit receipt"
+            >
+              <Svg
+                style={StyleSheet.absoluteFill}
+                preserveAspectRatio="none"
+                pointerEvents="none"
+              >
+                <Defs>
+                  <LinearGradient id="submitGrad" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor="#0065fa" />
+                    <Stop offset="1" stopColor="#53acff" />
+                  </LinearGradient>
+                </Defs>
+                <Rect width="100%" height="100%" rx={18} fill="url(#submitGrad)" />
+              </Svg>
+              {saving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-done" size={18} color="#FFFFFF" />
+                  <Text style={styles.primarySubmitBtnText}>
+                    Submit Receipt for Verification
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.outlineBackBtn}
+              onPress={() => router.replace("/(operator-tabs)/buy-pass")}
+              accessibilityRole="button"
+              accessibilityLabel="Back to Dive Pass"
+            >
+              <Ionicons name="arrow-back" size={16} color="#006bff" />
+              <Text style={styles.outlineBackBtnText}>Back to Dive Pass</Text>
+            </TouchableOpacity>
+          )}
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -346,174 +621,476 @@ export default function UploadReceiptScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
-  container: { flex: 1 },
-  scrollContent: { paddingTop: 12, paddingBottom: 24, paddingHorizontal: 16 },
-  topBar: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#f1f9ff",
+  },
+  headerBackgroundWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220,
+    overflow: "hidden",
+    zIndex: -1,
+  },
+  headerWaveSvg: {
+    position: "absolute",
+    top: 10,
+    left: 0,
+    width: "100%",
+    height: 180,
+  },
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 16,
+    paddingBottom: 76,
+  },
+  topHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  backBtn: { paddingRight: 8 },
-  topTitles: { flex: 1 },
-  topHeader: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
-  topSubtitle: { fontSize: 13, color: "#64748B", marginTop: 2 },
-  recapStrip: {
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 8,
+    justifyContent: "space-between",
+    paddingTop: 8,
     marginBottom: 16,
   },
-  recapText: {
-    fontSize: 13,
-    color: "#334155",
-    textAlign: "center",
-  },
-  verifyText: {
-    fontSize: 12,
-    color: "#64748B",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  noticeBox: {
-    flexDirection: "row",
-    gap: 10,
-    backgroundColor: "#F0F9FF",
-    borderWidth: 1,
-    borderColor: "#BAE6FD",
-    borderRadius: 14,
-    padding: 14,
-    marginTop: 16,
-    marginBottom: 20,
-  },
-  noticeText: {
-    flex: 1,
-    fontSize: 12,
-    color: "#0369A1",
-    lineHeight: 18,
-  },
-  submitBtn: {
-    backgroundColor: colors.primaryBlue,
-    borderRadius: 24,
-    height: 52,
+  headerCircleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.primaryBlue,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  submitBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.white,
-  },
-  submitBtnDisabled: {
-    opacity: 0.5,
-  },
-  errorText: {
-    fontSize: 13,
-    color: colors.red,
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  // Success styles
-  successContent: {
-    paddingVertical: 40,
-    paddingHorizontal: 16,
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  checkOuter: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: "#DCFCE7",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-  checkInner: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#10B981",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  successHeading: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#0F172A",
-    textAlign: "center",
-    marginBottom: 6,
-  },
-  successSub: {
-    fontSize: 14,
-    color: "#64748B",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  successCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 18,
-    marginBottom: 24,
     shadowColor: "#000",
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  successRow: {
+  headerCenterCol: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitleText: {
+    fontSize: 20,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
+  },
+  headerSubtitleText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: 1,
+  },
+  confirmedCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.24)",
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 14,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  successIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#129b83",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    shadowColor: "#129b83",
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  confirmedTitle: {
+    fontSize: 19,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+    marginBottom: 4,
+  },
+  confirmedSubtitle: {
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+    textAlign: "center",
+    lineHeight: 16,
+    marginBottom: 16,
+  },
+  recapDetailsTable: {
+    width: "100%",
+    backgroundColor: "#f4f8fe",
+    borderRadius: 14,
+    padding: 12,
+  },
+  recapDetailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 5,
   },
-  successLabel: {
+  recapDetailLabel: {
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+  },
+  recapDetailValue: {
     fontSize: 13,
-    color: "#64748B",
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
   },
-  successVal: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  cardDivider: {
+  divider: {
     height: 1,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#e4eeff",
+    marginVertical: 4,
   },
   pendingBadge: {
-    backgroundColor: "#FEF3C7",
+    backgroundColor: "#d2e8ff",
+    borderRadius: 10,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 100,
+    paddingVertical: 2,
   },
   pendingBadgeText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#B45309",
+    fontSize: 9,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0058f5",
   },
-  primaryBlueBtn: {
-    backgroundColor: colors.primaryBlue,
+  recapCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
     borderRadius: 14,
-    height: 50,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.24)",
+  },
+  recapRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  recapIconBubble: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#d7ebff",
     alignItems: "center",
     justifyContent: "center",
   },
-  primaryBlueBtnText: {
+  recapText: {
+    fontSize: 12.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#07156c",
+    flex: 1,
+  },
+  verifiedBadge: {
+    backgroundColor: "#dcfce7",
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  verifiedBadgeText: {
+    fontSize: 8.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#16a34a",
+  },
+  uploadZone: {
+    minHeight: 140,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#428fff",
+    backgroundColor: "rgba(219, 237, 255, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    gap: 5,
+    marginBottom: 12,
+  },
+  uploadCloudBubble: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 2,
+    shadowColor: "#006bff",
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  uploadZoneTitle: {
     fontSize: 15,
-    fontWeight: "700",
-    color: colors.white,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+  },
+  uploadZoneSub: {
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+  },
+  browsePill: {
+    marginTop: 4,
+    backgroundColor: "#006bff",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  browsePillText: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+  },
+  previewContainer: {
+    marginBottom: 12,
+  },
+  sectionHeaderTitle: {
+    fontSize: 13,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+    marginBottom: 6,
+  },
+  receiptPreviewCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#edf3fc",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e0eaff",
+    padding: 10,
+    gap: 12,
+  },
+  receiptThumbBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  receiptThumbImg: {
+    width: "100%",
+    height: "100%",
+  },
+  receiptThumbPdfText: {
+    fontSize: 15,
+    fontFamily: "Quicksand_700Bold",
+    color: "#006bff",
+  },
+  receiptInfoCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  receiptName: {
+    fontSize: 12.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+    marginBottom: 2,
+  },
+  receiptSize: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+  },
+  removeFileBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inputCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.24)",
+    marginBottom: 12,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+    marginBottom: 6,
+  },
+  refInput: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d1e0ff",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    fontSize: 13.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#07156c",
+  },
+  refInputError: {
+    borderColor: "#b6223a",
+  },
+  inlineErrorText: {
+    fontSize: 10,
+    fontFamily: "Quicksand_500Medium",
+    color: "#b6223a",
+    marginTop: 4,
+    marginLeft: 2,
+  },
+  mainErrorText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#b6223a",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  timelineSection: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.24)",
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  timelineTitle: {
+    fontSize: 13,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+    marginBottom: 12,
+  },
+  timeline: {
+    paddingHorizontal: 4,
+  },
+  timelineItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  timelineDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timelineDotActive: {
+    backgroundColor: "#006bff",
+  },
+  timelineDotDone: {
+    backgroundColor: "#129b83",
+  },
+  timelineDotCurrent: {
+    borderWidth: 2,
+    borderColor: "#006bff",
+    backgroundColor: "#d7ebff",
+  },
+  innerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#006bff",
+  },
+  timelineDotPending: {
+    borderWidth: 1.5,
+    borderColor: "#c6d2ec",
+    backgroundColor: "#f4f9ff",
+  },
+  timelineConnector: {
+    width: 2,
+    height: 20,
+    backgroundColor: "#b9c9e9",
+    marginLeft: 10,
+    marginVertical: 2,
+  },
+  timelineConnectorActive: {
+    backgroundColor: "#006bff",
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineStepTitle: {
+    fontSize: 12,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#07156c",
+  },
+  timelineStepTitleActive: {
+    fontFamily: "Quicksand_700Bold",
+    color: "#006bff",
+  },
+  timelineStepSub: {
+    fontSize: 10,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+    marginTop: 1,
+  },
+  reviewNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    backgroundColor: "#e9f4ff",
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#cfe5ff",
+  },
+  reviewNoticeText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#07156c",
+  },
+  primarySubmitBtn: {
+    height: 48,
+    borderRadius: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    overflow: "hidden",
+    shadowColor: "#0065fa",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  primarySubmitBtnDisabled: {
+    opacity: 0.5,
+  },
+  primarySubmitBtnText: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+  },
+  outlineBackBtn: {
+    height: 48,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "#006bff",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  outlineBackBtnText: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: "#006bff",
   },
 });

@@ -1,7 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors } from "../constants/colors";
+
+export const BOTTOM_NAV_HEIGHT = 54;
+
+const INACTIVE_COLOR = "#657C9B";
 
 type TabRoute = { key: string; name: string };
 
@@ -16,12 +22,60 @@ interface BottomNavProps {
     }
   >;
   tabLabels: Record<string, string>;
-  /** Whether to show a raised center action button (default false). */
-  showCenterButton?: boolean;
-  /** Icon shown in the raised center action button. */
-  centerIcon?: keyof typeof Ionicons.glyphMap;
-  /** Called when the center action button is pressed. */
-  onCenterPress?: () => void;
+  /** Route names to hide from the rendered bar while keeping them registered in Tabs. */
+  hiddenRoutes?: string[];
+}
+
+function renderReferenceNavIcon(
+  routeName: string,
+  color: string,
+  size: number,
+): React.ReactElement | null {
+  const sharedProps = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: color,
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  switch (routeName) {
+    case "index":
+      return (
+        <Svg {...sharedProps}>
+          <Path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" />
+          <Path d="M9 21v-8h6v8" />
+        </Svg>
+      );
+    case "map":
+      return (
+        <Svg {...sharedProps}>
+          <Path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z" />
+          <Path d="M9 3v16M15 5v16" />
+        </Svg>
+      );
+    case "eco-dive-id":
+      return (
+        <Svg {...sharedProps}>
+          <Rect x="2" y="4" width="20" height="16" rx="3" />
+          <Circle cx="8" cy="10" r="2" />
+          <Path d="M5 16c0-3 6-3 6 0M14 9h5M14 13h5M14 16h3" />
+        </Svg>
+      );
+    case "profile":
+      return (
+        <Svg {...sharedProps}>
+          <Circle cx="12" cy="12" r="10" />
+          <Circle cx="12" cy="9" r="3" />
+          <Path d="M5.5 19c1-5.5 12-5.5 13 0" />
+        </Svg>
+      );
+    default:
+      return null;
+  }
 }
 
 export default function BottomNav({
@@ -29,24 +83,21 @@ export default function BottomNav({
   navigation,
   tabIcons,
   tabLabels,
-  showCenterButton = false,
-  centerIcon = "add",
-  onCenterPress,
+  hiddenRoutes,
 }: BottomNavProps) {
-  // Split tabs left/right of the raised center action button only when showCenterButton is true
-  const mid = Math.ceil(state.routes.length / 2);
-  const leftRoutes = state.routes
-    .slice(0, mid)
-    .map((route, index) => ({ route, index }));
-  const rightRoutes = state.routes
-    .slice(mid)
-    .map((route, index) => ({ route, index: index + mid }));
+  const insets = useSafeAreaInsets();
+  const activeKey = state.routes[state.index]?.key;
+  const visibleRoutes = hiddenRoutes?.length
+    ? state.routes.filter((r) => !hiddenRoutes.includes(r.name))
+    : state.routes;
 
-  const renderTab = (route: TabRoute, index: number) => {
-    const isFocused = state.index === index;
+  const renderTab = (route: TabRoute) => {
+    const isFocused = route.key === activeKey;
     const name = route.name;
     const icon = tabIcons[name];
     const label = tabLabels[name] || name;
+    const iconColor = isFocused ? colors.white : INACTIVE_COLOR;
+    const iconSize = isFocused ? 18 : 20;
 
     const onPress = () => {
       const event = navigation.emit({
@@ -59,148 +110,105 @@ export default function BottomNav({
       }
     };
 
-    if (isFocused) {
-      return (
-        <View
-          key={route.key}
-          style={styles.activeTab}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: true }}
-        >
-          <Ionicons
-            name={icon?.focused || "ellipse"}
-            size={18}
-            color={colors.primaryBlue}
-          />
-          <Text style={styles.activeText} numberOfLines={1}>{label}</Text>
-        </View>
-      );
-    }
+    const refSvg = renderReferenceNavIcon(name, iconColor, iconSize);
 
     return (
       <TouchableOpacity
         key={route.key}
         onPress={onPress}
-        style={styles.inactiveTab}
-        activeOpacity={0.6}
+        style={isFocused ? styles.activeTab : styles.inactiveTab}
+        activeOpacity={0.75}
         accessibilityRole="tab"
-        accessibilityState={{ selected: false }}
+        accessibilityState={{ selected: isFocused }}
         accessibilityLabel={label}
       >
-        <Ionicons
-          name={icon?.unfocused || "ellipse-outline"}
-          size={22}
-          color="rgba(255,255,255,0.9)"
-        />
+        {refSvg ?? (
+          <Ionicons
+            name={
+              isFocused
+                ? icon?.focused || "ellipse"
+                : icon?.unfocused || "ellipse-outline"
+            }
+            size={iconSize}
+            color={iconColor}
+          />
+        )}
+        <Text
+          style={isFocused ? styles.activeText : styles.inactiveText}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.barWrap}>
+    <View
+      style={[
+        styles.barWrap,
+        { paddingBottom: 6 + insets.bottom },
+      ]}
+    >
       <View style={styles.bar}>
-        {showCenterButton ? (
-          <>
-            <View style={styles.side}>
-              {leftRoutes.map(({ route, index }) => renderTab(route, index))}
-            </View>
-            <View style={styles.centerSpacer} />
-            <View style={styles.side}>
-              {rightRoutes.map(({ route, index }) => renderTab(route, index))}
-            </View>
-          </>
-        ) : (
-          state.routes.map((route, index) => renderTab(route, index))
-        )}
+        {visibleRoutes.map((route) => renderTab(route))}
       </View>
-
-      {showCenterButton && (
-        <TouchableOpacity
-          style={styles.centerButton}
-          onPress={onCenterPress}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Quick action"
-        >
-          <Ionicons name={centerIcon} size={26} color={colors.white} />
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   barWrap: {
-    position: "absolute",
-    bottom: 24,
-    left: 10,
-    right: 10,
+    width: "100%",
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: "#DBE8F4",
+    paddingTop: 6,
+    paddingHorizontal: 12,
     alignItems: "center",
   },
   bar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 4,
     width: "100%",
-    maxWidth: 560,
+    maxWidth: 480,
     alignSelf: "center",
-    height: 64,
-    borderRadius: 100,
-    backgroundColor: colors.primaryBlue,
-    paddingHorizontal: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  side: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  centerSpacer: {
-    width: 56,
   },
   activeTab: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 0,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.white,
-    borderRadius: 100,
-    height: 42,
-    paddingHorizontal: 16,
-    gap: 6,
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: colors.primaryBlue,
   },
   activeText: {
-    color: colors.primaryBlue,
+    color: colors.white,
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 11,
   },
   inactiveTab: {
     flex: 1,
-    height: 46,
+    minWidth: 56,
+    minHeight: 38,
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    gap: 2,
+    paddingHorizontal: 2,
+    borderRadius: 999,
   },
-  centerButton: {
-    position: "absolute",
-    top: -18,
-    alignSelf: "center",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primaryBlue,
-    borderWidth: 4,
-    borderColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 8,
+  inactiveText: {
+    color: INACTIVE_COLOR,
+    fontWeight: "600",
+    fontSize: 10,
+    textAlign: "center",
   },
 });

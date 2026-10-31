@@ -5,14 +5,14 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  View
+  View,
 } from "react-native";
 import {
   ContentContainer,
   EmptyState,
   ErrorState,
   EstablishmentCard,
-  ScreenHeader
+  ScreenHeader,
 } from "../components";
 import { colors } from "../constants/colors";
 import { supabase } from "../lib/supabase";
@@ -23,30 +23,44 @@ export default function EstablishmentsScreen() {
   const [establishments, setEstablishments] = useState<EstablishmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const loadEstablishments = useCallback(async () => {
+  const handleRetry = useCallback(() => {
     setLoading(true);
     setError(false);
-    const { data, error: fetchError } = await supabase
-      .from("establishments")
-      .select("*")
-      .eq("accredited", true)
-      .order("name", { ascending: true });
-    if (fetchError) {
-      setError(true);
-    } else {
-      setEstablishments(data ?? []);
-    }
-    setLoading(false);
+    setReloadKey((k) => k + 1);
   }, []);
 
   useEffect(() => {
-    loadEstablishments();
-  }, [loadEstablishments]);
+    let active = true;
+    supabase
+      .from("establishments")
+      .select("*")
+      .eq("accredited", true)
+      .order("name", { ascending: true })
+      .then(({ data, error: fetchError }) => {
+        if (!active) return;
+        if (fetchError) {
+          setError(true);
+        } else {
+          setEstablishments(data ?? []);
+          setError(false);
+        }
+        setLoading(false);
+      },
+      () => {
+        if (!active) return;
+        setError(true);
+        setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="Dive Establishments" onBack={() => router.back()} />
+      <ScreenHeader title="Dive Resorts" onBack={() => router.back()} />
 
       {loading ? (
         <View style={styles.center}>
@@ -54,24 +68,28 @@ export default function EstablishmentsScreen() {
         </View>
       ) : error ? (
         <ErrorState
-          message="Failed to load establishments."
-          onRetry={loadEstablishments}
+          message="Failed to load dive resorts."
+          onRetry={handleRetry}
         />
       ) : establishments.length === 0 ? (
-        <EmptyState icon="map-outline" message="No establishments found" />
+        <EmptyState icon="map-outline" message="No dive resorts found" />
       ) : (
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
         >
           <ContentContainer maxWidth={900} style={styles.gridInner}>
-            <View style={styles.grid}>
-              {establishments.map((est) => (
+            <View style={styles.list}>
+              {establishments.map((est, idx) => (
                 <EstablishmentCard
                   key={est.id}
                   name={est.name}
                   location={est.location}
                   accreditation={est.accreditation}
+                  accredited={est.accredited}
+                  imageUrl={est.cover_image_paths?.[0] ? supabase.storage.from("operator_media").getPublicUrl(est.cover_image_paths[0]).data.publicUrl : est.image_url}
+                  avatarUrl={est.operator_avatar_path ? supabase.storage.from("operator_media").getPublicUrl(est.operator_avatar_path).data.publicUrl : undefined}
+                  index={idx}
                   onPress={() =>
                     router.push({
                       pathname: "/establishment/[id]",
@@ -93,12 +111,9 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, paddingHorizontal: 20 },
   scrollContent: { paddingTop: 12, paddingBottom: 40, gap: 12 },
   gridInner: { paddingHorizontal: 0, alignItems: "center" },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 14,
+  list: {
     width: "100%",
-    justifyContent: "center",
+    gap: 12,
   },
   center: {
     flex: 1,

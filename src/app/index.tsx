@@ -1,19 +1,33 @@
 import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
+  Dimensions,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { colors } from "../constants/colors";
 import { useLayout } from "../context/LayoutContext";
+import { hasSplashBeenShown, markSplashShown } from "../lib/splash";
+import AuthWelcome from "../components/AuthWelcome";
+import SplashScreen from "../components/SplashScreen";
 import WaveDivider from "../components/WaveDivider";
 
 export default function Index() {
   const router = useRouter();
   const { isTablet, isDesktop } = useLayout();
   const isWide = isTablet || isDesktop;
+  const [showSplash, setShowSplash] = useState(() => {
+    if (hasSplashBeenShown()) return false;
+    const { width } = Dimensions.get("window");
+    return width > 0 && width < 640;
+  });
+
+  useEffect(() => {
+    markSplashShown();
+  }, []);
 
   if (isWide) {
     return (
@@ -57,90 +71,18 @@ export default function Index() {
   }
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={require("../../assets/images/1.png")}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        pointerEvents="none"
-      />
-      <View style={styles.content}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <Image
-          source={require("../../assets/images/logo.png")}
-          style={styles.logo}
-          contentFit="contain"
-        />
-        <Text style={styles.subtitle}>Tara, Sinsay na sa Mabini!</Text>
-      </View>
-
-      <View style={styles.footer}>
-        <View style={styles.bottomSection}>
-          <Pressable style={styles.button} onPress={() => router.push("/next")}>
-            <Text style={styles.buttonText}>Explore</Text>
-          </Pressable>
-
-          <Text style={styles.note}>
-            {"Before you explore, learn how to protect Mabini's marine ecosystem."}
-          </Text>
-        </View>
-      </View>
+    <View style={styles.mobileRoot}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <AuthWelcome active={!showSplash} />
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  mobileRoot: {
     flex: 1,
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 40,
-    paddingTop: 90,
-    paddingBottom: 32,
-    backgroundColor: "#ffffff",
-    overflow: "hidden",
-  },
-  content: {
-    gap: 0,
-  },
-  logo: {
-    width: 250,
-    height: 60,
-  },
-  bottomSection: {
-    width: "100%",
-    gap: 10,
-    marginBottom: 120,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#000000",
-    textAlign: "center",
-    fontWeight: "700",
-    marginTop: -8,
-  },
-  button: {
-    alignSelf: "stretch",
-    backgroundColor: "#176FF2",
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  footer: {
-    alignSelf: "stretch",
-    gap: 10,
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  note: {
-    fontSize: 10,
-    color: "#ffffff",
-    textAlign: "center",
+    backgroundColor: colors.splashBlue,
   },
   desktopRoot: {
     flex: 1,

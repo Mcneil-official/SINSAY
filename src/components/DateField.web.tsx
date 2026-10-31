@@ -6,10 +6,10 @@ import type { DateFieldProps } from "./DateField";
 // Web PWA: the browser's own calendar popup. <input type="date"> yields
 // YYYY-MM-DD directly (matching the strict validators), supports min/max,
 // and still allows keyboard entry. Styled to the shared TextInput look.
-export function DateField({ label, value, onChangeText, error, min, max }: DateFieldProps) {
+export function DateField({ label, value, onChangeText, error, min, max, fontFamily }: DateFieldProps) {
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, fontFamily ? { fontFamily } : null]}>{label}</Text>
       {/* React Native for Web renders to DOM, so a raw <input> here is a
           real date field with the OS calendar popup. Never bundled for
           native (Metro resolves DateField.tsx there instead). */}
@@ -33,10 +33,12 @@ export function DateField({ label, value, onChangeText, error, min, max }: DateF
           backgroundColor: colors.white,
           width: "100%",
           boxSizing: "border-box",
-          fontFamily: "inherit",
+          fontFamily: fontFamily || "inherit",
+          outlineStyle: "none",
+          outlineWidth: 0,
         }}
       />
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? <Text style={[styles.errorText, fontFamily ? { fontFamily } : null]}>{error}</Text> : null}
     </View>
   );
 }

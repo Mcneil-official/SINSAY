@@ -4,16 +4,19 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { colors } from "../../constants/colors";
-import { Button, StatusBadge, ContentContainer, EmptyState } from "../../components";
+import { ContentContainer } from "../../components";
 import { ManifestSnapshotCard } from "../../components/ManifestSnapshotCard";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
@@ -31,7 +34,8 @@ type Tab = "upcoming" | "completed" | "drafts";
 
 interface ManifestItem {
   id: string;
-  boat_name: string;
+  boat_name: string | null;
+  dive_mode: string;
   location: string;
   dive_date: string;
   diver_count: number;
@@ -52,6 +56,8 @@ export default function ManifestsScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [operatorName, setOperatorName] = useState("Operator");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
 
   // Snapshot sheet state
   const [selected, setSelected] = useState<ManifestItem | null>(null);
@@ -85,7 +91,7 @@ export default function ManifestsScreen() {
       // Capped at 50 rows with an explicit note instead of unbounded growth.
       const { data: mfData, error: mfErr } = await supabase
         .from("dive_manifests")
-        .select("id, boat_name, location, dive_date, manifest_divers(count)")
+        .select("id, boat_name, dive_mode, location, dive_date, manifest_divers(count)")
         .eq("operator_id", user!.id)
         .order("dive_date", { ascending: false })
         .limit(50);
@@ -93,12 +99,12 @@ export default function ManifestsScreen() {
 
       setManifests(
         (mfData || []).map((m: {
-          id: string; boat_name: string; location: string; dive_date: string;
+          id: string; boat_name: string | null; dive_mode: string; location: string; dive_date: string;
           manifest_divers?: { count: number }[] | { count: number };
         }) => {
           const dc = m.manifest_divers;
           const diver_count = Array.isArray(dc) ? (dc[0]?.count ?? 0) : (dc?.count ?? 0);
-          return { id: m.id, boat_name: m.boat_name, location: m.location, dive_date: m.dive_date, diver_count };
+          return { id: m.id, boat_name: m.boat_name, dive_mode: m.dive_mode, location: m.location, dive_date: m.dive_date, diver_count };
         })
       );
 
@@ -124,6 +130,16 @@ export default function ManifestsScreen() {
   const todayStr = toLocalDateString(new Date());
   const upcoming = manifests.filter((m) => m.dive_date >= todayStr);
   const completed = manifests.filter((m) => m.dive_date < todayStr);
+  const query = searchQuery.trim().toLocaleLowerCase();
+  const filterManifest = (m: ManifestItem) =>
+    !query || `${m.boat_name || m.dive_mode} ${m.location}`.toLocaleLowerCase().includes(query);
+  const filteredUpcoming = upcoming.filter(filterManifest);
+  const filteredCompleted = completed.filter(filterManifest);
+  const filteredDrafts = drafts.filter(
+    (d) =>
+      !query ||
+      `${draftTitle(d)} ${draftSubtitle(d)}`.toLocaleLowerCase().includes(query),
+  );
 
   const openSnapshot = async (m: ManifestItem) => {
     setSelected(m);
@@ -145,7 +161,7 @@ export default function ManifestsScreen() {
   };
 
   const snapshotFile = (m: ManifestItem) =>
-    `manifesto-${m.dive_date}-${m.boat_name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png`;
+    `manifesto-${m.dive_date}-${(m.boat_name || m.dive_mode || "dive-group").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png`;
 
   const handleDownload = async () => {
     if (!selected) return;
@@ -192,169 +208,341 @@ export default function ManifestsScreen() {
     drafts: drafts.length,
   };
 
+  const openCreateManifest = () =>
+    router.push("/establishment/create-manifest/step1");
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <ContentContainer maxWidth={720}>
-          <View style={styles.headerRow}>
-          <Text style={styles.title}>Manifests</Text>
-          <Button
-            title="+ New"
-            fullWidth={false}
-            onPress={() => router.push("/establishment/create-manifest/step1")}
+      <StatusBar barStyle="light-content" />
+      <View style={styles.headerBackground} pointerEvents="none">
+        <Svg
+          width="100%"
+          height={245}
+          preserveAspectRatio="none"
+          style={StyleSheet.absoluteFill}
+        >
+          <Defs>
+            <LinearGradient id="screenTopGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#0061f5" />
+              <Stop offset="0.3" stopColor="#208bff" />
+              <Stop offset="0.6" stopColor="#97ddfa" />
+              <Stop offset="0.85" stopColor="#e4f5ff" />
+              <Stop offset="1" stopColor="#f1f9ff" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height={245} fill="url(#screenTopGrad)" />
+        </Svg>
+        <Svg
+          viewBox="0 0 1024 496"
+          preserveAspectRatio="none"
+          style={styles.headerWaveSvg}
+        >
+          <Path
+            d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z"
+            fill="#FFFFFF"
+            opacity={0.16}
           />
-        </View>
+        </Svg>
+      </View>
 
-        {/* Category tabs */}
-        <View style={styles.tabRow} accessibilityRole="tablist">
-          {TABS.map((t) => {
-            const active = tab === t.key;
-            return (
-              <TouchableOpacity
-                key={t.key}
-                style={[styles.tabBtn, active && styles.tabBtnActive]}
-                onPress={() => setTab(t.key)}
-                activeOpacity={0.85}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={`${t.label}, ${counts[t.key]} items`}
-              >
-                <Text style={[styles.tabText, active && styles.tabTextActive]}>
-                  {t.label} ({counts[t.key]})
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {loading ? (
-          <ActivityIndicator size="large" color={colors.primaryBlue} style={{ marginTop: 40 }} />
-        ) : loadError ? (
-          <View style={styles.retrySection}>
-            <Text style={styles.retryText}>Failed to load manifests.</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={() => { loadManifests(); loadLocalDrafts(); }}>
-              <Text style={styles.retryBtnText}>Retry</Text>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ContentContainer maxWidth={480} paddingH={14}>
+          <View style={styles.heroHeader}>
+            <View style={styles.heroCopy}>
+              <Text style={styles.eyebrow}>OPERATOR TOOLS</Text>
+              <Text style={styles.title}>Dive Manifests</Text>
+              <Text style={styles.subtitle}>Plan and manage your dive trips</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.newManifestButton}
+              onPress={openCreateManifest}
+              activeOpacity={0.86}
+              accessibilityRole="button"
+              accessibilityLabel="Create a new dive manifest"
+            >
+              <Ionicons name="add" size={19} color="#006bff" />
+              <Text style={styles.newManifestText}>New Manifest</Text>
             </TouchableOpacity>
           </View>
-        ) : tab === "drafts" ? (
-          drafts.length === 0 ? (
-            <EmptyState icon="document-outline" message="No drafts. Unsubmitted forms autosave on this device." />
-          ) : (
-            <View style={styles.list}>
-              <Text style={styles.draftNote}>Drafts live on this device only — they never consume passes until submitted.</Text>
-              {drafts.map((d) => (
-                <View key={d.id} style={styles.row}>
-                  <View style={styles.icon}>
-                    <Ionicons name="document-text" size={20} color={colors.primaryBlue} />
-                  </View>
-                  <View style={styles.info}>
-                    <Text style={styles.rowTitle}>{draftTitle(d)}</Text>
-                    <Text style={styles.rowMeta}>{draftSubtitle(d)}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.resumeBtn}
-                    onPress={() => resumeDraft(d)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Resume draft ${draftTitle(d)}`}
-                  >
-                    <Text style={styles.resumeText}>Resume</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => removeDraft(d)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete draft ${draftTitle(d)}`}
-                  >
-                    <Ionicons name="trash-outline" size={18} color={colors.gray} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )
-        ) : (
-          (() => {
-            const rows = tab === "upcoming" ? upcoming : completed;
-            if (rows.length === 0) {
+
+          <View style={[styles.searchBox, searchFocused && styles.searchBoxFocused]}>
+            <Ionicons name="search" size={18} color="#6680aa" />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={tab === "drafts" ? "Search drafts" : "Search boat or location"}
+              placeholderTextColor="#8293b0"
+              style={styles.searchInput}
+              returnKeyType="search"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              accessibilityLabel="Search manifests by boat or location"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearSearchButton}
+                onPress={() => setSearchQuery("")}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
+                <Ionicons name="close-circle" size={19} color="#8293b0" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.tabRow} accessibilityRole="tablist">
+            {TABS.map((t) => {
+              const active = tab === t.key;
               return (
-                <EmptyState
-                  icon="boat-outline"
-                  message={tab === "upcoming" ? "No upcoming dives. Create your next manifesto!" : "No completed dives yet."}
-                />
+                <TouchableOpacity
+                  key={t.key}
+                  style={[styles.tabBtn, active && styles.tabBtnActive]}
+                  onPress={() => setTab(t.key)}
+                  activeOpacity={0.85}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`${t.label}, ${counts[t.key]} items`}
+                >
+                  <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
+                    {t.label}
+                  </Text>
+                  <View style={[styles.countBadge, active && styles.countBadgeActive]}>
+                    <Text style={[styles.countText, active && styles.countTextActive]}>{counts[t.key]}</Text>
+                  </View>
+                </TouchableOpacity>
               );
-            }
-            return (
+            })}
+          </View>
+
+          {!loading && !loadError && (
+            <View style={styles.resultsHeading}>
+              <Text style={styles.resultsTitle}>
+                {tab === "upcoming" ? "Upcoming dives" : tab === "completed" ? "Completed dives" : "Saved drafts"}
+              </Text>
+              <Text style={styles.resultsCount}>
+                {tab === "upcoming" ? filteredUpcoming.length : tab === "completed" ? filteredCompleted.length : filteredDrafts.length} shown
+              </Text>
+            </View>
+          )}
+
+          {loading ? (
+            <View style={styles.loadingCard}>
+              <ActivityIndicator size="large" color={colors.primaryBlue} />
+              <Text style={styles.loadingText}>Loading your manifests?</Text>
+            </View>
+          ) : loadError ? (
+            <View style={styles.stateCard}>
+              <View style={styles.stateIcon}><Ionicons name="cloud-offline-outline" size={25} color="#006bff" /></View>
+              <Text style={styles.stateTitle}>Couldn?t load manifests</Text>
+              <Text style={styles.stateMessage}>Check your connection and try again.</Text>
+              <TouchableOpacity
+                style={styles.stateAction}
+                onPress={() => { void loadManifests(); void loadLocalDrafts(); }}
+                accessibilityRole="button"
+              >
+                <Ionicons name="refresh" size={16} color="#FFFFFF" />
+                <Text style={styles.stateActionText}>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : tab === "drafts" ? (
+            filteredDrafts.length === 0 ? (
+              <View style={styles.stateCard}>
+                <View style={styles.stateIcon}><Ionicons name={query ? "search-outline" : "document-text-outline"} size={25} color="#006bff" /></View>
+                <Text style={styles.stateTitle}>{query ? "No matching drafts" : "No saved drafts"}</Text>
+                <Text style={styles.stateMessage}>
+                  {query ? "Try another boat name or location." : "Unsubmitted forms save on this device and won?t use passes until submitted."}
+                </Text>
+                {query ? (
+                  <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.textAction}>
+                    <Text style={styles.textActionLabel}>Clear search</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.stateAction} onPress={openCreateManifest}>
+                    <Ionicons name="add" size={17} color="#FFFFFF" />
+                    <Text style={styles.stateActionText}>Create manifest</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
               <View style={styles.list}>
-                {rows.map((m) => {
-                  const status = deriveStatus(m.dive_date);
-                  return (
-                    <TouchableOpacity
-                      key={m.id}
-                      style={styles.row}
-                      activeOpacity={0.7}
-                      onPress={() => openSnapshot(m)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open snapshot for ${m.boat_name} on ${m.dive_date}`}
-                    >
+                <View style={styles.draftNote}>
+                  <Ionicons name="information-circle" size={18} color="#006bff" />
+                  <Text style={styles.draftNoteText}>Drafts are saved on this device and do not consume passes.</Text>
+                </View>
+                {filteredDrafts.map((d) => (
+                  <View key={d.id} style={styles.draftCard}>
+                    <View style={styles.cardTopRow}>
                       <View style={styles.icon}>
-                        <Ionicons name="boat" size={20} color={colors.primaryBlue} />
+                        <Ionicons name="document-text" size={19} color="#006bff" />
                       </View>
                       <View style={styles.info}>
-                        <Text style={styles.rowTitle}>{m.boat_name}</Text>
-                        <Text style={styles.rowMeta}>
-                          {formatDiveDate(m.dive_date)} · {m.diver_count} divers · {m.location}
-                        </Text>
+                        <Text style={styles.rowTitle} numberOfLines={1}>{draftTitle(d)}</Text>
+                        <Text style={styles.rowMeta} numberOfLines={2}>{draftSubtitle(d)}</Text>
                       </View>
-                      <StatusBadge
-                        label={status === "active" ? "Active" : "Done"}
-                        variant={status}
-                      />
-                      <Ionicons name="share-outline" size={18} color={colors.gray} />
+                      <TouchableOpacity
+                        style={styles.deleteBtn}
+                        onPress={() => removeDraft(d)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete draft ${draftTitle(d)}`}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#7385a6" />
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.resumeBtn}
+                      onPress={() => resumeDraft(d)}
+                      activeOpacity={0.86}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Resume draft ${draftTitle(d)}`}
+                    >
+                      <Text style={styles.resumeText}>Continue draft</Text>
+                      <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                     </TouchableOpacity>
-                  );
-                })}
+                  </View>
+                ))}
               </View>
-            );
-          })()
-        )}
-
-          </ContentContainer>
-
+            )
+          ) : (
+            (() => {
+              const rows = tab === "upcoming" ? filteredUpcoming : filteredCompleted;
+              if (rows.length === 0) {
+                const empty = query
+                  ? { title: "No matching manifests", message: "Try a different boat name or location." }
+                  : tab === "upcoming"
+                    ? { title: "No upcoming dives", message: "Create a manifest to organize your next trip." }
+                    : { title: "No completed dives yet", message: "Completed manifests will appear here." };
+                return (
+                  <View style={styles.stateCard}>
+                    <View style={styles.stateIcon}><Ionicons name={query ? "search-outline" : "boat-outline"} size={25} color="#006bff" /></View>
+                    <Text style={styles.stateTitle}>{empty.title}</Text>
+                    <Text style={styles.stateMessage}>{empty.message}</Text>
+                    {query ? (
+                      <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.textAction}>
+                        <Text style={styles.textActionLabel}>Clear search</Text>
+                      </TouchableOpacity>
+                    ) : tab === "upcoming" ? (
+                      <TouchableOpacity style={styles.stateAction} onPress={openCreateManifest}>
+                        <Ionicons name="add" size={17} color="#FFFFFF" />
+                        <Text style={styles.stateActionText}>New Manifest</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                );
+              }
+              return (
+                <View style={styles.list}>
+                  {rows.map((m) => {
+                    const active = deriveStatus(m.dive_date) === "active";
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        style={styles.manifestCard}
+                        activeOpacity={0.82}
+                        onPress={() => openSnapshot(m)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open snapshot for ${m.boat_name || m.dive_mode} on ${m.dive_date}`}
+                      >
+                        <View style={styles.cardTopRow}>
+                          <View style={styles.icon}>
+                            <Ionicons name={m.dive_mode === "Boat Dive" ? "boat" : m.dive_mode === "Night Dive" ? "moon" : "umbrella"} size={19} color="#006bff" />
+                          </View>
+                          <View style={styles.info}>
+                            <Text style={styles.rowTitle} numberOfLines={1}>{m.boat_name || m.dive_mode || "Dive Group"}</Text>
+                            <View style={styles.locationRow}>
+                              <Ionicons name="location-outline" size={13} color="#7385a6" />
+                              <Text style={styles.locationText} numberOfLines={1}>{m.location}</Text>
+                            </View>
+                          </View>
+                          <View style={[styles.statusPill, active ? styles.statusActive : styles.statusDone]}>
+                            <Text style={[styles.statusText, active ? styles.statusTextActive : styles.statusTextDone]}>
+                              {active ? "Upcoming" : "Completed"}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.cardFooter}>
+                          <View style={styles.metaItem}>
+                            <Ionicons name="calendar-outline" size={15} color="#006bff" />
+                            <Text style={styles.footerMetaText}>{formatDiveDate(m.dive_date)}</Text>
+                          </View>
+                          <View style={styles.metaItem}>
+                            <Ionicons name="people-outline" size={15} color="#006bff" />
+                            <Text style={styles.footerMetaText}>{m.diver_count} divers</Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={17} color="#8ba0c2" />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              );
+            })()
+          )}
+        </ContentContainer>
         <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Snapshot sheet */}
-      <Modal visible={selected !== null} transparent animationType="fade" onRequestClose={() => setSelected(null)}>
+      <Modal
+        visible={selected !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelected(null)}
+      >
         <View style={styles.sheetOverlay}>
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Manifesto snapshot</Text>
-              <TouchableOpacity onPress={() => setSelected(null)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close snapshot">
-                <Ionicons name="close" size={22} color="#0F172A" />
+              <View style={styles.sheetTitleWrap}>
+                <Text style={styles.sheetEyebrow}>MANIFESTO PREVIEW</Text>
+                <Text style={styles.sheetTitle}>Share dive details</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setSelected(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close snapshot"
+              >
+                <Ionicons name="close" size={21} color="#31466e" />
               </TouchableOpacity>
             </View>
             {selected && (
               <>
-                <View style={styles.cardWrap}>
-                  {diversLoading ? (
-                    <ActivityIndicator size="small" color={colors.primaryBlue} />
-                  ) : (
-                    <ManifestSnapshotCard
-                      ref={cardRef}
-                      manifest={{
-                        id: selected.id,
-                        boat_name: selected.boat_name,
-                        location: selected.location,
-                        dive_date: selected.dive_date,
-                        diver_count: selected.diver_count,
-                        status: deriveStatus(selected.dive_date),
-                      }}
-                      divers={diverNames}
-                      operatorName={operatorName}
-                    />
-                  )}
-                </View>
-                {snapshotMsg ? <Text style={styles.sheetMsg}>{snapshotMsg}</Text> : null}
+                <ScrollView style={styles.sheetPreviewScroll} showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.cardWrap}
+                  >
+                    {diversLoading ? (
+                      <ActivityIndicator size="small" color={colors.primaryBlue} />
+                    ) : (
+                      <ManifestSnapshotCard
+                        ref={cardRef}
+                        manifest={{
+                          id: selected.id,
+                          boat_name: selected.boat_name,
+                          dive_mode: selected.dive_mode,
+                          location: selected.location,
+                          dive_date: selected.dive_date,
+                          diver_count: selected.diver_count,
+                          status: deriveStatus(selected.dive_date),
+                        }}
+                        divers={diverNames}
+                        operatorName={operatorName}
+                      />
+                    )}
+                  </ScrollView>
+                </ScrollView>
+                {snapshotMsg ? (
+                  <View style={styles.sheetMessageBox}>
+                    <Ionicons name="checkmark-circle" size={17} color="#129b83" />
+                    <Text style={styles.sheetMsg}>{snapshotMsg}</Text>
+                  </View>
+                ) : null}
                 <View style={styles.sheetBtns}>
                   <TouchableOpacity
                     style={[styles.sheetBtn, styles.sheetBtnOutline]}
@@ -367,7 +555,10 @@ export default function ManifestsScreen() {
                     {snapshotBusy ? (
                       <ActivityIndicator size="small" color={colors.primaryBlue} />
                     ) : (
-                      <Text style={styles.sheetBtnOutlineText}>Download</Text>
+                      <>
+                        <Ionicons name="download-outline" size={18} color="#006bff" />
+                        <Text style={styles.sheetBtnOutlineText}>Download</Text>
+                      </>
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -381,7 +572,10 @@ export default function ManifestsScreen() {
                     {snapshotBusy ? (
                       <ActivityIndicator size="small" color={colors.white} />
                     ) : (
-                      <Text style={styles.sheetBtnPrimaryText}>Share</Text>
+                      <>
+                        <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
+                        <Text style={styles.sheetBtnPrimaryText}>Share</Text>
+                      </>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -395,92 +589,374 @@ export default function ManifestsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.white },
+  safeArea: { flex: 1, backgroundColor: "#f1f9ff" },
+  headerBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 245,
+    overflow: "hidden",
+  },
+  headerWaveSvg: {
+    position: "absolute",
+    top: 10,
+    left: 0,
+    width: "100%",
+    height: 190,
+  },
   container: { flex: 1 },
-  scrollContent: { paddingTop: 12, paddingBottom: 20 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
-  title: { fontSize: 24, fontWeight: "700", color: colors.darkText },
+  scrollContent: { paddingTop: 20, paddingBottom: 20 },
+  heroHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 18,
+  },
+  heroCopy: { flex: 1, minWidth: 0 },
+  eyebrow: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "rgba(255,255,255,0.82)",
+    letterSpacing: 1.1,
+    marginBottom: 3,
+  },
+  title: {
+    fontSize: 23,
+    lineHeight: 28,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+    color: "rgba(255,255,255,0.9)",
+    marginTop: 2,
+  },
+  newManifestButton: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#0045b9",
+    shadowOpacity: 0.17,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  newManifestText: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#006bff",
+  },
+  searchBox: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingHorizontal: 13,
+    borderRadius: 15,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#deebfa",
+    marginBottom: 12,
+    shadowColor: "#3479ba",
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  searchBoxFocused: {
+    borderColor: "#1682ff",
+    shadowColor: "#1682ff",
+    shadowOpacity: 0.12,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    height: 46,
+    paddingVertical: 0,
+    fontSize: 13,
+    fontFamily: "Quicksand_500Medium",
+    color: "#07156c",
+    outlineStyle: "none" as any,
+    outlineWidth: 0,
+    ...(Platform.OS === "web" ? { WebkitTapHighlightColor: "transparent" } as any : {}),
+  },
+  clearSearchButton: {
+    width: 34,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   tabRow: {
     flexDirection: "row",
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.67)",
+    borderRadius: 15,
     padding: 4,
-    gap: 4,
-    marginBottom: 14,
+    gap: 3,
+    marginBottom: 17,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.75)",
   },
   tabBtn: {
     flex: 1,
-    borderRadius: 9,
-    paddingVertical: 9,
+    minWidth: 0,
+    minHeight: 42,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    borderRadius: 11,
+    paddingHorizontal: 3,
   },
   tabBtnActive: {
-    backgroundColor: colors.white,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#2865a6",
+    shadowOpacity: 0.11,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  tabText: {
+    flexShrink: 1,
+    fontSize: 10.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#597092",
+  },
+  tabTextActive: { color: "#07156c", fontFamily: "Quicksand_700Bold" },
+  countBadge: {
+    minWidth: 19,
+    height: 19,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    backgroundColor: "#e9f2ff",
+  },
+  countBadgeActive: { backgroundColor: "#006bff" },
+  countText: { fontSize: 9, fontFamily: "Quicksand_700Bold", color: "#5274a7" },
+  countTextActive: { color: "#FFFFFF" },
+  resultsHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 9,
+    paddingHorizontal: 2,
+  },
+  resultsTitle: { fontSize: 14, fontFamily: "Quicksand_700Bold", color: "#07156c" },
+  resultsCount: { fontSize: 10, fontFamily: "Quicksand_500Medium", color: "#7183a4" },
+  list: { gap: 10 },
+  manifestCard: {
+    backgroundColor: "rgba(255,255,255,0.97)",
+    borderRadius: 18,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: "rgba(111,185,237,0.27)",
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.1,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  draftCard: {
+    backgroundColor: "rgba(255,255,255,0.97)",
+    borderRadius: 18,
+    padding: 13,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "rgba(111,185,237,0.27)",
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.1,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  cardTopRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  icon: {
+    width: 42,
+    height: 42,
+    flexShrink: 0,
+    borderRadius: 14,
+    backgroundColor: "#e7f3ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  info: { flex: 1, minWidth: 0 },
+  rowTitle: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+  },
+  rowMeta: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: "Quicksand_500Medium",
+    color: "#637697",
+    marginTop: 3,
+  },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
+  locationText: {
+    flex: 1,
+    fontSize: 10.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#637697",
+  },
+  statusPill: { borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 },
+  statusActive: { backgroundColor: "#dcfce7" },
+  statusDone: { backgroundColor: "#e9efff" },
+  statusText: { fontSize: 9, fontFamily: "Quicksand_700Bold" },
+  statusTextActive: { color: "#16835e" },
+  statusTextDone: { color: "#5368b1" },
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#e9f0fa",
+    marginTop: 11,
+    paddingTop: 9,
+  },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  footerMetaText: { fontSize: 10.5, fontFamily: "Quicksand_600SemiBold", color: "#526789" },
+  draftNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    borderRadius: 13,
+    backgroundColor: "#e7f3ff",
+    marginBottom: 1,
+  },
+  draftNoteText: { flex: 1, fontSize: 10.5, lineHeight: 15, fontFamily: "Quicksand_500Medium", color: "#315b92" },
+  deleteBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f2f6fb",
+  },
+  resumeBtn: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 13,
+    backgroundColor: "#087bff",
+  },
+  resumeText: { fontSize: 12, fontFamily: "Quicksand_700Bold", color: "#FFFFFF" },
+  stateCard: {
+    alignItems: "center",
+    paddingHorizontal: 22,
+    paddingVertical: 27,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(111,185,237,0.25)",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.08,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 1,
   },
-  tabText: { fontSize: 12.5, fontWeight: "600", color: "#64748B" },
-  tabTextActive: { color: colors.primaryBlue, fontWeight: "800" },
-  draftNote: { fontSize: 12, color: "#64748B", lineHeight: 17, marginBottom: 4 },
-  list: { gap: 8 },
-  row: {
-    flexDirection: "row", alignItems: "center", backgroundColor: colors.white,
-    borderRadius: 14, padding: 14, gap: 10,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 1,
+  stateIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e7f3ff",
+    marginBottom: 12,
   },
-  icon: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#EBF2FF", alignItems: "center", justifyContent: "center" },
-  info: { flex: 1 },
-  rowTitle: { fontSize: 14, fontWeight: "600", color: colors.darkText },
-  rowMeta: { fontSize: 11, color: colors.gray, marginTop: 2 },
-  resumeBtn: {
-    backgroundColor: "#EBF2FF",
-    borderRadius: 100,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  stateTitle: { fontSize: 15, fontFamily: "Quicksand_700Bold", color: "#07156c", textAlign: "center" },
+  stateMessage: { fontSize: 11.5, lineHeight: 17, fontFamily: "Quicksand_500Medium", color: "#647797", textAlign: "center", marginTop: 5 },
+  stateAction: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    borderRadius: 13,
+    backgroundColor: "#087bff",
+    marginTop: 16,
   },
-  resumeText: { fontSize: 12, fontWeight: "700", color: colors.primaryBlue },
-  retrySection: { alignItems: "center", marginTop: 40, gap: 12 },
-  retryText: { fontSize: 14, color: colors.gray },
-  retryBtn: { borderRadius: 100, borderWidth: 1, borderColor: colors.primaryBlue, paddingVertical: 8, paddingHorizontal: 24 },
-  retryBtnText: { fontSize: 13, fontWeight: "600", color: colors.primaryBlue },
+  stateActionText: { fontSize: 11.5, fontFamily: "Quicksand_700Bold", color: "#FFFFFF" },
+  textAction: { minHeight: 44, justifyContent: "center", paddingHorizontal: 12, marginTop: 8 },
+  textActionLabel: { fontSize: 12, fontFamily: "Quicksand_700Bold", color: "#006bff" },
+  loadingCard: {
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 32,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.9)",
+  },
+  loadingText: { fontSize: 11, fontFamily: "Quicksand_500Medium", color: "#647797" },
   sheetOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    backgroundColor: "rgba(5,23,59,0.58)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
+    padding: 12,
   },
   sheet: {
     width: "100%",
-    maxWidth: 420,
+    maxWidth: 460,
     maxHeight: "92%",
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: "#f4f9ff",
+    borderRadius: 23,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.8)",
   },
   sheetHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    justifyContent: "space-between",
+    marginBottom: 11,
   },
-  sheetTitle: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
-  cardWrap: { alignItems: "center", marginBottom: 12 },
-  sheetMsg: { fontSize: 13, color: "#15803D", textAlign: "center", marginBottom: 8 },
-  sheetBtns: { flexDirection: "row", gap: 10 },
+  sheetTitleWrap: { flex: 1 },
+  sheetEyebrow: { fontSize: 8.5, fontFamily: "Quicksand_700Bold", letterSpacing: 0.8, color: "#1682ff" },
+  sheetTitle: { fontSize: 16, fontFamily: "Quicksand_700Bold", color: "#07156c", marginTop: 2 },
+  closeButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e7f3ff",
+  },
+  sheetPreviewScroll: { flexShrink: 1 },
+  cardWrap: { alignItems: "flex-start", justifyContent: "center", paddingBottom: 8 },
+  sheetMessageBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+  },
+  sheetMsg: { flexShrink: 1, fontSize: 11, fontFamily: "Quicksand_600SemiBold", color: "#16835e", textAlign: "center" },
+  sheetBtns: { flexDirection: "row", gap: 10, marginTop: 4 },
   sheetBtn: {
     flex: 1,
-    height: 48,
+    minHeight: 48,
+    flexDirection: "row",
+    gap: 7,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  sheetBtnOutline: { borderWidth: 1.5, borderColor: colors.primaryBlue, backgroundColor: colors.white },
-  sheetBtnOutlineText: { fontSize: 15, fontWeight: "700", color: colors.primaryBlue },
-  sheetBtnPrimary: { backgroundColor: colors.primaryBlue },
-  sheetBtnPrimaryText: { fontSize: 15, fontWeight: "700", color: colors.white },
+  sheetBtnOutline: { borderWidth: 1.5, borderColor: "#8bbdff", backgroundColor: "#FFFFFF" },
+  sheetBtnOutlineText: { fontSize: 12, fontFamily: "Quicksand_700Bold", color: "#006bff" },
+  sheetBtnPrimary: { backgroundColor: "#087bff" },
+  sheetBtnPrimaryText: { fontSize: 12, fontFamily: "Quicksand_700Bold", color: "#FFFFFF" },
 });

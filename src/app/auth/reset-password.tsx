@@ -8,22 +8,33 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Eye, EyeSlash } from "phosphor-react-native";
-import { ContentContainer } from "../../components";
+import {
+  CheckCircle,
+  Eye,
+  EyeSlash,
+  WarningCircle,
+} from "phosphor-react-native";
+import { AuthLayout } from "../../components";
+import { useScreenTransition } from "../../context/ScreenTransitionContext";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 import { validateNewPassword } from "../../lib/password";
 
-// Pre-auth + shell-less (see PRE_AUTH_PATHS in AppShell). Landing target of
-// the Supabase recovery email (resetPasswordForEmail redirectTo). Verifies
-// the recovery session (PKCE ?code exchange + implicit #token fallback),
-// then lets the user set a new password. Deliberately does NOT route by
-// role: the recovery session exists only to set the password.
+// Landing target of the Supabase recovery email (resetPasswordForEmail
+// redirectTo). Verifies the recovery session (PKCE ?code exchange + implicit
+// #token fallback), then lets the user set a new password. Deliberately does
+// NOT route by role: the recovery session exists only to set the password.
 type Phase = "verifying" | "ready" | "invalid" | "done";
+type ResetField = "password" | "confirm";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ code?: string; error?: string; error_description?: string }>();
+  const { runTransition } = useScreenTransition();
+  const params = useLocalSearchParams<{
+    code?: string;
+    error?: string;
+    error_description?: string;
+  }>();
   const { updatePassword, signOut } = useAuth();
   const [phase, setPhase] = useState<Phase>("verifying");
   const [problem, setProblem] = useState("");
@@ -32,6 +43,11 @@ export default function ResetPasswordScreen() {
   const [showPw, setShowPw] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{
+    password?: string;
+    confirm?: string;
+  }>({});
+  const [focusedField, setFocusedField] = useState<ResetField | null>(null);
   const ran = useRef(false);
 
   useEffect(() => {
@@ -40,7 +56,8 @@ export default function ResetPasswordScreen() {
     (async () => {
       try {
         // Provider-side error (expired link, already used, revoked).
-        const errParam = typeof params.error === "string" ? params.error : undefined;
+        const errParam =
+          typeof params.error === "string" ? params.error : undefined;
         if (errParam) {
           const desc =
             typeof params.error_description === "string"
@@ -59,7 +76,8 @@ export default function ResetPasswordScreen() {
               ? new URLSearchParams(window.location.search).get("code")
               : null;
         if (code) {
-          const { error: exError } = await supabase.auth.exchangeCodeForSession(code);
+          const { error: exError } =
+            await supabase.auth.exchangeCodeForSession(code);
           if (exError) throw exError;
         }
         // Implicit flow (#access_token) is picked up by the client from the
@@ -88,14 +106,30 @@ export default function ResetPasswordScreen() {
     })();
   }, [params.error, params.error_description, params.code]);
 
+  function clearFieldError(field: ResetField) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+    setError("");
+  }
+
   async function handleSave() {
+    if (saving) return;
     const validation = validateNewPassword(password, confirm);
     if (validation) {
-      setError(validation);
+      const field: ResetField = /confirm|match/i.test(validation)
+        ? "confirm"
+        : "password";
+      setFieldErrors({ [field]: validation });
+      setError("");
       return;
     }
     setSaving(true);
     setError("");
+    setFieldErrors({});
     const { error: upError } = await updatePassword(password);
     setSaving(false);
     if (upError) {
@@ -108,13 +142,44 @@ export default function ResetPasswordScreen() {
     setPhase("done");
   }
 
+  function goToLogin() {
+    runTransition(() => router.replace("/loginpage"));
+  }
+
+  function requestNewLink() {
+    runTransition(() =>
+      router.replace({ pathname: "/loginpage", params: { reset: "1" } })
+    );
+  }
+
+  function renderFieldLabel(label: string, field: ResetField) {
+    const fieldError = fieldErrors[field];
+    return (
+      <View style={styles.labelRow}>
+        <View style={styles.labelLeft}>
+          {fieldError ? (
+            <WarningCircle size={12} color="#EF4444" weight="fill" />
+          ) : null}
+          <Text style={styles.label}>{label}</Text>
+        </View>
+        {fieldError ? (
+          <Text
+            style={styles.fieldErrorText}
+            numberOfLines={2}
+            accessibilityLiveRegion="polite"
+          >
+            {fieldError}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.root}>
-        <ContentContainer maxWidth={480}>
-          <Text style={styles.title}>Set a new password</Text>
-
+      <AuthLayout showTabs={false}>
+        <View style={styles.content}>
           {phase === "verifying" && (
             <View style={styles.center}>
               <ActivityIndicator size="large" color="#176FF2" />
@@ -124,11 +189,12 @@ export default function ResetPasswordScreen() {
 
           {phase === "invalid" && (
             <>
+              <Text style={styles.title}>Reset link invalid</Text>
               <Text style={styles.body}>{problem}</Text>
-              <Pressable style={styles.button} onPress={() => router.replace("/auth/forgot-password")}>
+              <Pressable style={styles.button} onPress={requestNewLink}>
                 <Text style={styles.buttonText}>Request a New Link</Text>
               </Pressable>
-              <Pressable style={styles.ghost} onPress={() => router.replace("/loginpage")}>
+              <Pressable style={styles.ghost} onPress={goToLogin}>
                 <Text style={styles.ghostText}>Back to Log In</Text>
               </Pressable>
             </>
@@ -136,81 +202,199 @@ export default function ResetPasswordScreen() {
 
           {phase === "ready" && (
             <>
-              <Text style={styles.body}>Choose a password with at least 8 characters.</Text>
-              <Text style={styles.label}>New password</Text>
-              <View style={styles.passwordRow}>
-                <TextInput
-                  style={styles.passwordInput}
-                  value={password}
-                  onChangeText={(v) => {
-                    setPassword(v);
-                    if (error) setError("");
-                  }}
-                  placeholder="••••••••"
-                  placeholderTextColor="#9b9b9b"
-                  secureTextEntry={!showPw}
-                  autoComplete="new-password"
-                />
-                <Pressable onPress={() => setShowPw((p) => !p)} hitSlop={8}>
-                  {showPw ? <EyeSlash size={20} color="#1f1a17" /> : <Eye size={20} color="#1f1a17" />}
+              <Text style={styles.title}>Set a new password</Text>
+              <Text style={styles.body}>
+                Choose a password with at least 8 characters.
+              </Text>
+
+              <View style={styles.form}>
+                <View style={styles.field}>
+                  {renderFieldLabel("New password", "password")}
+                  <View
+                    style={[
+                      styles.passwordRow,
+                      focusedField === "password" &&
+                        styles.passwordRowFocused,
+                      fieldErrors.password && styles.passwordRowError,
+                    ]}
+                  >
+                    <TextInput
+                      style={styles.passwordInput}
+                      value={password}
+                      onChangeText={(v) => {
+                        setPassword(v);
+                        clearFieldError("password");
+                      }}
+                      onFocus={() => setFocusedField("password")}
+                      onBlur={() => setFocusedField(null)}
+                      placeholder="••••••••"
+                      placeholderTextColor="#9b9b9b"
+                      secureTextEntry={!showPw}
+                      autoComplete="new-password"
+                    />
+                    <Pressable
+                      onPress={() => setShowPw((p) => !p)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        showPw ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showPw ? (
+                        <EyeSlash size={20} color="#1f1a17" />
+                      ) : (
+                        <Eye size={20} color="#1f1a17" />
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.field}>
+                  {renderFieldLabel("Confirm password", "confirm")}
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === "confirm" && styles.inputFocused,
+                      fieldErrors.confirm && styles.inputError,
+                    ]}
+                    value={confirm}
+                    onChangeText={(v) => {
+                      setConfirm(v);
+                      clearFieldError("confirm");
+                    }}
+                    onFocus={() => setFocusedField("confirm")}
+                    onBlur={() => setFocusedField(null)}
+                    placeholder="••••••••"
+                    placeholderTextColor="#9b9b9b"
+                    secureTextEntry={!showPw}
+                    autoComplete="new-password"
+                  />
+                </View>
+
+                {error ? (
+                  <View style={styles.inlineErrorWrap}>
+                    <WarningCircle size={13} color="#EF4444" weight="fill" />
+                    <Text style={styles.inlineError} numberOfLines={2}>
+                      {error}
+                    </Text>
+                  </View>
+                ) : null}
+
+                <Pressable
+                  style={styles.button}
+                  onPress={handleSave}
+                  disabled={saving}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: saving }}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Save New Password</Text>
+                  )}
                 </Pressable>
               </View>
-              <Text style={[styles.label, { marginTop: 12 }]}>Confirm password</Text>
-              <TextInput
-                style={styles.input}
-                value={confirm}
-                onChangeText={(v) => {
-                  setConfirm(v);
-                  if (error) setError("");
-                }}
-                placeholder="••••••••"
-                placeholderTextColor="#9b9b9b"
-                secureTextEntry={!showPw}
-                autoComplete="new-password"
-              />
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-              <Pressable style={styles.button} onPress={handleSave} disabled={saving}>
-                {saving ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <Text style={styles.buttonText}>Save New Password</Text>
-                )}
-              </Pressable>
             </>
           )}
 
           {phase === "done" && (
-            <>
-              <Text style={styles.body}>
-                Your password was updated. Log in with your new password to continue.
+            <View style={styles.done}>
+              <CheckCircle size={40} color="#10B981" weight="fill" />
+              <Text style={[styles.title, styles.centerText]}>
+                Password updated
               </Text>
-              <Pressable style={styles.button} onPress={() => router.replace("/loginpage")}>
+              <Text style={[styles.body, styles.centerText]}>
+                Your password was updated. Log in with your new password to
+                continue.
+              </Text>
+              <Pressable
+                style={styles.button}
+                onPress={goToLogin}
+                accessibilityRole="button"
+              >
                 <Text style={styles.buttonText}>Back to Log In</Text>
               </Pressable>
-            </>
+            </View>
           )}
-        </ContentContainer>
-      </View>
+        </View>
+      </AuthLayout>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#ffffff", paddingHorizontal: 24, paddingTop: 48 },
-  title: { fontSize: 24, fontWeight: "800", color: "#0F172A", marginBottom: 10 },
-  body: { fontSize: 14, color: "#475569", lineHeight: 21, marginBottom: 16 },
-  center: { alignItems: "center", gap: 12, marginTop: 32 },
-  label: { fontSize: 13, color: "#5f554d", marginBottom: 6 },
+  content: {
+    gap: 10,
+    paddingTop: 4,
+  },
+  title: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontFamily: "Quicksand_700Bold",
+    color: "#111827",
+  },
+  body: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
+  },
+  center: {
+    alignItems: "center",
+    gap: 12,
+    paddingTop: 28,
+  },
+  form: {
+    gap: 9,
+    marginTop: 2,
+  },
+  field: {
+    gap: 4,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  labelLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 0,
+  },
+  label: {
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5f554d",
+  },
+  fieldErrorText: {
+    flex: 1,
+    minWidth: 0,
+    textAlign: "right",
+    fontSize: 11,
+    lineHeight: 14,
+    fontFamily: "Quicksand_500Medium",
+    color: "#EF4444",
+  },
   input: {
     borderWidth: 1,
     borderColor: "#e3ded5",
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: "#1f1a17",
+    paddingVertical: 9,
+    fontSize: 13,
+    fontFamily: "Quicksand_500Medium",
+    color: "#111827",
     backgroundColor: "#ffffff",
-    marginBottom: 4,
+    outlineStyle: "none" as any,
+  },
+  inputFocused: {
+    borderColor: "#005AF1",
+  },
+  inputError: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
   },
   passwordRow: {
     flexDirection: "row",
@@ -221,16 +405,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     backgroundColor: "#ffffff",
   },
-  passwordInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: "#1f1a17" },
+  passwordRowFocused: {
+    borderColor: "#005AF1",
+  },
+  passwordRowError: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 9,
+    fontSize: 13,
+    fontFamily: "Quicksand_500Medium",
+    color: "#111827",
+    outlineStyle: "none" as any,
+  },
+  inlineErrorWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minHeight: 18,
+    marginTop: 2,
+  },
+  inlineError: {
+    flex: 1,
+    minWidth: 0,
+    color: "#EF4444",
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+  },
   button: {
+    alignSelf: "stretch",
+    height: 38,
     backgroundColor: "#176FF2",
-    paddingVertical: 16,
     borderRadius: 16,
     alignItems: "center",
-    marginTop: 16,
+    justifyContent: "center",
+    marginTop: 4,
   },
-  buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "600" },
-  ghost: { alignItems: "center", paddingVertical: 12, marginTop: 4 },
-  ghostText: { fontSize: 14, fontWeight: "600", color: "#176FF2" },
-  errorText: { color: "#EF4444", fontSize: 13, textAlign: "center", marginTop: 8 },
+  buttonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontFamily: "Quicksand_600SemiBold",
+  },
+  ghost: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  ghostText: {
+    fontSize: 13,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#176FF2",
+  },
+  done: {
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 16,
+  },
+  centerText: {
+    textAlign: "center",
+  },
 });

@@ -1,5 +1,10 @@
 import "../../global.css";
 
+import { Quicksand_400Regular } from "@expo-google-fonts/quicksand/400Regular";
+import { Quicksand_500Medium } from "@expo-google-fonts/quicksand/500Medium";
+import { Quicksand_600SemiBold } from "@expo-google-fonts/quicksand/600SemiBold";
+import { Quicksand_700Bold } from "@expo-google-fonts/quicksand/700Bold";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
@@ -10,6 +15,7 @@ import PWAInstallModal from "../components/PWAInstallModal";
 import { AuthProvider } from "../context/AuthContext";
 import { LayoutProvider } from "../context/LayoutContext";
 import { PWAProvider } from "../context/PWAContext";
+import { ScreenTransitionProvider } from "../context/ScreenTransitionContext";
 import { registerServiceWorker } from "../lib/registerSW";
 
 function RootLayoutInner() {
@@ -30,6 +36,13 @@ function RootLayoutInner() {
 }
 
 export default function RootLayout() {
+  useFonts({
+    Quicksand_400Regular,
+    Quicksand_500Medium,
+    Quicksand_600SemiBold,
+    Quicksand_700Bold,
+  });
+
   useEffect(() => {
     registerServiceWorker();
   }, []);
@@ -39,7 +52,9 @@ export default function RootLayout() {
       <AuthProvider>
         <LayoutProvider>
           <PWAProvider>
-            <RootLayoutInner />
+            <ScreenTransitionProvider>
+              <RootLayoutInner />
+            </ScreenTransitionProvider>
           </PWAProvider>
         </LayoutProvider>
       </AuthProvider>

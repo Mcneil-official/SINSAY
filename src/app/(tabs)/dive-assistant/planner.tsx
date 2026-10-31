@@ -506,7 +506,7 @@ export default function PlannerScreen() {
             </Card>
           )}
 
-          <View style={{ height: 120 }} />
+          <View style={{ height: 24 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>

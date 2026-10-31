@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useState, useEffect } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -11,7 +12,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ContentContainer } from "../../../components";
+import Svg, {
+  Defs,
+  LinearGradient,
+  Path,
+  Rect,
+  Stop,
+} from "react-native-svg";
+import { BuyPassProgress, ContentContainer } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
@@ -19,83 +27,127 @@ import { supabase } from "../../../lib/supabase";
 type PassType = "one-day" | "annual";
 
 const MAX_PER_ORDER = 50;
+const PRESET_QUANTITIES = [5, 10, 20, 50];
+
+interface TransactionItem {
+  id: string;
+  amount: number;
+  reference_number: string;
+  status: "pending" | "verified" | "rejected";
+  created_at: string;
+}
+
+function formatTxDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    const dateFormatted = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const timeFormatted = d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return `${dateFormatted} • ${timeFormatted}`;
+  } catch {
+    return dateStr;
+  }
+}
 
 export default function BuyPassSelectionScreen() {
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, unreadCount } = useAuth();
 
   const [passType, setPassType] = useState<PassType>("one-day");
   const [quantity, setQuantity] = useState<number>(1);
+  const [qtyText, setQtyText] = useState("1");
 
-  // Server-read pricing (pass_pricing.code = 'one_day' | 'annual'). Annual
-  // row is seeded by the TO — absence means "not yet available", never a
-  // hardcoded fallback price.
+  // Server-read pricing (pass_pricing.code = 'one_day' | 'annual')
   const [oneDayPrice, setOneDayPrice] = useState<number | null>(null);
   const [annualPrice, setAnnualPrice] = useState<number | null>(null);
   const [pricingError, setPricingError] = useState(false);
 
-  // Live ledger metrics; null = not loaded yet (never magic fallbacks).
+  // Live ledger metrics
   const [oneDayLeft, setOneDayLeft] = useState<number | null>(null);
   const [oneDayPurchased, setOneDayPurchased] = useState<number | null>(null);
   const [annualSlots, setAnnualSlots] = useState<number | null>(null);
   const [annualPurchased, setAnnualPurchased] = useState<number | null>(null);
-  const [metricsError, setMetricsError] = useState(false);
 
-  useEffect(() => {
-    if (authLoading) return;
+  // Recent transactions
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [txLoading, setTxLoading] = useState(true);
+
+  const loadData = useCallback(async () => {
     if (!user) return;
-    (async () => {
-      try {
-        const { data: pricing, error: pricingErr } = await supabase
-          .from("pass_pricing")
-          .select("price, code");
-        if (pricingErr) throw pricingErr;
-        for (const row of pricing || []) {
-          if (row.code === "one_day") setOneDayPrice(Number(row.price));
-          else if (row.code === "annual") setAnnualPrice(Number(row.price));
-        }
-      } catch (e) {
-        console.warn("Could not load pass pricing:", e);
-        setPricingError(true);
+    try {
+      const { data: pricing, error: pricingErr } = await supabase
+        .from("pass_pricing")
+        .select("price, code");
+      if (pricingErr) throw pricingErr;
+      for (const row of pricing || []) {
+        if (row.code === "one_day") setOneDayPrice(Number(row.price));
+        else if (row.code === "annual") setAnnualPrice(Number(row.price));
       }
-      try {
-        const { data: ledger, error: ledgerErr } = await supabase
-          .from("operator_pass_ledger")
-          // select("*"): annual_* columns arrive with 027; pre-027 the view
-          // lacks them and ?? null degrades gracefully instead of erroring.
-          .select("*")
-          .eq("operator_id", user.id)
-          .maybeSingle();
-        if (ledgerErr) throw ledgerErr;
-        if (ledger) {
-          setOneDayLeft(ledger.remaining_passes ?? 0);
-          setOneDayPurchased(ledger.purchased_passes ?? 0);
-          // Annual slot accounting only exists post-027; otherwise unknown.
-          setAnnualSlots(ledger.annual_remaining ?? null);
-          setAnnualPurchased(ledger.annual_purchased ?? null);
-        } else {
-          setOneDayLeft(0);
-          setOneDayPurchased(0);
-        }
-      } catch (e) {
-        console.warn("Could not load operator pass data:", e);
-        setMetricsError(true);
+    } catch (e) {
+      console.warn("Could not load pass pricing:", e);
+      setPricingError(true);
+    }
+
+    try {
+      const { data: ledger, error: ledgerErr } = await supabase
+        .from("operator_pass_ledger")
+        .select("*")
+        .eq("operator_id", user.id)
+        .maybeSingle();
+      if (ledgerErr) throw ledgerErr;
+      if (ledger) {
+        setOneDayLeft(ledger.remaining_passes ?? 0);
+        setOneDayPurchased(ledger.purchased_passes ?? 0);
+        setAnnualSlots(ledger.annual_remaining ?? null);
+        setAnnualPurchased(ledger.annual_purchased ?? null);
+      } else {
+        setOneDayLeft(0);
+        setOneDayPurchased(0);
+        setAnnualSlots(0);
+        setAnnualPurchased(0);
       }
-    })();
-  }, [user, authLoading]);
+    } catch (e) {
+      console.warn("Could not load operator pass ledger:", e);
+    }
+
+    try {
+      setTxLoading(true);
+      const { data: txData, error: txErr } = await supabase
+        .from("payment_transactions")
+        .select("id, amount, reference_number, status, created_at")
+        .eq("operator_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (txErr) throw txErr;
+      setTransactions((txData as TransactionItem[]) || []);
+    } catch (e) {
+      console.warn("Could not load transactions:", e);
+    } finally {
+      setTxLoading(false);
+    }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadData();
+    }, [loadData]),
+  );
 
   const unitPrice = passType === "one-day" ? oneDayPrice : annualPrice;
   const pricingReady = unitPrice !== null && unitPrice > 0;
-  // Direct-entry text mirrors quantity; total/proceed only trust it when it
-  // parses to a whole number in range (empty/partial input blocks Proceed
-  // instead of silently using a stale quantity).
-  const [qtyText, setQtyText] = useState("1");
   const parsedQty = Number(qtyText);
   const qtyValid =
     Number.isInteger(parsedQty) && parsedQty >= 1 && parsedQty <= MAX_PER_ORDER;
   const effectiveQty = qtyValid ? parsedQty : 0;
   const total = pricingReady ? effectiveQty * (unitPrice as number) : 0;
   const canProceed = pricingReady && qtyValid;
+  const annualAvailable = annualPrice !== null && annualPrice > 0;
 
   const commitQty = (q: number) => {
     const clamped = Math.min(Math.max(q, 1), MAX_PER_ORDER);
@@ -103,13 +155,8 @@ export default function BuyPassSelectionScreen() {
     setQtyText(String(clamped));
   };
 
-  const handleDecrease = () => {
-    commitQty(quantity - 1);
-  };
-
-  const handleIncrease = () => {
-    commitQty(quantity + 1);
-  };
+  const handleDecrease = () => commitQty(quantity - 1);
+  const handleIncrease = () => commitQty(quantity + 1);
 
   const handleQtyText = (v: string) => {
     const digits = v.replace(/[^0-9]/g, "").slice(0, 3);
@@ -121,7 +168,6 @@ export default function BuyPassSelectionScreen() {
   };
 
   const handleQtyBlur = () => {
-    // Snap partial/invalid typing back to the last committed quantity.
     if (!qtyValid) setQtyText(String(quantity));
   };
 
@@ -136,7 +182,8 @@ export default function BuyPassSelectionScreen() {
       pathname: "/(operator-tabs)/buy-pass/payment",
       params: {
         passId: passType === "one-day" ? "one-day-pass" : "annual-pass",
-        passLabel: passType === "one-day" ? "One-Day Dive Pass" : "Annual Dive Pass",
+        passLabel:
+          passType === "one-day" ? "One-Day Dive Pass" : "Annual Dive Pass",
         passCount: String(effectiveQty),
         quantity: String(effectiveQty),
         total: String(total),
@@ -145,31 +192,43 @@ export default function BuyPassSelectionScreen() {
     });
   };
 
-  const oneDayPercent =
-    oneDayLeft !== null && (oneDayPurchased ?? 0) > 0
-      ? Math.min(100, Math.max(5, Math.round((oneDayLeft / (oneDayPurchased as number)) * 100)))
-      : 5;
-  const annualPercent =
-    annualSlots !== null && (annualPurchased ?? 0) > 0
-      ? Math.min(100, Math.max(5, Math.round((annualSlots / (annualPurchased as number)) * 100)))
-      : 5;
-  const annualAvailable = annualPrice !== null && annualPrice > 0;
+  const peso = "\u20B1";
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" />
 
-      {/* Top Header with Back Button */}
-      <View style={styles.topHeader}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
+      {/* Top Ocean Gradient and Wave Background Header */}
+      <View style={styles.headerBackgroundWrap} pointerEvents="none">
+        <Svg
+          width="100%"
+          height={240}
+          preserveAspectRatio="none"
+          style={StyleSheet.absoluteFill}
         >
-          <Ionicons name="chevron-back" size={26} color="#0F172A" />
-        </TouchableOpacity>
+          <Defs>
+            <LinearGradient id="screenTopGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#0061f5" />
+              <Stop offset="0.3" stopColor="#208bff" />
+              <Stop offset="0.6" stopColor="#97ddfa" />
+              <Stop offset="0.85" stopColor="#e4f5ff" />
+              <Stop offset="1" stopColor="#f1f9ff" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height={240} fill="url(#screenTopGrad)" />
+        </Svg>
+
+        <Svg
+          viewBox="0 0 1024 496"
+          preserveAspectRatio="none"
+          style={styles.headerWaveSvg}
+        >
+          <Path
+            d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z"
+            fill="#FFFFFF"
+            opacity={0.16}
+          />
+        </Svg>
       </View>
 
       <ScrollView
@@ -177,186 +236,338 @@ export default function BuyPassSelectionScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <ContentContainer maxWidth={480}>
-          {/* Top 2 Metric Cards */}
-          <View style={styles.metricsRow}>
-            {/* One-Day Dive Pass Card */}
-            <View style={styles.oneDayCard}>
-              <View style={styles.cardHeaderRow}>
-                <Text style={styles.oneDayCardTitle}>{"ONE-DAY DIVE\nPASS"}</Text>
-                <Ionicons name="calendar-outline" size={22} color="#2563EB" />
-              </View>
-              <Text style={styles.oneDayBigNumber}>{oneDayLeft ?? "…"}</Text>
-              <Text style={styles.oneDaySubtext}>
-                of {oneDayPurchased ?? "…"} passes left
-              </Text>
-              <View style={styles.oneDayTrack}>
-                <View style={[styles.oneDayFill, { width: `${oneDayPercent}%` }]} />
-              </View>
-            </View>
+        <ContentContainer maxWidth={480} paddingH={14}>
+          {/* Top Atmospheric Header Row */}
+          <View style={styles.topHeaderRow}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              hitSlop={10}
+              style={styles.headerCircleBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
+              <Ionicons name="chevron-back" size={22} color="#07156c" />
+            </TouchableOpacity>
 
-            {/* Annual Dive Pass Card */}
-            <View style={styles.annualCard}>
-              <View style={styles.cardHeaderRow}>
-                <Text style={styles.annualCardTitle}>{"ANNUAL DIVE\nPASS"}</Text>
-                <Ionicons name="sunny" size={22} color="#EAB308" />
-              </View>
-              <Text style={styles.annualBigNumber}>{annualSlots ?? "…"}</Text>
-              <Text style={styles.annualSubtext}>
-                of {annualPurchased ?? "…"} slots available
-              </Text>
-              <View style={styles.annualTrack}>
-                <View style={[styles.annualFill, { width: `${annualPercent}%` }]} />
-              </View>
-            </View>
+            <Text style={styles.headerTitleText}>Dive Pass</Text>
+
+            <TouchableOpacity
+              onPress={() => router.push("/notifications")}
+              hitSlop={10}
+              style={styles.headerCircleBtn}
+              accessibilityRole="button"
+              accessibilityLabel={`Notifications, ${unreadCount} unread`}
+            >
+              <Ionicons name="notifications" size={18} color="#07156c" />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
+          <BuyPassProgress currentStep={1} />
+
+          {/* Pass balance KPIs */}
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryCard}>
+              <View style={styles.labelRow}>
+                <View style={styles.kpiIconOneDay}><Ionicons name="ticket" size={16} color="#006bff" /></View>
+                <Text style={styles.cardHeaderTitle} numberOfLines={1}>One-Day Dive Pass</Text>
+              </View>
+              <View style={styles.kpiMetricRow}>
+                <Text style={styles.balanceNumber}>{oneDayLeft !== null ? oneDayLeft : "—"}</Text>
+                <Text style={styles.kpiMetricLabel}>credits left</Text>
+              </View>
+              <Text style={styles.subCreditsText} numberOfLines={1}>of {oneDayPurchased !== null ? oneDayPurchased : "—"} purchased</Text>
+            </View>
+
+            <View style={styles.summaryCard}>
+              <View style={styles.labelRow}>
+                <View style={styles.kpiIconAnnual}><Ionicons name="calendar-outline" size={16} color="#087b68" /></View>
+                <Text style={styles.cardHeaderTitle} numberOfLines={1}>Annual Dive Pass</Text>
+              </View>
+              <View style={styles.kpiMetricRow}>
+                <Text style={styles.balanceNumber}>{annualSlots !== null ? annualSlots : "—"}</Text>
+                <Text style={styles.kpiMetricLabel}>slots available</Text>
+              </View>
+              <Text style={styles.subCreditsText} numberOfLines={1}>of {annualPurchased !== null ? annualPurchased : "—"} purchased</Text>
+            </View>
+          </View>
           {/* Main Purchase Card */}
-          <View style={styles.mainCard}>
-            {/* Dive Pass Type Section */}
-            <Text style={styles.sectionLabel}>Dive Pass Type</Text>
-            <View style={styles.toggleRow}>
-              <TouchableOpacity
-                activeOpacity={0.88}
-                style={[
-                  styles.toggleBtn,
-                  passType === "one-day" ? styles.toggleBtnActive : styles.toggleBtnInactive,
-                ]}
-                onPress={() => handleSelectType("one-day")}
-                accessibilityRole="button"
-                accessibilityState={{ selected: passType === "one-day" }}
-              >
-                <Text
-                  style={[
-                    styles.toggleBtnText,
-                    passType === "one-day"
-                      ? styles.toggleBtnTextActive
-                      : styles.toggleBtnTextInactive,
-                  ]}
-                >
-                  One-Day Dive Pass
+          <View style={styles.purchaseCard}>
+            <View style={styles.sectionHeaderTitleRow}>
+              <View style={styles.cartIconBubble}>
+                <Ionicons name="cart" size={18} color="#006bff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.purchaseHeading}>
+                  Purchase Dive Pass Credits
                 </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.88}
-                style={[
-                  styles.toggleBtn,
-                  passType === "annual" ? styles.toggleBtnActive : styles.toggleBtnInactive,
-                  !annualAvailable && styles.toggleBtnDisabled,
-                ]}
-                onPress={() => annualAvailable && handleSelectType("annual")}
-                accessibilityRole="button"
-                accessibilityState={{ selected: passType === "annual", disabled: !annualAvailable }}
-              >
-                <Text
-                  style={[
-                    styles.toggleBtnText,
-                    passType === "annual"
-                      ? styles.toggleBtnTextActive
-                      : styles.toggleBtnTextInactive,
-                  ]}
-                >
-                  Annual Dive Pass
+                <Text style={styles.purchaseSubtitle}>
+                  Choose a pass, set quantity, then review
                 </Text>
-              </TouchableOpacity>
+              </View>
             </View>
 
-            {/* Specify Dive Pass Quantity Section */}
-            <Text style={[styles.sectionLabel, { marginTop: 22 }]}>
-              Specify Dive Pass Quantity
-            </Text>
-            <View style={styles.stepperRow}>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.stepMinusBtn}
-                onPress={handleDecrease}
-                accessibilityRole="button"
-                accessibilityLabel="Decrease quantity"
-              >
-                <Ionicons name="remove" size={24} color="#1D4ED8" />
+            <View style={styles.stageHeading}>
+              <Text style={styles.stageNumber}>01</Text>
+              <Text style={styles.stageTitle}>Select Pass</Text>
+            </View>
+
+            <View style={styles.tabsRow}>
+              <TouchableOpacity activeOpacity={0.88} style={[styles.tabButton, passType === "one-day" && styles.tabButtonSelected]} onPress={() => handleSelectType("one-day")} accessibilityRole="button" accessibilityState={{ selected: passType === "one-day" }}>
+                {passType === "one-day" && <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none"><Defs><LinearGradient id="tabGrad1" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#0085ff" /><Stop offset="1" stopColor="#0062ff" /></LinearGradient></Defs><Rect width="100%" height="100%" rx={12} fill="url(#tabGrad1)" /></Svg>}
+                <View style={styles.passOptionTop}><Ionicons name="ticket-outline" size={14} color={passType === "one-day" ? "#FFFFFF" : "#006bff"} /><Text style={[styles.tabButtonText, passType === "one-day" && styles.tabButtonTextSelected]} numberOfLines={1}>One-Day</Text>{passType === "one-day" && <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />}</View>
+                <Text style={[styles.tabSubText, passType === "one-day" && styles.tabSubTextSelected]} numberOfLines={1}>{oneDayPrice !== null ? `${peso}${oneDayPrice} each` : "Standard"}</Text>
               </TouchableOpacity>
 
-              <TextInput
-                style={styles.qtyInput}
-                value={qtyText}
-                onChangeText={handleQtyText}
-                onBlur={handleQtyBlur}
-                keyboardType="phone-pad"
-                maxLength={3}
-                accessibilityLabel="Quantity, type a number from 1 to 50"
-              />
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.stepPlusBtn}
-                onPress={handleIncrease}
-                accessibilityRole="button"
-                accessibilityLabel="Increase quantity"
-              >
-                <Ionicons name="add" size={24} color="#FFFFFF" />
+              <TouchableOpacity activeOpacity={0.88} style={[styles.tabButton, passType === "annual" && styles.tabButtonSelected, !annualAvailable && styles.tabButtonDisabled]} onPress={() => annualAvailable && handleSelectType("annual")} accessibilityRole="button" accessibilityState={{ selected: passType === "annual", disabled: !annualAvailable }}>
+                {passType === "annual" && <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none"><Defs><LinearGradient id="tabGrad2" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#0085ff" /><Stop offset="1" stopColor="#0062ff" /></LinearGradient></Defs><Rect width="100%" height="100%" rx={12} fill="url(#tabGrad2)" /></Svg>}
+                <View style={styles.passOptionTop}><Ionicons name="calendar-outline" size={14} color={passType === "annual" ? "#FFFFFF" : "#006bff"} /><Text style={[styles.tabButtonText, passType === "annual" && styles.tabButtonTextSelected]} numberOfLines={1}>Annual</Text>{passType === "annual" && <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />}</View>
+                <Text style={[styles.tabSubText, passType === "annual" && styles.tabSubTextSelected]} numberOfLines={1}>{annualAvailable ? `${peso}${annualPrice} / yr` : "Coming Soon"}</Text>
               </TouchableOpacity>
             </View>
+            <View style={styles.stageHeading}>
+              <Text style={styles.stageNumber}>02</Text>
+              <Text style={styles.stageTitle}>Quantity</Text>
+            </View>
+
+            {/* Stepper Quantity Controller */}
+            <View style={styles.quantitySection}>
+              <Text style={styles.quantityCaption}>How many passes?</Text>
+              <View style={styles.quantityRow}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.stepBtnMinus}
+                  onPress={handleDecrease}
+                  accessibilityRole="button"
+                  accessibilityLabel="Decrease quantity"
+                >
+                  <Ionicons name="remove" size={24} color="#006bff" />
+                </TouchableOpacity>
+
+                <TextInput
+                  style={styles.quantityInput}
+                  value={qtyText}
+                  onChangeText={handleQtyText}
+                  onBlur={handleQtyBlur}
+                  keyboardType="phone-pad"
+                  maxLength={3}
+                  accessibilityLabel="Quantity, type a number from 1 to 50"
+                />
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.stepBtnPlus}
+                  onPress={handleIncrease}
+                  accessibilityRole="button"
+                  accessibilityLabel="Increase quantity"
+                >
+                  <Ionicons name="add" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Quick Bulk Preset Chips */}
+              <View style={styles.presetsRow}>
+                {PRESET_QUANTITIES.map((val) => {
+                  const isSelected = effectiveQty === val;
+                  return (
+                    <TouchableOpacity
+                      key={val}
+                      style={[
+                        styles.presetChip,
+                        isSelected && styles.presetChipActive,
+                      ]}
+                      onPress={() => commitQty(val)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Set quantity to ${val}`}
+                    >
+                      <Text
+                        style={[
+                          styles.presetChipText,
+                          isSelected && styles.presetChipTextActive,
+                        ]}
+                      >
+                        {val === 50 ? "50 Max" : `+${val}`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {qtyText.length > 0 && !qtyValid && (
-              <Text style={styles.qtyErrorText}>
+              <Text style={styles.errorText}>
                 Enter a whole number from 1 to {MAX_PER_ORDER}.
               </Text>
             )}
 
-            {/* Pricing Breakdown */}
-            {pricingError ? (
-              <Text style={styles.pricingErrorText}>
-                Couldn&apos;t load pricing. Check your connection and reopen this screen.
+            {pricingError && (
+              <Text style={styles.errorText}>
+                Couldn&apos;t load pricing. Check your connection.
               </Text>
-            ) : !annualAvailable && passType === "annual" ? (
-              <Text style={styles.pricingErrorText}>
-                Annual pricing hasn&apos;t been set by the Tourism Office yet.
-              </Text>
-            ) : (
-              <View style={styles.breakdownSection}>
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Price per pass</Text>
-                  <Text style={styles.breakdownValue}>
-                    {unitPrice !== null ? `₱${unitPrice.toLocaleString()}` : "…"}
-                  </Text>
-                </View>
-                <View style={[styles.breakdownRow, { marginTop: 12 }]}>
-                  <Text style={styles.breakdownLabel}>Quantity</Text>
-                  <Text style={styles.breakdownValue}>{effectiveQty}</Text>
-                </View>
-              </View>
             )}
 
-            {/* Total Highlight Container */}
-            <View style={styles.totalBox}>
-              <Text style={styles.totalLabel}>TOTAL</Text>
-              <Text style={styles.totalAmount}>₱{total.toLocaleString()}</Text>
+            <View style={styles.stageHeading}>
+              <Text style={styles.stageNumber}>03</Text>
+              <Text style={styles.stageTitle}>Order Summary</Text>
             </View>
+
+            {/* Itemized Calculation Breakdown */}
+            <View style={styles.breakdownCard}>
+              <View style={styles.breakdownPlanRow}>
+                <View style={styles.breakdownPlanIcon}>
+                  <Ionicons name={passType === "annual" ? "calendar-outline" : "ticket-outline"} size={16} color="#006bff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.breakdownPlanTitle}>{passType === "annual" ? "Annual Dive Pass" : "One-Day Dive Pass"}</Text>
+                  <Text style={styles.breakdownPlanHint}>Ready for review</Text>
+                </View>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Price per pass</Text>
+                <Text style={styles.breakdownValue}>
+                  {unitPrice !== null ? `${peso}${unitPrice.toLocaleString()}` : "—"}
+                </Text>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Selected Quantity</Text>
+                <Text style={styles.breakdownValue}>{effectiveQty} passes</Text>
+              </View>
+            </View>
+
+            {/* Total Row (Distinct vertical row) */}
+            <View style={styles.totalRow}>
+              <Text style={styles.totalSubLabel}>TOTAL AMOUNT</Text>
+              <Text style={styles.totalPrice}>{peso}{total.toLocaleString()}</Text>
+            </View>
+
+            {/* Dedicated Full-Width Proceed to Pay CTA */}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={[
+                styles.primaryProceedBtn,
+                !canProceed && styles.primaryProceedBtnDisabled,
+              ]}
+              onPress={() => canProceed && handleProceed()}
+              disabled={!canProceed}
+              accessibilityRole="button"
+              accessibilityLabel="Proceed to pay"
+            >
+              <Svg
+                style={StyleSheet.absoluteFill}
+                preserveAspectRatio="none"
+                pointerEvents="none"
+              >
+                <Defs>
+                  <LinearGradient id="payBtnGrad" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor="#0065fa" />
+                    <Stop offset="1" stopColor="#53acff" />
+                  </LinearGradient>
+                </Defs>
+                <Rect width="100%" height="100%" rx={18} fill="url(#payBtnGrad)" />
+              </Svg>
+              <Ionicons name="card" size={18} color="#FFFFFF" />
+              <Text style={styles.primaryProceedBtnText}>Proceed to Pay</Text>
+              <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
 
-          {/* Approval Notice Banner */}
-          <View style={styles.noticeBanner}>
-            <View style={styles.noticeHeaderRow}>
-              <Ionicons name="timer-outline" size={16} color="#1D4ED8" />
-              <Text style={styles.noticeTitle}>Approval time</Text>
+          {/* Recent Transactions Section */}
+          <View style={styles.transactionsHeaderRow}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="time" size={16} color="#006bff" />
+              <Text style={styles.transactionsTitle}>Recent Transactions</Text>
             </View>
-            <Text style={styles.noticeBody}>
-              TO verifies within 24 hours. Credits added once approved.
-            </Text>
+            <TouchableOpacity
+              onPress={() => {}}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="See all transactions"
+            >
+              <Text style={styles.seeAllText}>See all ›</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Pay & Upload Receipt Action Button */}
-          <TouchableOpacity
-            activeOpacity={0.88}
-            style={[styles.payBtn, !canProceed && styles.payBtnDisabled]}
-            onPress={() => canProceed && handleProceed()}
-            disabled={!canProceed}
-            accessibilityRole="button"
-            accessibilityLabel="Pay and upload receipt"
-            accessibilityState={{ disabled: !canProceed }}
-          >
-            <Text style={styles.payBtnText}>Pay & Upload Receipt</Text>
-          </TouchableOpacity>
+          {txLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.primaryBlue}
+              style={{ marginVertical: 14 }}
+            />
+          ) : transactions.length > 0 ? (
+            <View style={styles.transactionsList}>
+              {transactions.map((tx) => {
+                const isVerified = tx.status === "verified";
+                const isRejected = tx.status === "rejected";
+                const isUnderReview = tx.status === "pending";
+
+                return (
+                  <View key={tx.id} style={styles.txCard}>
+                    <View style={styles.txIconBubble}>
+                      <Ionicons name="ticket" size={17} color="#006bff" />
+                    </View>
+
+                    <View style={styles.txInfo}>
+                      <Text style={styles.txPlanName} numberOfLines={1}>
+                        Dive Pass Credits
+                      </Text>
+                      <Text style={styles.txDate} numberOfLines={1}>
+                        {formatTxDate(tx.created_at)}
+                      </Text>
+                      {tx.reference_number ? (
+                        <Text style={styles.txRefText} numberOfLines={1}>
+                          Ref: {tx.reference_number}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    <View style={styles.txEndCol}>
+                      <View
+                        style={[
+                          styles.statusPill,
+                          isVerified
+                            ? styles.statusPillApproved
+                            : isUnderReview
+                              ? styles.statusPillReview
+                              : styles.statusPillRejected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusPillText,
+                            isVerified
+                              ? styles.statusTextApproved
+                              : isUnderReview
+                                ? styles.statusTextReview
+                                : styles.statusTextRejected,
+                          ]}
+                        >
+                          {isVerified
+                            ? "Approved"
+                            : isUnderReview
+                              ? "Under Review"
+                              : "Rejected"}
+                        </Text>
+                      </View>
+                      <Text style={styles.txAmount}>
+                        ₱{tx.amount.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Ionicons name="receipt-outline" size={26} color="#94A3B8" />
+              <Text style={styles.emptyText}>No transactions recorded yet.</Text>
+            </View>
+          )}
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -366,241 +577,447 @@ export default function BuyPassSelectionScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#f1f9ff",
   },
-  topHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-    backgroundColor: "#FFFFFF",
+  headerBackgroundWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 240,
+    overflow: "hidden",
+    zIndex: -1,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "flex-start",
-    justifyContent: "center",
+  headerWaveSvg: {
+    position: "absolute",
+    top: 10,
+    left: 0,
+    width: "100%",
+    height: 190,
   },
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 110,
+    paddingTop: 16,
+    paddingBottom: 76,
   },
-
-  // Metrics Row
-  metricsRow: {
+  topHeaderRow: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
-  },
-
-  // One-Day Card
-  oneDayCard: {
-    flex: 1,
-    backgroundColor: "#EFF6FF",
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: "#DBEAFE",
-    padding: 16,
-  },
-  cardHeaderRow: {
-    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
+    paddingTop: 6,
+    marginBottom: 14,
   },
-  oneDayCardTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#1D4ED8",
-    letterSpacing: 0.3,
-    lineHeight: 15,
-  },
-  oneDayBigNumber: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#0F172A",
-    letterSpacing: -0.5,
-  },
-  oneDaySubtext: {
-    fontSize: 11.5,
-    fontWeight: "500",
-    color: "#3B82F6",
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  oneDayTrack: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#DBEAFE",
-    overflow: "hidden",
-  },
-  oneDayFill: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#1D4ED8",
-  },
-
-  // Annual Card
-  annualCard: {
-    flex: 1,
-    backgroundColor: "#F0FDF4",
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: "#DCFCE7",
-    padding: 16,
-  },
-  annualCardTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#15803D",
-    letterSpacing: 0.3,
-    lineHeight: 15,
-  },
-  annualBigNumber: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#15803D",
-    letterSpacing: -0.5,
-  },
-  annualSubtext: {
-    fontSize: 11.5,
-    fontWeight: "500",
-    color: "#16A34A",
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  annualTrack: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#DCFCE7",
-    overflow: "hidden",
-  },
-  annualFill: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#16A34A",
-  },
-
-  // Main Card
-  mainCard: {
+  headerCircleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    padding: 20,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  sectionLabel: {
-    fontSize: 14.5,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 12,
-  },
-
-  // Toggle Row
-  toggleRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  toggleBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  toggleBtnActive: {
-    backgroundColor: "#1D4ED8",
+  headerTitleText: {
+    fontSize: 21,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
   },
-  toggleBtnInactive: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+  notificationBadge: {
+    position: "absolute",
+    top: -3,
+    right: -2,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#ff404b",
+    borderWidth: 1.2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 2,
   },
-  toggleBtnDisabled: {
-    opacity: 0.45,
-  },
-  toggleBtnText: {
-    fontSize: 13.5,
-    fontWeight: "700",
-  },
-  toggleBtnTextActive: {
+  notificationBadgeText: {
+    fontSize: 7.5,
+    fontFamily: "Quicksand_700Bold",
     color: "#FFFFFF",
   },
-  toggleBtnTextInactive: {
-    color: "#334155",
+  summaryRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
   },
-
-  // Stepper Row
-  stepperRow: {
+  summaryCard: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.28)",
+    padding: 11,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  kpiIconOneDay: {
+    width: 25,
+    height: 25,
+    borderRadius: 9,
+    backgroundColor: "#e8f3ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  kpiIconAnnual: {
+    width: 25,
+    height: 25,
+    borderRadius: 9,
+    backgroundColor: "#e5f7f3",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  kpiMetricRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 5,
+  },
+  kpiMetricLabel: {
+    flexShrink: 1,
+    fontSize: 9.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#5368b1",
+  },
+  summaryCardLeft: {
+    flex: 1.35,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.24)",
+    padding: 11,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  summaryCardRight: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.24)",
+    padding: 11,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  cardHeaderTitle: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+    flex: 1,
+  },
+  creditContentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  balanceNumber: {
+    fontSize: 32,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+    lineHeight: 36,
+  },
+  subCreditsText: {
+    fontSize: 10,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+    marginTop: 1,
+  },
+  ringSvg: {
+    width: 52,
+    height: 52,
+    flexShrink: 0,
+  },
+  emeraldCheckBubble: {
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    backgroundColor: "#129b83",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emeraldHeaderTitle: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#078c77",
+    flex: 1,
+  },
+  activeCountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 3,
+  },
+  activeBigCount: {
+    fontSize: 28,
+    fontFamily: "Quicksand_700Bold",
+    color: "#006bff",
+    lineHeight: 32,
+  },
+  validityText: {
+    fontSize: 9.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+    marginTop: 3,
+  },
+  purchaseCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.24)",
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  sectionHeaderTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    marginBottom: 12,
   },
-  stepMinusBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#1D4ED8",
-    backgroundColor: "#FFFFFF",
+  cartIconBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#d7ebff",
     alignItems: "center",
     justifyContent: "center",
   },
-  quantityBox: {
-    flex: 1,
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
+  purchaseHeading: {
+    fontSize: 14.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+  },
+  purchaseSubtitle: {
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+    marginTop: 1,
+  },
+  stageHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  stageNumber: {
+    minWidth: 25,
+    height: 22,
+    borderRadius: 8,
+    overflow: "hidden",
+    textAlign: "center",
+    textAlignVertical: "center",
+    paddingTop: 3,
+    backgroundColor: "#e8f3ff",
+    color: "#006bff",
+    fontSize: 10,
+    fontFamily: "Quicksand_700Bold",
+  },
+  stageTitle: {
+    fontSize: 12,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+  },
+  passOptionTop: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 5,
+    maxWidth: "100%",
   },
-  qtyInput: {
+  tabsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+  tabButton: {
     flex: 1,
     minWidth: 0,
-    height: 52,
+    height: 50,
     borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#0F172A",
+    borderWidth: 1,
+    borderColor: "#d8e6ff",
+    backgroundColor: "#f4f9ff",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+  },
+  tabButtonSelected: {
+    borderColor: "#006bff",
+  },
+  tabButtonDisabled: {
+    opacity: 0.5,
+  },
+  tabButtonText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#07156c",
+    flexShrink: 1,
+  },
+  tabButtonTextSelected: {
+    color: "#FFFFFF",
+    fontFamily: "Quicksand_700Bold",
+  },
+  tabSubText: {
+    fontSize: 9.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+    marginTop: 1,
+  },
+  tabSubTextSelected: {
+    color: "rgba(255, 255, 255, 0.9)",
+  },
+  quantitySection: {
+    backgroundColor: "#f8fbff",
+    borderRadius: 16,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#e4eeff",
+    marginBottom: 10,
+  },
+  quantityCaption: {
     textAlign: "center",
-    padding: 0,
+    marginBottom: 8,
+    fontSize: 10.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#5368b1",
   },
-  qtyErrorText: {
-    fontSize: 12,
-    color: colors.red,
-    marginTop: 8,
+  quantityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    marginBottom: 8,
   },
-  quantityText: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#0F172A",
-  },
-  stepPlusBtn: {
-    width: 52,
-    height: 52,
+  stepBtnMinus: {
+    width: 42,
+    height: 42,
     borderRadius: 12,
-    backgroundColor: "#1D4ED8",
+    borderWidth: 1.2,
+    borderColor: "#3697ff",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
-
-  // Breakdown
-  breakdownSection: {
-    marginTop: 24,
+  quantityInput: {
+    width: 88,
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d8e6ff",
+    backgroundColor: "#FFFFFF",
+    textAlign: "center",
+    fontSize: 22,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+  },
+  stepBtnPlus: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#006bff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  presetsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+  },
+  presetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#d8e6ff",
+  },
+  presetChipActive: {
+    backgroundColor: "#006bff",
+    borderColor: "#006bff",
+  },
+  presetChipText: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#07156c",
+  },
+  presetChipTextActive: {
+    color: "#FFFFFF",
+    fontFamily: "Quicksand_700Bold",
+  },
+  errorText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+    color: "#b6223a",
+    textAlign: "center",
+    marginVertical: 4,
+  },
+  breakdownCard: {
+    backgroundColor: "#f1f7fe",
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    gap: 4,
+  },
+  breakdownPlanRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingBottom: 8,
+    marginBottom: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: "#dfeaff",
+  },
+  breakdownPlanIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  breakdownPlanTitle: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+  },
+  breakdownPlanHint: {
+    fontSize: 9.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
   },
   breakdownRow: {
     flexDirection: "row",
@@ -608,93 +1025,170 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   breakdownLabel: {
-    fontSize: 14,
-    color: "#64748B",
-    fontWeight: "500",
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
   },
   breakdownValue: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#0F172A",
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
   },
-
-  // Total Box
-  totalBox: {
-    marginTop: 18,
-    backgroundColor: "#EBF3FF",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+  totalRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: "#e1eaff",
+    paddingTop: 10,
+    marginBottom: 12,
   },
-  totalLabel: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#1D4ED8",
+  totalSubLabel: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: "#6382cf",
     letterSpacing: 0.5,
   },
-  totalAmount: {
+  totalPrice: {
     fontSize: 24,
-    fontWeight: "900",
-    color: "#1D4ED8",
+    fontFamily: "Quicksand_700Bold",
+    color: "#006bff",
   },
-
-  // Notice Banner
-  noticeBanner: {
-    marginTop: 16,
-    backgroundColor: "#EFF6FF",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-    borderLeftWidth: 4,
-    borderLeftColor: "#1D4ED8",
-    padding: 14,
-  },
-  noticeHeaderRow: {
+  primaryProceedBtn: {
+    width: "100%",
+    height: 52,
+    borderRadius: 18,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-  },
-  noticeTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#1D4ED8",
-  },
-  noticeBody: {
-    fontSize: 12,
-    color: "#1E3A8A",
-    marginTop: 4,
-    lineHeight: 18,
-  },
-
-  // Pay Button
-  payBtn: {
-    marginTop: 18,
-    backgroundColor: "#FA6400",
-    borderRadius: 12,
-    height: 52,
-    alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#FA6400",
+    gap: 8,
+    overflow: "hidden",
+    shadowColor: "#0065fa",
     shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  payBtnText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-  payBtnDisabled: {
+  primaryProceedBtnDisabled: {
     opacity: 0.5,
   },
-  pricingErrorText: {
+  primaryProceedBtnText: {
+    fontSize: 14.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+  },
+  transactionsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  transactionsTitle: {
     fontSize: 13,
-    color: colors.red,
-    textAlign: "center",
-    marginVertical: 12,
-    lineHeight: 18,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+  },
+  seeAllText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#006bff",
+  },
+  transactionsList: {
+    gap: 6,
+  },
+  txCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    borderRadius: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.22)",
+    gap: 10,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  txIconBubble: {
+    width: 36,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: "#e7f3ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  txInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  txPlanName: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+    marginBottom: 1,
+  },
+  txDate: {
+    fontSize: 9,
+    fontFamily: "Quicksand_500Medium",
+    color: "#5368b1",
+  },
+  txRefText: {
+    fontSize: 8.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#94A3B8",
+    marginTop: 1,
+  },
+  txEndCol: {
+    alignItems: "flex-end",
+    flexShrink: 0,
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginBottom: 2,
+  },
+  statusPillApproved: {
+    backgroundColor: "#cdf3e0",
+  },
+  statusPillReview: {
+    backgroundColor: "#d2e8ff",
+  },
+  statusPillRejected: {
+    backgroundColor: "#fee2e2",
+  },
+  statusPillText: {
+    fontSize: 8,
+    fontFamily: "Quicksand_700Bold",
+  },
+  statusTextApproved: {
+    color: "#007c6e",
+  },
+  statusTextReview: {
+    color: "#0058f5",
+  },
+  statusTextRejected: {
+    color: "#dc2626",
+  },
+  txAmount: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+  },
+  emptyCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 22,
+    gap: 6,
+  },
+  emptyText: {
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
   },
 });

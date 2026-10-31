@@ -1,12 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import {
-  Image,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+    Image,
+    Modal,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 import { usePWAInstall } from "../context/PWAContext";
 
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   backdropPressable: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   card: {
     width: "100%",

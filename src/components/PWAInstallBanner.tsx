@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { usePathname } from "expo-router";
 import React from "react";
 import {
   Image,
@@ -11,10 +12,15 @@ import {
 import { usePWAInstall } from "../context/PWAContext";
 
 export default function PWAInstallBanner() {
+  const pathname = usePathname();
   const { isInstalled, isBannerDismissed, promptInstall, dismissBanner } =
     usePWAInstall();
 
   if (Platform.OS !== "web" || isInstalled || isBannerDismissed) {
+    return null;
+  }
+
+  if (pathname === "/loginpage" || pathname === "/signup") {
     return null;
   }
 

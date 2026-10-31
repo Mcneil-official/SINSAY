@@ -16,6 +16,7 @@ import { supabase } from "../../lib/supabase";
 import { colors } from "../../constants/colors";
 import { EstablishmentRow } from "../../types/supabase";
 import { ContentContainer, ErrorState } from "../../components";
+import { ResortProfileHero } from "../../components/ResortProfileHero";
 
 export default function EstablishmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,8 +27,10 @@ export default function EstablishmentDetailScreen() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    supabase.from("establishments").select("*").eq("id", id).single().then(({ data, error }) => {
+    supabase.from("establishments").select("*").eq("id", id).maybeSingle().then(({ data, error }) => {
       if (!error && data) setEst(data);
+      setLoading(false);
+    }, () => {
       setLoading(false);
     });
   }, [id]);
@@ -60,10 +63,12 @@ export default function EstablishmentDetailScreen() {
         >
           <ContentContainer maxWidth={720} paddingH={16}>
           <>
-            <View style={styles.hero}>
-              <View style={styles.heroOverlay}>
-                <Ionicons name="business" size={48} color={colors.white} />
-              </View>
+            <ResortProfileHero
+              coverImageUrls={(est.cover_image_paths || []).map((path) => supabase.storage.from("operator_media").getPublicUrl(path).data.publicUrl)}
+              avatarUrl={est.operator_avatar_path ? supabase.storage.from("operator_media").getPublicUrl(est.operator_avatar_path).data.publicUrl : null}
+              fallbackImageUrl={est.image_url}
+            />
+            <View>
               {est.accreditation && (
                 <View style={styles.accreditationBadge}>
                   <Ionicons name="checkmark-circle" size={12} color={colors.white} />
