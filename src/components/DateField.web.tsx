@@ -16,6 +16,7 @@ export function DateField({ label, value, onChangeText, error, min, max, fontFam
       <input
         type="date"
         aria-label={label}
+        aria-invalid={Boolean(error)}
         value={value}
         min={min}
         max={max}

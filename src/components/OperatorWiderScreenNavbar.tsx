@@ -87,7 +87,7 @@ export default function OperatorWiderScreenNavbar() {
           activeOpacity={0.8}
         >
           <Image
-            source={require("../../assets/images/logo.png")}
+            source={require("../../assets/SINSAY blue logo.png")}
             style={styles.logoImage}
             contentFit="contain"
             accessibilityLabel="SINSAY"
@@ -189,28 +189,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 36,
+    gap: 26,
     flex: 1,
   },
   navGroupRight: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 28,
+    gap: 20,
     flex: 1,
   },
   navLink: {
     height: 44,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
+    flexShrink: 0,
   },
   navText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#475569",
     letterSpacing: 0.1,
+    flexShrink: 0,
   },
   navTextActive: {
     color: "#005EEC",

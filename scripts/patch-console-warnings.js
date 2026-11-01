@@ -109,3 +109,73 @@ if (fs.existsSync(screenPath)) {
     `[patch-console-warnings] Screen.js not found (expo-router layout changed?): ${screenPath}`
   );
 }
+
+// ---------------------------------------------------------------------------
+// Patch 3: react-native-web — remove dev-only console.warn calls in
+// ResponderTouchHistoryStore that fire when the browser delivers a touchmove/
+// touchend whose matching touchstart was never observed (common with trackpads
+// and emulated touch on desktop). Harmless noise; presses still work via the
+// mouse-event path.
+// ---------------------------------------------------------------------------
+const touchStorePath = path.join(
+  nodeModulesDir,
+  "react-native-web",
+  "src",
+  "modules",
+  "useResponderEvents",
+  "ResponderTouchHistoryStore.js"
+);
+
+const touchWarnPatches = [
+  {
+    target:
+      "    console.warn(\n" +
+      "      'Cannot record touch move without a touch start.\\n',\n" +
+      "      `Touch Move: ${printTouch(touch)}\\n`,\n" +
+      "      `Touch Bank: ${printTouchBank(touchHistory)}`\n" +
+      "    );",
+    replacement: "",
+    marker: "Cannot record touch move without a touch start.",
+    label: "touch-move warn",
+  },
+  {
+    target:
+      "    console.warn(\n" +
+      "      'Cannot record touch end without a touch start.\\n',\n" +
+      "      `Touch End: ${printTouch(touch)}\\n`,\n" +
+      "      `Touch Bank: ${printTouchBank(touchHistory)}`\n" +
+      "    );",
+    replacement: "",
+    marker: "Cannot record touch end without a touch start.",
+    label: "touch-end warn",
+  },
+];
+
+if (fs.existsSync(touchStorePath)) {
+  let content = fs.readFileSync(touchStorePath, "utf8");
+  let patchedAny = false;
+
+  for (const patch of touchWarnPatches) {
+    if (content.includes(patch.target)) {
+      content = content.replace(patch.target, patch.replacement);
+      patchedAny = true;
+    } else if (!content.includes(patch.marker)) {
+      console.log(
+        `[patch-console-warnings] Already patched (${patch.label}): ${touchStorePath}`
+      );
+    } else {
+      console.warn(
+        `[patch-console-warnings] Target string not found (${patch.label}): ${touchStorePath}`
+      );
+    }
+  }
+
+  if (patchedAny) {
+    fs.writeFileSync(touchStorePath, content, "utf8");
+    console.log(`[patch-console-warnings] Patched: ${touchStorePath}`);
+  }
+} else {
+  console.warn(
+    `[patch-console-warnings] ResponderTouchHistoryStore.js not found (react-native-web layout changed?): ${touchStorePath}`
+  );
+}

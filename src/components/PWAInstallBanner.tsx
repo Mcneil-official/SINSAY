@@ -29,7 +29,7 @@ export default function PWAInstallBanner() {
       <View style={styles.banner}>
         <View style={styles.left}>
           <Image
-            source={require("../../assets/images/logo.png")}
+            source={require("../../assets/SINSAY blue logo.png")}
             style={styles.logo}
             resizeMode="contain"
           />

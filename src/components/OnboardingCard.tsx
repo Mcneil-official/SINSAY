@@ -108,7 +108,7 @@ export function OnboardingCard({
               </Pressable>
 
               <Image
-                source={require("../../assets/images/logo.png")}
+                source={require("../../assets/SINSAY blue logo.png")}
                 style={styles.desktopLogo}
                 contentFit="contain"
               />
@@ -213,7 +213,7 @@ export function OnboardingCard({
           <Text style={styles.backArrow}>‹</Text>
         </Pressable>
         <Image
-          source={require("../../assets/images/logo.png")}
+          source={require("../../assets/SINSAY blue logo.png")}
           style={styles.brand}
           contentFit="contain"
         />

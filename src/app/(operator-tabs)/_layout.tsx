@@ -72,6 +72,7 @@ export default function OperatorTabLayout() {
               {...props}
               tabIcons={tabIcons}
               tabLabels={tabLabels}
+              allowLabelWrap
             />
           )
         }

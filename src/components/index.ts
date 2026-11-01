@@ -22,6 +22,7 @@ export { ManifestSnapshotCard } from "./ManifestSnapshotCard";
 export { MarkdownText } from "./MarkdownText";
 export { OnboardingCard } from "./OnboardingCard";
 export { ProgressBar } from "./ProgressBar";
+export { ProgressiveWizardShell } from "./ProgressiveWizardShell";
 export { ScreenHeader } from "./ScreenHeader";
 export { SearchBar } from "./SearchBar";
 export type { SearchResult } from "./SearchBar";

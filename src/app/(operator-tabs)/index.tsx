@@ -22,6 +22,7 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 import { ContentContainer } from "../../components";
+import AnimatedKpiValue from "../../components/AnimatedKpiValue";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
@@ -314,18 +315,16 @@ export default function OperatorDashboardScreen() {
         </Svg>
       </View>
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.fixedDashboard}>
         <ContentContainer maxWidth={isWide ? 900 : 480} paddingH={18}>
           {/* Header Top Bar: SINSAY White Logo on left, Notification + Resort/Profile Avatar on right */}
           <View style={styles.topBar}>
             <Image
-              source={require("../../../assets/SINSAY white logo.png")}
+              source={require("../../../assets/sinsay-white-home.webp")}
               style={styles.logoImage}
               contentFit="contain"
+              priority="high"
+              cachePolicy="memory-disk"
               accessibilityLabel="SINSAY"
             />
 
@@ -411,12 +410,14 @@ export default function OperatorDashboardScreen() {
                   <View style={styles.statIconBubble}>
                     <Ionicons name="calendar" size={12} color="#006bff" />
                   </View>
-                  <Text style={styles.statHeadingText}>TODAY'S DIVERS</Text>
+                  <Text style={styles.statHeadingText}>TODAY&apos;S DIVERS</Text>
                 </View>
 
-                <Text style={styles.statValue}>
-                  {statLoading ? "…" : String(todayDivers)}
-                </Text>
+                <AnimatedKpiValue
+                  value={todayDivers}
+                  loading={statLoading}
+                  style={styles.statValue}
+                />
 
                 {/* Top-Right Sparkline */}
                 <Svg
@@ -471,9 +472,11 @@ export default function OperatorDashboardScreen() {
                   <Text style={styles.statHeadingText}>REMAINING PASSES</Text>
                 </View>
 
-                <Text style={styles.statValue}>
-                  {statLoading ? "…" : String(currentRemaining)}
-                </Text>
+                <AnimatedKpiValue
+                  value={currentRemaining}
+                  loading={statLoading}
+                  style={styles.statValue}
+                />
 
                 {/* Top-Right Mini Donut Ring */}
                 <Svg
@@ -525,9 +528,11 @@ export default function OperatorDashboardScreen() {
                   <Text style={styles.statHeadingText}>MANIFESTO SENT</Text>
                 </View>
 
-                <Text style={styles.statValue}>
-                  {statLoading ? "…" : String(weekCount)}
-                </Text>
+                <AnimatedKpiValue
+                  value={weekCount}
+                  loading={statLoading}
+                  style={styles.statValue}
+                />
 
                 {/* Top-Right 4 Ascending Mini Bars */}
                 <View style={styles.barsContainer} pointerEvents="none">
@@ -612,7 +617,15 @@ export default function OperatorDashboardScreen() {
               />
             </TouchableOpacity>
           </View>
+        </ContentContainer>
+      </View>
 
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <ContentContainer maxWidth={isWide ? 900 : 480} paddingH={18}>
           {/* Recent Manifests Section */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Manifests</Text>
@@ -728,9 +741,13 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    minHeight: 0,
+  },
+  fixedDashboard: {
+    flexShrink: 0,
+    paddingTop: 8,
   },
   scrollContent: {
-    paddingTop: 8,
     paddingBottom: 24,
   },
   headerBackgroundWrap: {

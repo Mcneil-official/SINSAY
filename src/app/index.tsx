@@ -38,7 +38,7 @@ export default function Index() {
             <WaveDivider width={84} />
             <View style={styles.wideHero}>
               <Image
-                source={require("../../assets/images/logo.png")}
+                source={require("../../assets/SINSAY blue logo.png")}
                 style={styles.wideLogo}
                 contentFit="contain"
               />

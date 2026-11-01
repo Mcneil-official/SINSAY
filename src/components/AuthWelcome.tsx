@@ -109,7 +109,7 @@ export default function AuthWelcome({ active }: AuthWelcomeProps) {
         pointerEvents="none"
       >
         <Image
-          source={require("../../assets/images/sinsay-white-logo.png")}
+          source={require("../../assets/SINSAY white logo.png")}
           style={styles.logo}
           contentFit="contain"
         />

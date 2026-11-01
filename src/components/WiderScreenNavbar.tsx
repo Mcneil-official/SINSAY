@@ -238,7 +238,7 @@ export default function WiderScreenNavbar({
           activeOpacity={0.8}
         >
           <Image
-            source={require("../../assets/images/logo.png")}
+            source={require("../../assets/SINSAY blue logo.png")}
             style={styles.logoImage}
             contentFit="contain"
             accessibilityLabel="SINSAY"

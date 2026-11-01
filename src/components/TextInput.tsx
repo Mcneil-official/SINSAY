@@ -1,5 +1,5 @@
-import React from "react";
-import { View, TextInput as RNTextInput, Text, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, TextInput as RNTextInput, Text, StyleSheet, Platform } from "react-native";
 import { colors } from "../constants/colors";
 
 interface TextInputProps {
@@ -27,13 +27,15 @@ export function TextInput({
   rightIcon,
   fontFamily,
 }: TextInputProps) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <View style={styles.wrapper}>
       {label ? <Text style={[styles.label, fontFamily ? { fontFamily } : null]}>{label}</Text> : null}
       <View
         style={[
           styles.inputRow,
-          error ? styles.inputError : styles.inputNormal,
+          error ? styles.inputError : focused && Platform.OS === "web" ? styles.inputFocused : styles.inputNormal,
           multiline && styles.multiline,
         ]}
       >
@@ -44,6 +46,8 @@ export function TextInput({
           placeholderTextColor={colors.gray}
           value={value}
           onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           multiline={multiline}
           keyboardType={keyboardType}
         />
@@ -75,6 +79,9 @@ const styles = StyleSheet.create({
   inputNormal: {
     borderColor: colors.inputBorder,
   },
+  inputFocused: {
+    borderColor: colors.primaryBlue,
+  },
   inputError: {
     borderColor: colors.red,
   },
@@ -92,6 +99,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.darkText,
     padding: 0,
+    outlineStyle: "none" as any,
   },
   multilineInput: {
     textAlignVertical: "top",

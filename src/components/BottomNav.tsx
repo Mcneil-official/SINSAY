@@ -22,6 +22,8 @@ interface BottomNavProps {
     }
   >;
   tabLabels: Record<string, string>;
+  /** Allow longer operator labels to wrap in the compact bottom bar. */
+  allowLabelWrap?: boolean;
   /** Route names to hide from the rendered bar while keeping them registered in Tabs. */
   hiddenRoutes?: string[];
 }
@@ -84,6 +86,7 @@ export default function BottomNav({
   tabIcons,
   tabLabels,
   hiddenRoutes,
+  allowLabelWrap = false,
 }: BottomNavProps) {
   const insets = useSafeAreaInsets();
   const activeKey = state.routes[state.index]?.key;
@@ -116,7 +119,11 @@ export default function BottomNav({
       <TouchableOpacity
         key={route.key}
         onPress={onPress}
-        style={isFocused ? styles.activeTab : styles.inactiveTab}
+        style={[
+          isFocused ? styles.activeTab : styles.inactiveTab,
+          allowLabelWrap &&
+            (isFocused ? styles.operatorActiveTab : styles.operatorInactiveTab),
+        ]}
         activeOpacity={0.75}
         accessibilityRole="tab"
         accessibilityState={{ selected: isFocused }}
@@ -134,8 +141,14 @@ export default function BottomNav({
           />
         )}
         <Text
-          style={isFocused ? styles.activeText : styles.inactiveText}
-          numberOfLines={1}
+          style={[
+            isFocused ? styles.activeText : styles.inactiveText,
+            allowLabelWrap &&
+              (isFocused
+                ? styles.operatorActiveText
+                : styles.operatorInactiveText),
+          ]}
+          numberOfLines={allowLabelWrap ? 2 : 1}
         >
           {label}
         </Text>
@@ -189,10 +202,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.primaryBlue,
   },
+  operatorActiveTab: {
+    gap: 4,
+    paddingHorizontal: 8,
+  },
   activeText: {
     color: colors.white,
     fontWeight: "700",
     fontSize: 11,
+  },
+  operatorActiveText: {
+    fontSize: 10.5,
+    flexShrink: 0,
   },
   inactiveTab: {
     flex: 1,
@@ -205,10 +226,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     borderRadius: 999,
   },
+  operatorInactiveTab: {
+    minWidth: 0,
+    minHeight: 44,
+    paddingHorizontal: 0,
+  },
   inactiveText: {
     color: INACTIVE_COLOR,
     fontWeight: "600",
     fontSize: 10,
     textAlign: "center",
+  },
+  operatorInactiveText: {
+    width: "100%",
+    fontSize: 9,
+    lineHeight: 11,
   },
 });

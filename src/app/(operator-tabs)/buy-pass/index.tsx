@@ -19,6 +19,7 @@ import Svg, {
   Rect,
   Stop,
 } from "react-native-svg";
+import AnimatedKpiValue from "../../../components/AnimatedKpiValue";
 import { BuyPassProgress, ContentContainer } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
@@ -231,11 +232,7 @@ export default function BuyPassSelectionScreen() {
         </Svg>
       </View>
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.fixedPassSummary}>
         <ContentContainer maxWidth={480} paddingH={14}>
           {/* Top Atmospheric Header Row */}
           <View style={styles.topHeaderRow}>
@@ -279,7 +276,7 @@ export default function BuyPassSelectionScreen() {
                 <Text style={styles.cardHeaderTitle} numberOfLines={1}>One-Day Dive Pass</Text>
               </View>
               <View style={styles.kpiMetricRow}>
-                <Text style={styles.balanceNumber}>{oneDayLeft !== null ? oneDayLeft : "—"}</Text>
+                <AnimatedKpiValue value={oneDayLeft} placeholder="—" style={styles.balanceNumber} />
                 <Text style={styles.kpiMetricLabel}>credits left</Text>
               </View>
               <Text style={styles.subCreditsText} numberOfLines={1}>of {oneDayPurchased !== null ? oneDayPurchased : "—"} purchased</Text>
@@ -291,12 +288,21 @@ export default function BuyPassSelectionScreen() {
                 <Text style={styles.cardHeaderTitle} numberOfLines={1}>Annual Dive Pass</Text>
               </View>
               <View style={styles.kpiMetricRow}>
-                <Text style={styles.balanceNumber}>{annualSlots !== null ? annualSlots : "—"}</Text>
+                <AnimatedKpiValue value={annualSlots} placeholder="—" style={styles.balanceNumber} />
                 <Text style={styles.kpiMetricLabel}>slots available</Text>
               </View>
               <Text style={styles.subCreditsText} numberOfLines={1}>of {annualPurchased !== null ? annualPurchased : "—"} purchased</Text>
             </View>
           </View>
+        </ContentContainer>
+      </View>
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <ContentContainer maxWidth={480} paddingH={14}>
           {/* Main Purchase Card */}
           <View style={styles.purchaseCard}>
             <View style={styles.sectionHeaderTitleRow}>
@@ -597,9 +603,13 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    minHeight: 0,
+  },
+  fixedPassSummary: {
+    flexShrink: 0,
+    paddingTop: 16,
   },
   scrollContent: {
-    paddingTop: 16,
     paddingBottom: 76,
   },
   topHeaderRow: {

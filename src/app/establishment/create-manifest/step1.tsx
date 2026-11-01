@@ -751,9 +751,6 @@ export default function CreateManifestStep1() {
           <Text style={styles.headerTitle}>New dive manifest</Text>
           <Text style={styles.headerSubtitle}>A guided setup for your next trip</Text>
         </View>
-        <View style={styles.headerStepPill}>
-          <Text style={styles.headerStepText}>{currentStep + 1}/{wizardSteps.length}</Text>
-        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -1369,8 +1366,6 @@ const styles = StyleSheet.create({
     color: "#647797",
     marginTop: 2,
   },
-  headerStepPill: { minWidth: 42, height: 32, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#edf5ff", borderWidth: 1, borderColor: "#dbeaff" },
-  headerStepText: { fontSize: 11, fontFamily: "Quicksand_700Bold", color: "#176be0" },
   formBody: { flex: 1 },
   twoColRow: { flexDirection: "column", gap: 2, marginBottom: 0 },
   cardBox: {

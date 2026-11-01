@@ -103,7 +103,7 @@ export default function OperatorProfileScreen() {
           <Path d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z" fill="#FFFFFF" opacity={0.16} />
         </Svg>
       </View>
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.fixedProfileHeader}>
         <ContentContainer maxWidth={720} paddingH={16}>
         <View style={styles.profileTopSection}>
         <View style={styles.pageHeading}><Text style={styles.eyebrow}>OPERATOR ACCOUNT</Text><Text style={styles.headerTitle}>Profile</Text></View>
@@ -119,6 +119,11 @@ export default function OperatorProfileScreen() {
         </View>
         </View>
         <View style={{ height: 52 }} />
+        </ContentContainer>
+      </View>
+
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <ContentContainer maxWidth={720} paddingH={16}>
         <View style={styles.sectionCard}>
           <View style={styles.sectionCardHeader}><View style={styles.sectionIcon}><Ionicons name="information-circle-outline" size={19} color="#087BFF" /></View><View><Text style={styles.sectionCardTitle}>About the resort</Text><Text style={styles.sectionCardSubtitle}>A short introduction for divers</Text></View></View>
           <Text style={styles.resortDescription}>{operatorApplication?.resort_description || "Add a resort description so divers can learn more about your place."}</Text>
@@ -167,7 +172,6 @@ export default function OperatorProfileScreen() {
           <ProfileRow icon="document-text-outline" label="FAQ" subtitle="Frequently asked questions" onPress={() => showAlert("FAQ", "Operator FAQ is coming soon.")} />
         </View>
 
-        <View style={{ height: 120 }} />
         </ContentContainer>
       </ScrollView>
 
@@ -191,8 +195,9 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#f1f9ff" },
   headerBackground: { position: "absolute", top: 0, left: 0, right: 0, height: 245, overflow: "hidden", zIndex: -1 },
   headerWaveSvg: { position: "absolute", top: 10, left: 0, width: "100%", height: 190 },
-  container: { flex: 1 },
-  scrollContent: { paddingTop: 20, paddingBottom: 28 },
+  container: { flex: 1, minHeight: 0 },
+  fixedProfileHeader: { flexShrink: 0, paddingTop: 20 },
+  scrollContent: { paddingBottom: 16 },
   profileTopSection: { height: 184, position: "relative" },
   pageHeading: { marginTop: 12, marginBottom: 12 },
   eyebrow: { fontSize: 10, letterSpacing: 1.3, color: "rgba(255,255,255,0.82)", fontFamily: "Quicksand_700Bold" },

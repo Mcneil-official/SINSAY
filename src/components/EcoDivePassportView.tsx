@@ -135,8 +135,8 @@ const SAMPLE_DIVE_ACTIVITIES: DiveTimelineActivity[] = [
   },
 ];
 
-function formatCardDate(raw?: string | null, fallback = "Mar 15, 2025"): string {
-  if (!raw || !raw.trim()) return fallback;
+function formatCardDate(raw?: string | null): string {
+  if (!raw || !raw.trim()) return "—";
   const parsed = new Date(raw.trim());
   if (Number.isNaN(parsed.getTime())) return raw.trim();
   return parsed.toLocaleDateString("en-US", {
@@ -346,34 +346,33 @@ export function EcoDivePassportView() {
 
   // Dynamic values for the ID card matching the reference layout
   const cardData = useMemo(() => {
-    const fullName = profile?.full_name?.trim() || "Elaine G. Domaycos";
+    const fullName = profile?.full_name?.trim() || "—";
     const nationality =
       (profile?.nationality &&
         NATIONALITY_LABELS[profile.nationality.toLowerCase()]) ||
       profile?.nationality ||
-      "Filipino";
+      "—";
     const passType =
       (profile?.dive_pass_type &&
         PASS_TYPE_LABELS[profile.dive_pass_type.toLowerCase()]) ||
-      "Tourist Dive Pass";
+      profile?.dive_pass_type ||
+      "—";
     const typeOfDive =
       (profile?.type_of_dive &&
         DIVE_TYPE_LABELS[profile.type_of_dive.toLowerCase()]) ||
-      "Recreational Dive";
+      profile?.type_of_dive ||
+      "—";
     const certLevel =
       (profile?.certification_level &&
         CERT_LEVEL_LABELS[profile.certification_level.toLowerCase()]) ||
       profile?.certification_level ||
-      "Dive Master";
-    const dateAccredited = formatCardDate(
-      profile?.date_accredited,
-      "Mar 15, 2025",
-    );
-    const renewalDate = formatCardDate(profile?.renewal_date, "Mar 15, 2028");
+      "—";
+    const dateAccredited = formatCardDate(profile?.date_accredited);
+    const renewalDate = formatCardDate(profile?.renewal_date);
     const emergencyName =
-      profile?.emergency_contact_name?.trim() || "Ma. Kassandra Domaycos";
+      profile?.emergency_contact_name?.trim() || "—";
     const emergencyNumber =
-      profile?.emergency_contact_number?.trim() || "+63 917 123 4567";
+      profile?.emergency_contact_number?.trim() || "—";
 
     return {
       fullName,

@@ -75,10 +75,9 @@ export default function SideNav({
     <View style={[styles.sidebar, { width }]}>
       <View style={styles.logoSection}>
         <Image
-          source={require("../../assets/images/logo.png")}
+          source={require("../../assets/SINSAY white logo.png")}
           style={styles.logoImage}
           contentFit="contain"
-          tintColor="#FFFFFF"
           accessibilityLabel="SINSAY"
         />
       </View>

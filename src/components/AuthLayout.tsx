@@ -132,7 +132,7 @@ export function AuthLayout({
               </Pressable>
 
               <Image
-                source={require("../../assets/images/logo.png")}
+                source={require("../../assets/SINSAY blue logo.png")}
                 style={styles.wideLogo}
                 contentFit="contain"
               />
@@ -188,7 +188,7 @@ export function AuthLayout({
           ]}
         >
           <Image
-            source={require("../../assets/images/sinsay-white-logo.png")}
+            source={require("../../assets/SINSAY white logo.png")}
             style={{ width: logoWidth, height: logoHeight }}
             contentFit="contain"
           />

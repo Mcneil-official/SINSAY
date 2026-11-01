@@ -6,6 +6,7 @@ import {
   Modal,
   FlatList,
   StyleSheet,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
@@ -35,14 +36,17 @@ export function Dropdown({
   fontFamily,
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
   const selected = options.find((o) => o.value === value);
 
   return (
     <View style={styles.wrapper}>
       {label ? <Text style={[styles.label, fontFamily ? { fontFamily } : null]}>{label}</Text> : null}
       <TouchableOpacity
-        style={[styles.trigger, error && styles.triggerError]}
+        style={[styles.trigger, focused && Platform.OS === "web" && styles.triggerFocused, open && Platform.OS === "web" && styles.triggerFocused, error && styles.triggerError]}
         onPress={() => setOpen(true)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
@@ -127,6 +131,9 @@ const styles = StyleSheet.create({
   },
   triggerError: {
     borderColor: colors.red,
+  },
+  triggerFocused: {
+    borderColor: colors.primaryBlue,
   },
   triggerText: {
     flex: 1,

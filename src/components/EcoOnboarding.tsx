@@ -8,6 +8,7 @@ import {
     Animated,
     Easing,
     PanResponder,
+    Platform,
     Pressable,
     StyleSheet,
     Text,
@@ -19,6 +20,7 @@ import Svg, { Path } from "react-native-svg";
 
 const DESIGN_WIDTH = 393;
 const DESIGN_HEIGHT = 832;
+const USE_NATIVE_DRIVER = Platform.OS !== "web";
 const WIDE_BREAKPOINT = 480;
 const WAVE_HEIGHT = 170;
 const CONTENT_TOP = 154;
@@ -139,13 +141,13 @@ export default function EcoOnboarding({
           toValue: 0,
           duration: 300,
           easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(slideTranslateX, {
           toValue: direction * 18,
           duration: 300,
           easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]).start(() => {
         onComplete?.();
@@ -176,19 +178,19 @@ export default function EcoOnboarding({
         toValue: 1,
         duration: 300,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
       Animated.timing(slideTranslateX, {
         toValue: 0,
         duration: 300,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
       Animated.timing(waveScale, {
         toValue: 1,
         duration: 300,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
     ]).start();
   }, [slideOpacity, slideTranslateX, waveScale]);

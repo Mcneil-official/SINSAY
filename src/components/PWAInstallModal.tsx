@@ -32,7 +32,7 @@ export default function PWAInstallModal() {
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <Image
-                source={require("../../assets/images/logo.png")}
+                source={require("../../assets/SINSAY blue logo.png")}
                 style={styles.appIcon}
                 resizeMode="contain"
               />

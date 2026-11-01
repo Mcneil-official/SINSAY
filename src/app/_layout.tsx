@@ -4,7 +4,9 @@ import { Quicksand_400Regular } from "@expo-google-fonts/quicksand/400Regular";
 import { Quicksand_500Medium } from "@expo-google-fonts/quicksand/500Medium";
 import { Quicksand_600SemiBold } from "@expo-google-fonts/quicksand/600SemiBold";
 import { Quicksand_700Bold } from "@expo-google-fonts/quicksand/700Bold";
+import { Asset } from "expo-asset";
 import { useFonts } from "expo-font";
+import { Image } from "expo-image";
 import { Stack } from "expo-router";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
@@ -45,6 +47,12 @@ export default function RootLayout() {
 
   useEffect(() => {
     registerServiceWorker();
+
+    const logoUris = [
+      Asset.fromModule(require("../../assets/sinsay-blue-home.webp")).uri,
+      Asset.fromModule(require("../../assets/sinsay-white-home.webp")).uri,
+    ];
+    void Image.prefetch(logoUris, "memory-disk").catch(() => undefined);
   }, []);
 
   return (

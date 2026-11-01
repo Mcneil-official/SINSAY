@@ -4,19 +4,17 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import {
   Button,
   Checkbox,
-  ContentContainer,
   Dropdown,
   FileUpload,
+  ProgressiveWizardShell,
   TextInput,
 } from "../../../components";
 import { colors } from "../../../constants/colors";
@@ -52,6 +50,7 @@ export default function ApplyOperatorScreen() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [agreed, setAgreed] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -66,6 +65,23 @@ export default function ApplyOperatorScreen() {
     }
   }, [authLoading, operatorApplication, router]);
 
+  const validateCurrentStep = () => {
+    const errs: Record<string, string> = {};
+    if (currentStep === 0) {
+      if (!resortName.trim()) errs.resortName = "Required";
+      if (!resortLocation.trim()) errs.resortLocation = "Required";
+    } else if (currentStep === 1) {
+      if (!role) errs.role = "Required";
+      if (!contactNumber.trim()) errs.contactNumber = "Required";
+    } else {
+      if (!businessPermitUrl) errs.businessPermitUrl = "Upload required";
+      if (!pcssUrl) errs.pcssUrl = "Upload required";
+      if (!agreed) errs.agreed = "You must confirm to proceed";
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const validate = () => {
     const errs: Record<string, string> = {};
     if (!resortName.trim()) errs.resortName = "Required";
@@ -77,6 +93,16 @@ export default function ApplyOperatorScreen() {
     if (!agreed) errs.agreed = "You must confirm to proceed";
     setErrors(errs);
     return Object.keys(errs).length === 0;
+  };
+
+  const handleContinue = () => {
+    if (!validateCurrentStep()) return;
+    setSubmitError(null);
+    if (currentStep < 2) {
+      setCurrentStep((step) => step + 1);
+      return;
+    }
+    void handleSubmit();
   };
 
   const handleUploadFile = async (
@@ -220,32 +246,23 @@ export default function ApplyOperatorScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.darkText} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>Resort Operator Application</Text>
-          <Text style={styles.subtitle}>
-            Manage dive manifests, handle resort guests, and coordinate with the
-            Tourism Office.
-          </Text>
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <ContentContainer maxWidth={720}>
+    <ProgressiveWizardShell
+      eyebrow="TOURISM OFFICE"
+      title="Operator Application"
+      subtitle="Apply to register your resort as a dive establishment."
+      steps={["Resort", "Contact", "Documents"]}
+      currentIndex={currentStep}
+      stepDescription={currentStep === 0 ? "Start with the resort you represent." : currentStep === 1 ? "Add your role and contact details." : "Upload documents and review your application."}
+      onHeaderBack={() => router.back()}
+      secondaryAction={{
+        label: currentStep === 0 ? "Cancel" : "Back",
+        onPress: () => currentStep === 0 ? router.back() : setCurrentStep((step) => step - 1),
+      }}
+      primaryLabel={currentStep === 2 ? "Submit Application" : "Continue"}
+      onPrimaryPress={handleContinue}
+      primaryDisabled={saving || uploading !== null}
+      primaryLoading={saving}
+    >
           {operatorApplication?.status === "rejected" && !submitted ? (
             <View style={styles.rejectedBanner}>
               <Ionicons name="close-circle" size={20} color={colors.red} />
@@ -264,203 +281,213 @@ export default function ApplyOperatorScreen() {
               </View>
             </View>
           ) : null}
-          <TextInput
-            label="Resort Name"
-            placeholder="e.g. Anilao Beach Club"
-            value={resortName}
-            onChangeText={setResortName}
-            error={errors.resortName}
-          />
-
-          <TextInput
-            label="Resort Location"
-            placeholder="Anilao, Mabini, Batangas"
-            value={resortLocation}
-            onChangeText={setResortLocation}
-            error={errors.resortLocation}
-          />
-
-          <View style={styles.twoCol}>
-            <View style={styles.twoColItem}>
-              <Dropdown
-                label="Role"
-                placeholder="Select"
-                value={role}
-                options={roleOptions}
-                onSelect={setRole}
-                error={errors.role}
-              />
+          <View style={styles.stepCard}>
+            <View style={styles.stepIntro}>
+              <View style={styles.stepIcon}>
+                <Ionicons
+                  name={currentStep === 2 ? "shield-checkmark-outline" : currentStep === 1 ? "call-outline" : "business-outline"}
+                  size={19}
+                  color={colors.primaryBlue}
+                />
+              </View>
+              <View style={styles.stepIntroCopy}>
+                <Text style={styles.stepTitle}>
+                  {currentStep === 0 ? "Resort details" : currentStep === 1 ? "Applicant & contact" : "Documents & review"}
+                </Text>
+                <Text style={styles.stepDescription}>
+                  {currentStep === 0
+                    ? "Start with the resort you represent."
+                    : currentStep === 1
+                      ? "Tell us how to reach you and find your resort online."
+                      : "Upload verification documents and confirm your application."}
+                </Text>
+              </View>
             </View>
-            <View style={styles.twoColItem}>
-              <TextInput
-                label="Contact Number"
-                placeholder="+63 9XXXXXXXXX"
-                value={contactNumber}
-                onChangeText={setContactNumber}
-                keyboardType="phone-pad"
-                error={errors.contactNumber}
-              />
-            </View>
+
+            {currentStep === 0 ? (
+              <View style={styles.fieldsGroup}>
+                <TextInput
+                  label="Resort Name"
+                  placeholder="e.g. Anilao Beach Club"
+                  value={resortName}
+                  onChangeText={setResortName}
+                  error={errors.resortName}
+                />
+                <TextInput
+                  label="Resort Location"
+                  placeholder="Anilao, Mabini, Batangas"
+                  value={resortLocation}
+                  onChangeText={setResortLocation}
+                  error={errors.resortLocation}
+                />
+              </View>
+            ) : currentStep === 1 ? (
+              <View style={styles.fieldsGroup}>
+                <Dropdown
+                  label="Your role at the resort"
+                  placeholder="Select your role"
+                  value={role}
+                  options={roleOptions}
+                  onSelect={setRole}
+                  error={errors.role}
+                />
+                <TextInput
+                  label="Contact Number"
+                  placeholder="+63 9XXXXXXXXX"
+                  value={contactNumber}
+                  onChangeText={setContactNumber}
+                  keyboardType="phone-pad"
+                  error={errors.contactNumber}
+                />
+                <TextInput
+                  label="Facebook Page (optional)"
+                  placeholder="https://facebook.com/..."
+                  value={facebook}
+                  onChangeText={setFacebook}
+                />
+                <TextInput
+                  label="Website (optional)"
+                  placeholder="https://..."
+                  value={website}
+                  onChangeText={setWebsite}
+                />
+              </View>
+            ) : (
+              <View style={styles.fieldsGroup}>
+                <View style={styles.reviewCard}>
+                  <Text style={styles.reviewTitle}>Application summary</Text>
+                  <Text style={styles.reviewLabel}>RESORT</Text>
+                  <Text style={styles.reviewValue}>{resortName || "Not provided"}</Text>
+                  <Text style={styles.reviewLabel}>LOCATION</Text>
+                  <Text style={styles.reviewValue}>{resortLocation || "Not provided"}</Text>
+                  <Text style={styles.reviewLabel}>APPLICANT</Text>
+                  <Text style={styles.reviewValue}>
+                    {roleOptions.find((item) => item.value === role)?.label || "Not selected"}
+                    {contactNumber ? ` · ${contactNumber}` : ""}
+                  </Text>
+                </View>
+
+                <View style={styles.uploadCard}>
+                  <Text style={styles.uploadLabel}>Business Permit</Text>
+                  <Text style={styles.uploadHint}>A clear photo or PDF of your resort’s current permit.</Text>
+                  <FileUpload
+                    label="Upload Business Permit"
+                    onFileSelect={handleUploadPermit}
+                    fileName={businessPermitUrl ? "Uploaded" : undefined}
+                    showCamera
+                  />
+                  {errors.businessPermitUrl && (
+                    <Text style={styles.errorText}>{errors.businessPermitUrl}</Text>
+                  )}
+                </View>
+
+                <View style={styles.uploadCard}>
+                  <Text style={styles.uploadLabel}>PCSS Accreditation</Text>
+                  <Text style={styles.uploadHint}>Upload your PCSS accreditation document.</Text>
+                  <FileUpload
+                    label="Upload PCSS Accreditation"
+                    onFileSelect={handleUploadPcss}
+                    fileName={pcssUrl ? "Uploaded" : undefined}
+                    showCamera
+                  />
+                  {errors.pcssUrl && (
+                    <Text style={styles.errorText}>{errors.pcssUrl}</Text>
+                  )}
+                </View>
+
+                {uploadError ? <Text style={styles.errorText}>{uploadError}</Text> : null}
+                <Checkbox
+                  checked={agreed}
+                  onToggle={() => setAgreed(!agreed)}
+                  label="I confirm that the information provided is accurate and that I am authorized to represent the resort."
+                  error={errors.agreed}
+                />
+                {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
+              </View>
+            )}
           </View>
-
-          <TextInput
-            label="Facebook Page (optional)"
-            placeholder="https://facebook.com/..."
-            value={facebook}
-            onChangeText={setFacebook}
-          />
-
-          <TextInput
-            label="Website (optional)"
-            placeholder="https://..."
-            value={website}
-            onChangeText={setWebsite}
-          />
-
-          {/* Document uploads */}
-          <View style={styles.twoCol}>
-            <View style={styles.twoColItem}>
-              <Text style={styles.uploadLabel}>Business Permit</Text>
-              <FileUpload
-                label="Upload Here"
-                onFileSelect={handleUploadPermit}
-                fileName={businessPermitUrl ? "Uploaded" : undefined}
-                showCamera
-              />
-              {errors.businessPermitUrl && (
-                <Text style={styles.errorText}>{errors.businessPermitUrl}</Text>
-              )}
-            </View>
-            <View style={styles.twoColItem}>
-              <Text style={styles.uploadLabel}>PCSS Accreditation</Text>
-              <FileUpload
-                label="Upload Here"
-                onFileSelect={handleUploadPcss}
-                fileName={pcssUrl ? "Uploaded" : undefined}
-                showCamera
-              />
-              {errors.pcssUrl && (
-                <Text style={styles.errorText}>{errors.pcssUrl}</Text>
-              )}
-            </View>
-          </View>
-
-          {uploadError ? (
-            <Text style={styles.errorText}>{uploadError}</Text>
-          ) : null}
-
-          {/* Confirmation */}
-          <Checkbox
-            checked={agreed}
-            onToggle={() => setAgreed(!agreed)}
-            label="I confirm that the information provided is accurate and that I am
-            authorized to represent the resort."
-            error={errors.agreed}
-          />
-
-          {/* Submit */}
-          {submitError ? (
-            <Text style={styles.errorText}>{submitError}</Text>
-          ) : null}
-          <View style={styles.buttonWrap}>
-            <Button
-              title={saving ? "Submitting..." : "Submit Application"}
-              onPress={handleSubmit}
-              disabled={saving || uploading !== null}
-            />
-          </View>
-
-          <View style={{ height: 40 }} />
-        </ContentContainer>
-      </ScrollView>
-    </SafeAreaView>
+    </ProgressiveWizardShell>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1 },
-  scrollContent: { paddingTop: 12, paddingBottom: 20, gap: 16 },
-  headerRow: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  safeArea: { flex: 1, backgroundColor: "#f1f9ff" },
+  container: { flex: 1, minHeight: 0 },
+  progressContainer: { paddingHorizontal: 16, paddingTop: 12 },
+  scrollContent: { paddingTop: 4, paddingBottom: 18 },
+  formContainer: { paddingHorizontal: 16 },
+  stepCard: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E4EEF8",
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: "#0B206B",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
+    gap: 18,
+  },
+  stepIntro: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  stepIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: "#EAF4FF",
     alignItems: "center",
     justifyContent: "center",
   },
-  headerText: { gap: 4 },
-  title: { fontSize: 20, fontWeight: "700", color: colors.darkText },
-  subtitle: { fontSize: 12, color: colors.gray, lineHeight: 17 },
-  twoCol: { flexDirection: "row", gap: 10 },
-  twoColItem: { flex: 1 },
+  stepIntroCopy: { flex: 1, minWidth: 0, gap: 3 },
+  stepEyebrow: { fontSize: 9, letterSpacing: 1.2, color: "#7183A4", fontFamily: "Quicksand_700Bold" },
+  stepTitle: { fontSize: 18, color: "#07156C", fontFamily: "Quicksand_700Bold" },
+  stepDescription: { fontSize: 12, lineHeight: 17, color: "#7183A4", fontFamily: "Quicksand_500Medium" },
+  fieldsGroup: { gap: 14 },
+  reviewCard: { backgroundColor: "#F5F9FE", borderRadius: 14, padding: 14, gap: 4 },
+  reviewTitle: { color: "#07156C", fontSize: 13, fontFamily: "Quicksand_700Bold", marginBottom: 5 },
+  reviewLabel: { color: "#7183A4", fontSize: 9, letterSpacing: 0.8, fontFamily: "Quicksand_700Bold", marginTop: 6 },
+  reviewValue: { color: "#315B92", fontSize: 12, lineHeight: 17, fontFamily: "Quicksand_600SemiBold" },
   uploadLabel: {
     fontSize: 13,
-    fontWeight: "600",
-    color: colors.darkText,
-    marginBottom: 6,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156C",
+    marginBottom: 4,
   },
-  uploadChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: colors.cardBorder,
-    borderStyle: "dashed",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: colors.cardBg,
+  uploadHint: { color: "#7183A4", fontSize: 11, lineHeight: 16, marginBottom: 8, fontFamily: "Quicksand_500Medium" },
+  uploadCard: { borderWidth: 1, borderColor: "#E4EEF8", borderRadius: 15, padding: 13, backgroundColor: "#FBFDFF" },
+  footer: {
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E4EEF8",
+    paddingVertical: 10,
   },
-  uploadChipError: { borderColor: colors.red },
-  uploadChipText: {
-    fontSize: 12,
-    color: colors.primaryBlue,
-    fontWeight: "500",
-  },
-  uploadChipDone: { color: colors.green },
-  checkboxRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: colors.inputBorder,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 1,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primaryBlue,
-    borderColor: colors.primaryBlue,
-  },
-  checkboxLabel: {
-    fontSize: 13,
-    color: colors.darkText,
-    lineHeight: 18,
-    flex: 1,
-  },
-  errorText: { fontSize: 11, color: colors.red },
-  buttonWrap: { marginTop: 8 },
+  footerContent: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  footerPrimary: { flex: 1 },
+  cancelButton: { minWidth: 88, minHeight: 46, alignItems: "center", justifyContent: "center", borderRadius: 13, backgroundColor: "#F0F6FD" },
+  cancelButtonText: { color: "#526789", fontSize: 13, fontFamily: "Quicksand_700Bold" },
+  backStepButton: { minWidth: 88, minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, borderRadius: 13, backgroundColor: "#F0F6FD" },
+  backStepText: { color: colors.primaryBlue, fontSize: 13, fontFamily: "Quicksand_700Bold" },
+  errorText: { fontSize: 11, color: colors.red, fontFamily: "Quicksand_600SemiBold" },
   rejectedBanner: {
     flexDirection: "row",
     gap: 10,
     backgroundColor: "#FEF2F2",
     borderWidth: 1,
     borderColor: "#FECACA",
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
-    marginBottom: 4,
+    marginBottom: 12,
   },
   rejectedTextWrap: { flex: 1, gap: 2 },
-  rejectedTitle: { fontSize: 13, fontWeight: "700", color: colors.red },
-  rejectedReason: { fontSize: 12, color: colors.darkText, lineHeight: 17 },
-  rejectedHint: { fontSize: 11, color: colors.gray },
+  rejectedTitle: { fontSize: 13, fontFamily: "Quicksand_700Bold", color: colors.red },
+  rejectedReason: { fontSize: 12, color: colors.darkText, lineHeight: 17, fontFamily: "Quicksand_500Medium" },
+  rejectedHint: { fontSize: 11, color: colors.gray, fontFamily: "Quicksand_500Medium" },
   confirmContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 32,
+    backgroundColor: "#f1f9ff",
   },
   confirmIcon: { marginBottom: 20 },
   confirmTitle: {
@@ -483,5 +510,5 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginBottom: 32,
   },
-  confirmButtonWrap: { width: "100%" },
+  confirmButtonWrap: { width: "100%", maxWidth: 420 },
 });

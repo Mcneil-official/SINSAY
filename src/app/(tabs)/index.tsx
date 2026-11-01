@@ -380,9 +380,11 @@ export default function HomeScreen() {
           {!isDesktop && (
             <View style={styles.topBar}>
               <Image
-                source={require("../../../assets/SINSAY blue logo.png")}
+                source={require("../../../assets/sinsay-blue-home.webp")}
                 style={styles.logoImage}
                 contentFit="contain"
+                priority="high"
+                cachePolicy="memory-disk"
                 accessibilityLabel="SINSAY"
               />
 

@@ -245,12 +245,7 @@ export default function ManifestsScreen() {
         </Svg>
       </View>
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      <View style={styles.fixedHeader}>
         <ContentContainer maxWidth={480} paddingH={14}>
           <View style={styles.heroHeader}>
             <View style={styles.heroCopy}>
@@ -318,7 +313,16 @@ export default function ManifestsScreen() {
               );
             })}
           </View>
+        </ContentContainer>
+      </View>
 
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ContentContainer maxWidth={480} paddingH={14}>
           {!loading && !loadError && (
             <View style={styles.resultsHeading}>
               <Text style={styles.resultsTitle}>
@@ -605,8 +609,9 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 190,
   },
-  container: { flex: 1 },
-  scrollContent: { paddingTop: 20, paddingBottom: 20 },
+  container: { flex: 1, minHeight: 0 },
+  fixedHeader: { flexShrink: 0, paddingTop: 20 },
+  scrollContent: { paddingBottom: 20 },
   heroHeader: {
     flexDirection: "row",
     alignItems: "center",
