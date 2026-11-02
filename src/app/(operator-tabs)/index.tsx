@@ -21,7 +21,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from "react-native-svg";
-import { ContentContainer } from "../../components";
+import { ContentContainer, ManifestSkeleton, Skeleton } from "../../components";
 import AnimatedKpiValue from "../../components/AnimatedKpiValue";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
@@ -253,11 +253,18 @@ export default function OperatorDashboardScreen() {
   if (authLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator
-          size="large"
-          color={colors.primaryBlue}
-          style={{ marginTop: 40 }}
-        />
+        <View style={styles.authLoading}>
+          <View style={styles.authLoadingHeader}>
+            <Skeleton width={160} height={28} radius={8} />
+            <Skeleton width={40} height={40} radius={20} />
+          </View>
+          <View style={styles.authLoadingStats}>
+            <Skeleton height={88} radius={16} />
+            <Skeleton height={88} radius={16} />
+          </View>
+          <ManifestSkeleton />
+          <ManifestSkeleton />
+        </View>
       </SafeAreaView>
     );
   }
@@ -735,6 +742,20 @@ export default function OperatorDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  authLoading: {
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  authLoadingHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  authLoadingStats: {
+    flexDirection: "row",
+    gap: 12,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: "#f1f9ff",

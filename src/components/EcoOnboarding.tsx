@@ -3,7 +3,7 @@ import { Jost_400Regular } from "@expo-google-fonts/jost/400Regular";
 import { useFonts } from "expo-font";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Animated,
     Easing,
@@ -96,9 +96,9 @@ export default function EcoOnboarding({
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({ Afacad_700Bold, Jost_400Regular });
-  const slideOpacity = useRef(new Animated.Value(0)).current;
-  const slideTranslateX = useRef(new Animated.Value(18)).current;
-  const waveScale = useRef(new Animated.Value(0.98)).current;
+  const [slideOpacity] = useState(() => new Animated.Value(0));
+  const [slideTranslateX] = useState(() => new Animated.Value(18));
+  const [waveScale] = useState(() => new Animated.Value(0.98));
 
   const isWide = width > WIDE_BREAKPOINT;
   const frameWidth = isWide ? DESIGN_WIDTH : width;

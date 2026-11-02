@@ -26,12 +26,14 @@ export default function EstablishmentDetailScreen() {
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-    supabase.from("establishments").select("*").eq("id", id).maybeSingle().then(({ data, error }) => {
-      if (!error && data) setEst(data);
-      setLoading(false);
-    }, () => {
-      setLoading(false);
+    queueMicrotask(() => {
+      setLoading(true);
+      supabase.from("establishments").select("*").eq("id", id).maybeSingle().then(({ data, error }) => {
+        if (!error && data) setEst(data);
+        setLoading(false);
+      }, () => {
+        setLoading(false);
+      });
     });
   }, [id]);
 

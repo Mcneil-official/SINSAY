@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
 import OperatorWiderScreenNavbar from "../../components/OperatorWiderScreenNavbar";
 import { colors } from "../../constants/colors";
+import { ENABLE_DESKTOP_LAYOUT } from "../../constants/layout";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -63,11 +64,11 @@ export default function OperatorTabLayout() {
   return (
     <View style={styles.container}>
       <OperatorGate />
-      {isDesktop && <OperatorWiderScreenNavbar />}
+      {isDesktop && ENABLE_DESKTOP_LAYOUT && <OperatorWiderScreenNavbar />}
       <Tabs
         screenOptions={{ headerShown: false }}
         tabBar={(props) =>
-          isDesktop ? null : (
+          isDesktop && ENABLE_DESKTOP_LAYOUT ? null : (
             <BottomNav
               {...props}
               tabIcons={tabIcons}

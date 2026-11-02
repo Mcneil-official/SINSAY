@@ -14,11 +14,12 @@ import { hasSplashBeenShown, markSplashShown } from "../lib/splash";
 import AuthWelcome from "../components/AuthWelcome";
 import SplashScreen from "../components/SplashScreen";
 import WaveDivider from "../components/WaveDivider";
+import { ENABLE_DESKTOP_LAYOUT } from "../constants/layout";
 
 export default function Index() {
   const router = useRouter();
   const { isTablet, isDesktop } = useLayout();
-  const isWide = isTablet || isDesktop;
+  const isWide = ENABLE_DESKTOP_LAYOUT && (isTablet || isDesktop);
   const [showSplash, setShowSplash] = useState(() => {
     if (hasSplashBeenShown()) return false;
     const { width } = Dimensions.get("window");

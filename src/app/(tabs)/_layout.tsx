@@ -6,6 +6,7 @@ import BottomNav from "../../components/BottomNav";
 import { FloatingAssistant } from "../../components/assistant/FloatingAssistant";
 import WiderScreenNavbar from "../../components/WiderScreenNavbar";
 import { colors } from "../../constants/colors";
+import { ENABLE_DESKTOP_LAYOUT } from "../../constants/layout";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -67,13 +68,13 @@ export default function TabLayout() {
   return (
     <View style={styles.container}>
       <TouristGate />
-      {isDesktop && <WiderScreenNavbar />}
+      {isDesktop && ENABLE_DESKTOP_LAYOUT && <WiderScreenNavbar />}
       <Tabs
         screenOptions={{
           headerShown: false,
         }}
         tabBar={(props) =>
-          isDesktop ? null : (
+          isDesktop && ENABLE_DESKTOP_LAYOUT ? null : (
             <BottomNav
               {...props}
               tabIcons={tabIcons}

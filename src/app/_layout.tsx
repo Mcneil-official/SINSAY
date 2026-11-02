@@ -7,7 +7,7 @@ import { Quicksand_700Bold } from "@expo-google-fonts/quicksand/700Bold";
 import { Asset } from "expo-asset";
 import { useFonts } from "expo-font";
 import { Image } from "expo-image";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -15,12 +15,26 @@ import AppShell from "../components/AppShell";
 import PWAInstallBanner from "../components/PWAInstallBanner";
 import PWAInstallModal from "../components/PWAInstallModal";
 import { AuthProvider } from "../context/AuthContext";
-import { LayoutProvider } from "../context/LayoutContext";
+import { LayoutProvider, useLayout } from "../context/LayoutContext";
 import { PWAProvider } from "../context/PWAContext";
 import { ScreenTransitionProvider } from "../context/ScreenTransitionContext";
+import { ToastProvider } from "../context/ToastContext";
+import { ENABLE_DESKTOP_LAYOUT } from "../constants/layout";
+import UnsupportedDeviceScreen from "../components/UnsupportedDeviceScreen";
 import { registerServiceWorker } from "../lib/registerSW";
 
 function RootLayoutInner() {
+  const { isDesktop } = useLayout();
+  const pathname = usePathname();
+
+  // OAuth must be allowed to settle its session before the device fallback
+  // takes over the authenticated app route.
+  const isAuthCallback = pathname === "/auth/callback";
+
+  if (isDesktop && !ENABLE_DESKTOP_LAYOUT && !isAuthCallback) {
+    return <UnsupportedDeviceScreen />;
+  }
+
   return (
     <View style={styles.root}>
       <AppShell>
@@ -51,6 +65,7 @@ export default function RootLayout() {
     const logoUris = [
       Asset.fromModule(require("../../assets/sinsay-blue-home.webp")).uri,
       Asset.fromModule(require("../../assets/sinsay-white-home.webp")).uri,
+      Asset.fromModule(require("../../assets/SINSAY blue logo.png")).uri,
     ];
     void Image.prefetch(logoUris, "memory-disk").catch(() => undefined);
   }, []);
@@ -61,7 +76,9 @@ export default function RootLayout() {
         <LayoutProvider>
           <PWAProvider>
             <ScreenTransitionProvider>
-              <RootLayoutInner />
+              <ToastProvider>
+                <RootLayoutInner />
+              </ToastProvider>
             </ScreenTransitionProvider>
           </PWAProvider>
         </LayoutProvider>

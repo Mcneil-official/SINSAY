@@ -22,6 +22,7 @@ import { useLayout } from "../context/LayoutContext";
 import { useScreenTransition } from "../context/ScreenTransitionContext";
 import { markSplashShown } from "../lib/splash";
 import WaveDivider from "./WaveDivider";
+import { ENABLE_DESKTOP_LAYOUT } from "../constants/layout";
 
 const HERO_PATH =
   "M411.498 -2H-18V333.272C1.2706 343.155 25.8361 349.175 56.7872 346.54C149.163 338.497 328.689 195.432 411.498 157.832V-2Z";
@@ -45,7 +46,7 @@ export function AuthLayout({
   const router = useRouter();
   const { runTransition } = useScreenTransition();
   const { isTablet, isDesktop } = useLayout();
-  const isWide = isTablet || isDesktop;
+  const isWide = ENABLE_DESKTOP_LAYOUT && (isTablet || isDesktop);
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [fontsLoaded] = useFonts({

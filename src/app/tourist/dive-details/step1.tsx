@@ -78,16 +78,18 @@ export default function DiveDetailsStep1() {
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    if (!profile) return;
-    setFullName(profile.full_name || "");
-    setNationality(profile.nationality || "");
-    setEmergencyName(profile.emergency_contact_name || "");
-    setEmergencyPhone(profile.emergency_contact_number || "");
-    setDivePassType(profile.dive_pass_type || "");
-    setDiveType(profile.type_of_dive || "");
-    setCertLevel(profile.certification_level || "");
-    setDateAccredited(profile.date_accredited || "");
-    setRenewalDate(profile.renewal_date || "");
+    queueMicrotask(() => {
+      if (!profile) return;
+      setFullName(profile.full_name || "");
+      setNationality(profile.nationality || "");
+      setEmergencyName(profile.emergency_contact_name || "");
+      setEmergencyPhone(profile.emergency_contact_number || "");
+      setDivePassType(profile.dive_pass_type || "");
+      setDiveType(profile.type_of_dive || "");
+      setCertLevel(profile.certification_level || "");
+      setDateAccredited(profile.date_accredited || "");
+      setRenewalDate(profile.renewal_date || "");
+    });
   }, [profile]);
 
   const validateCurrentStep = () => {

@@ -23,7 +23,7 @@
     "web": {
       "output": "single",
       "bundler": "metro",
-      "favicon": "./assets/images/logo.png",
+        "favicon": "./public/SINSAY-favicon.png",
       "name": "SINSAY",
       "shortName": "SINSAY",
       "description": "Eco-Dive Tourism App for Mabini, Batangas",
@@ -39,13 +39,13 @@
       ],
       "preferRelatedApplications": false,
       "icons": [
-        {
-          "src": "./assets/images/logo.png",
+          {
+            "src": "./public/pwa-icon-192.png",
           "sizes": "192x192",
           "type": "image/png"
         },
         {
-          "src": "./assets/images/logo.png",
+            "src": "./public/pwa-icon-512.png",
           "sizes": "512x512",
           "type": "image/png"
         }

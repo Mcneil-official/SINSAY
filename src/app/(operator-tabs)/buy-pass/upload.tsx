@@ -60,33 +60,35 @@ export default function UploadReceiptScreen() {
         : null;
 
   useEffect(() => {
-    if (!pricingCode) {
-      setPriceLoading(false);
-      setPriceError(true);
-      return;
-    }
-    (async () => {
-      try {
-        const { data, error: priceFetchError } = await supabase
-          .from("pass_pricing")
-          .select("price, passes, code")
-          .eq("code", pricingCode)
-          .maybeSingle();
-        if (priceFetchError) throw priceFetchError;
-        if (!data) {
-          setPriceError(true);
-          return;
-        }
-        setUnitPrice(Number(data.price));
-        setPassesPerPack(Number(data.passes));
-        setPassCode((data as { code?: string }).code ?? null);
-      } catch (e) {
-        console.warn("Failed to verify pass pricing:", e);
-        setPriceError(true);
-      } finally {
+    queueMicrotask(() => {
+      if (!pricingCode) {
         setPriceLoading(false);
+        setPriceError(true);
+        return;
       }
-    })();
+      (async () => {
+        try {
+          const { data, error: priceFetchError } = await supabase
+            .from("pass_pricing")
+            .select("price, passes, code")
+            .eq("code", pricingCode)
+            .maybeSingle();
+          if (priceFetchError) throw priceFetchError;
+          if (!data) {
+            setPriceError(true);
+            return;
+          }
+          setUnitPrice(Number(data.price));
+          setPassesPerPack(Number(data.passes));
+          setPassCode((data as { code?: string }).code ?? null);
+        } catch (e) {
+          console.warn("Failed to verify pass pricing:", e);
+          setPriceError(true);
+        } finally {
+          setPriceLoading(false);
+        }
+      })();
+    });
   }, [pricingCode]);
 
   const rawQty = Number(quantity) || 0;

@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { colors } from "../../constants/colors";
-import { ContentContainer } from "../../components";
+import { ContentContainer, ManifestSkeleton } from "../../components";
 import { ManifestSnapshotCard } from "../../components/ManifestSnapshotCard";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
@@ -67,22 +67,6 @@ export default function ManifestsScreen() {
   const [snapshotMsg, setSnapshotMsg] = useState("");
   const cardRef = useRef<View>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    loadManifests();
-    loadLocalDrafts();
-  }, [user]);
-
-  // Refetch on focus: returning from step1 → confirmed would otherwise show
-  // a stale list (dashboard already uses useFocusEffect).
-  useFocusEffect(
-    useCallback(() => {
-      if (!user) return;
-      loadManifests();
-      loadLocalDrafts();
-    }, [user])
-  );
-
   const loadManifests = async () => {
     setLoading(true);
     setLoadError(false);
@@ -126,6 +110,24 @@ export default function ManifestsScreen() {
     if (!user) return;
     setDrafts(await listDrafts(user.id));
   };
+
+  useEffect(() => {
+    if (!user) return;
+    queueMicrotask(() => {
+      loadManifests();
+      loadLocalDrafts();
+    });
+  }, [user]);
+
+  // Refetch on focus: returning from step1 → confirmed would otherwise show
+  // a stale list (dashboard already uses useFocusEffect).
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      loadManifests();
+      loadLocalDrafts();
+    }, [user])
+  );
 
   const todayStr = toLocalDateString(new Date());
   const upcoming = manifests.filter((m) => m.dive_date >= todayStr);
@@ -335,9 +337,10 @@ export default function ManifestsScreen() {
           )}
 
           {loading ? (
-            <View style={styles.loadingCard}>
-              <ActivityIndicator size="large" color={colors.primaryBlue} />
-              <Text style={styles.loadingText}>Loading your manifests?</Text>
+            <View accessibilityLabel="Loading manifests">
+              <ManifestSkeleton />
+              <ManifestSkeleton />
+              <ManifestSkeleton />
             </View>
           ) : loadError ? (
             <View style={styles.stateCard}>

@@ -208,7 +208,7 @@ export default function ApplyOperatorScreen() {
             Tourism Office is reviewing your documents.
           </Text>
           <Text style={styles.confirmSubtext}>
-            You'll receive a notification once your application is approved or
+            You&apos;ll receive a notification once your application is approved or
             rejected.
           </Text>
           <View style={styles.confirmButtonWrap}>

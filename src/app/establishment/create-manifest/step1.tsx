@@ -228,31 +228,34 @@ export default function CreateManifestStep1() {
 
   useEffect(() => {
     let active = true;
-    setDiveSitesLoading(true);
-    setDiveSitesError(false);
-    (async () => {
-      try {
-        const { data, error: sitesError } = await supabase
-          .from("dive_sites")
-          .select("id, name, barangay, status")
-          .order("name", { ascending: true });
-        if (sitesError) throw sitesError;
-        if (!active) return;
-        const options = (data ?? [])
-          .filter((site) => !site.status || site.status.toLowerCase() !== "restricted")
-          .map((site) => ({
-            label: site.barangay ? `${site.name} · ${site.barangay}` : site.name,
-            value: site.name,
-          }));
-        setDiveSiteOptions(options);
-        setDiveSitesLoading(false);
-      } catch (sitesError) {
-        console.warn("Failed to load dive sites:", sitesError);
-        if (!active) return;
-        setDiveSitesError(true);
-        setDiveSitesLoading(false);
-      }
-    })();
+    queueMicrotask(() => {
+      if (!active) return;
+      setDiveSitesLoading(true);
+      setDiveSitesError(false);
+      (async () => {
+        try {
+          const { data, error: sitesError } = await supabase
+            .from("dive_sites")
+            .select("id, name, barangay, status")
+            .order("name", { ascending: true });
+          if (sitesError) throw sitesError;
+          if (!active) return;
+          const options = (data ?? [])
+            .filter((site) => !site.status || site.status.toLowerCase() !== "restricted")
+            .map((site) => ({
+              label: site.barangay ? `${site.name} · ${site.barangay}` : site.name,
+              value: site.name,
+            }));
+          setDiveSiteOptions(options);
+          setDiveSitesLoading(false);
+        } catch (sitesError) {
+          console.warn("Failed to load dive sites:", sitesError);
+          if (!active) return;
+          setDiveSitesError(true);
+          setDiveSitesLoading(false);
+        }
+      })();
+    });
     return () => { active = false; };
   }, [diveSitesReloadKey]);
 
@@ -287,7 +290,7 @@ export default function CreateManifestStep1() {
   };
 
   useEffect(() => {
-    loadLedger();
+    queueMicrotask(() => loadLedger());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -296,35 +299,37 @@ export default function CreateManifestStep1() {
   // in 027). Pre-027 the table is missing → catch → all uncovered, and the
   // one-day logic below behaves exactly as before.
   useEffect(() => {
-    const ids = [...new Set(divers.filter((d) => d.touristId).map((d) => d.touristId as string))];
-    setAnnualAssigned((prev) => prev.filter((id) => ids.includes(id)));
-    if (ids.length === 0 || !isValidCalendarDate(diveDate)) {
-      setAnnualCovered(new Set());
-      setAnnualHolders([]);
-      return;
-    }
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("annual_pass_holders")
-          .select("tourist_id, valid_from, valid_until")
-          .in("tourist_id", ids);
-        if (error) throw error;
-        const rows = data || [];
-        setAnnualHolders(rows);
-        const covered = new Set<string>();
-        for (const h of rows) {
-          if (h.valid_from <= diveDate && diveDate <= h.valid_until) {
-            covered.add(h.tourist_id);
-          }
-        }
-        setAnnualCovered(covered);
-      } catch (e) {
-        console.warn("Annual coverage check failed:", e);
+    queueMicrotask(() => {
+      const ids = [...new Set(divers.filter((d) => d.touristId).map((d) => d.touristId as string))];
+      setAnnualAssigned((prev) => prev.filter((id) => ids.includes(id)));
+      if (ids.length === 0 || !isValidCalendarDate(diveDate)) {
         setAnnualCovered(new Set());
         setAnnualHolders([]);
+        return;
       }
-    })();
+      (async () => {
+        try {
+          const { data, error } = await supabase
+            .from("annual_pass_holders")
+            .select("tourist_id, valid_from, valid_until")
+            .in("tourist_id", ids);
+          if (error) throw error;
+          const rows = data || [];
+          setAnnualHolders(rows);
+          const covered = new Set<string>();
+          for (const h of rows) {
+            if (h.valid_from <= diveDate && diveDate <= h.valid_until) {
+              covered.add(h.tourist_id);
+            }
+          }
+          setAnnualCovered(covered);
+        } catch (e) {
+          console.warn("Annual coverage check failed:", e);
+          setAnnualCovered(new Set());
+          setAnnualHolders([]);
+        }
+      })();
+    });
   }, [divers, diveDate]);
 
   const isCovered = (d: Diver) => !!d.touristId && annualCovered.has(d.touristId);

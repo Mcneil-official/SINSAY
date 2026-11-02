@@ -3,6 +3,8 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "../constants/colors";
 
+const FORM_FONT = "Quicksand_500Medium";
+
 interface CheckboxProps {
   checked: boolean;
   onToggle: () => void;
@@ -64,12 +66,15 @@ const styles = StyleSheet.create({
   },
   label: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
+    fontFamily: FORM_FONT,
     color: colors.darkText,
     lineHeight: 18,
   },
   errorText: {
     fontSize: 11,
+    lineHeight: 14,
+    fontFamily: FORM_FONT,
     color: colors.red,
     marginTop: 4,
     marginLeft: 30,

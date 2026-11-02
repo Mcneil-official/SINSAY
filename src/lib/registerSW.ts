@@ -19,7 +19,7 @@ export function registerServiceWorker() {
       const appleTouchIcon = document.createElement("link");
       appleTouchIcon.rel = "apple-touch-icon";
       appleTouchIcon.sizes = "180x180";
-      appleTouchIcon.href = "/apple-touch-icon.png";
+      appleTouchIcon.href = "/pwa-apple-touch-icon.png";
       head.appendChild(appleTouchIcon);
     }
 

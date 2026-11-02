@@ -80,7 +80,6 @@ export default function ProfileScreen() {
   // TouristGate doesn't bounce us back to /(tabs) on a stale read.
   useEffect(() => {
     if (returnToOperator && !viewAsTourist && isOperator) {
-      setReturnToOperator(false);
       router.replace("/(operator-tabs)");
     }
   }, [returnToOperator, viewAsTourist, isOperator, router]);
@@ -238,6 +237,13 @@ export default function ProfileScreen() {
               label={t("my_account", locale)}
               subtitle={t("my_account_sub", locale)}
               onPress={() => router.push("/profile/edit-profile")}
+            />
+            <View style={styles.divider} />
+            <ProfileRow
+              icon="heart-outline"
+              label="Favorites"
+              subtitle="View and manage your saved dive sites"
+              onPress={() => router.push("/profile/favorites")}
             />
             <View style={styles.divider} />
             <ProfileRow

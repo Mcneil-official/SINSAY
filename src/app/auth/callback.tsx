@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
@@ -13,7 +13,7 @@ export default function AuthCallbackScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ error?: string; error_description?: string }>();
   const { user, profile, operatorApplication, isOperator, isLoading, roleReady, refreshProfile } = useAuth();
-  const navigated = useRef(false);
+  const [navigated, setNavigated] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
@@ -28,13 +28,12 @@ export default function AuthCallbackScreen() {
         : undefined) ?? null;
 
   useEffect(() => {
-    if (navigated.current) return;
+    if (navigated) return;
     // Explicit provider/consent errors: surface them, never silently bounce.
     if (oauthError) return;
     if (isLoading || !roleReady || !user) return;
     const roleSettled = profile !== null || operatorApplication !== null;
     if (roleSettled) {
-      navigated.current = true;
       router.replace(isOperator ? "/(operator-tabs)" : "/(tabs)");
       return;
     }
@@ -42,7 +41,7 @@ export default function AuthCallbackScreen() {
       setTimedOut(true);
     }, 8000);
     return () => clearTimeout(t);
-  }, [isLoading, roleReady, user, profile, operatorApplication, isOperator, oauthError, router]);
+  }, [isLoading, roleReady, user, profile, operatorApplication, isOperator, navigated, oauthError, router]);
 
   if (!isSupabaseConfigured) {
     return (
@@ -80,7 +79,7 @@ export default function AuthCallbackScreen() {
     );
   }
 
-  if (timedOut && !navigated.current) {
+  if (timedOut && !navigated) {
     return (
       <>
         <Stack.Screen options={{ headerShown: false }} />
@@ -108,7 +107,7 @@ export default function AuthCallbackScreen() {
           <TouchableOpacity
             style={styles.ghostBtn}
             onPress={() => {
-              navigated.current = true;
+              setNavigated(true);
               router.replace("/(tabs)");
             }}
           >

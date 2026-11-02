@@ -11,6 +11,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 
+const FORM_FONT = "Quicksand_500Medium";
+
 interface DropdownOption {
   label: string;
   value: string;
@@ -41,7 +43,25 @@ export function Dropdown({
 
   return (
     <View style={styles.wrapper}>
-      {label ? <Text style={[styles.label, fontFamily ? { fontFamily } : null]}>{label}</Text> : null}
+      {label ? (
+        <View style={styles.labelRow}>
+          <View style={styles.labelLeft}>
+            {error ? <Ionicons name="alert-circle" size={12} color={colors.red} /> : null}
+            <Text style={[styles.label, { fontFamily: fontFamily || FORM_FONT }]}>
+              {label}
+            </Text>
+          </View>
+          {error ? (
+            <Text
+              style={[styles.errorText, { fontFamily: fontFamily || FORM_FONT }]}
+              numberOfLines={1}
+              accessibilityLiveRegion="polite"
+            >
+              {error}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
       <TouchableOpacity
         style={[styles.trigger, focused && Platform.OS === "web" && styles.triggerFocused, open && Platform.OS === "web" && styles.triggerFocused, error && styles.triggerError]}
         onPress={() => setOpen(true)}
@@ -52,12 +72,19 @@ export function Dropdown({
         accessibilityState={{ expanded: open }}
         accessibilityLabel={label ? `${label}: ${selected ? selected.label : placeholder}` : placeholder}
       >
-        <Text style={[styles.triggerText, !selected && styles.placeholder, fontFamily ? { fontFamily } : null]}>
+        <Text style={[styles.triggerText, !selected && styles.placeholder, { fontFamily: fontFamily || FORM_FONT }]}>
           {selected ? selected.label : placeholder}
         </Text>
         <Ionicons name="chevron-down" size={16} color={colors.gray} />
       </TouchableOpacity>
-      {error ? <Text style={[styles.errorText, fontFamily ? { fontFamily } : null]}>{error}</Text> : null}
+      {!label && error ? (
+        <Text
+          style={[styles.errorText, { fontFamily: fontFamily || FORM_FONT }]}
+          accessibilityLiveRegion="polite"
+        >
+          {error}
+        </Text>
+      ) : null}
 
       <Modal visible={open} transparent animationType="fade">
         <TouchableOpacity
@@ -66,7 +93,7 @@ export function Dropdown({
           onPress={() => setOpen(false)}
         >
           <View style={styles.sheet}>
-            <Text style={[styles.sheetTitle, fontFamily ? { fontFamily } : null]}>{label || placeholder}</Text>
+            <Text style={[styles.sheetTitle, { fontFamily: fontFamily || FORM_FONT }]}>{label || placeholder}</Text>
             <FlatList
               data={options}
               keyExtractor={(item) => item.value}
@@ -88,7 +115,7 @@ export function Dropdown({
                     style={[
                       styles.optionText,
                       item.value === value && styles.optionTextSelected,
-                      fontFamily ? { fontFamily } : null,
+                      { fontFamily: fontFamily || FORM_FONT },
                     ]}
                   >
                     {item.label}
@@ -115,9 +142,20 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
     color: colors.darkText,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  labelLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 0,
   },
   trigger: {
     flexDirection: "row",
@@ -131,13 +169,14 @@ const styles = StyleSheet.create({
   },
   triggerError: {
     borderColor: colors.red,
+    backgroundColor: "#FEF2F2",
   },
   triggerFocused: {
     borderColor: colors.primaryBlue,
   },
   triggerText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.darkText,
   },
   placeholder: {
@@ -145,6 +184,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 11,
+    lineHeight: 14,
     color: colors.red,
   },
   overlay: {

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -354,6 +354,7 @@ function getEnrichment(site: DiveSiteRow, index: number): SiteEnrichment {
 
 export default function MapScreen() {
   const router = useRouter();
+  const { site: requestedSite } = useLocalSearchParams<{ site?: string }>();
   const { user } = useAuth();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
@@ -493,6 +494,14 @@ export default function MapScreen() {
     setPanOffset({ x: 0, y: 0 });
     setZoomScale(1.85);
   }, []);
+
+  useEffect(() => {
+    if (!requestedSite || sites.length === 0 || selectedSiteId) return;
+    const requested = sites.find(
+      (site) => site.name.toLowerCase() === requestedSite.toLowerCase(),
+    );
+    if (requested) handleSelectPin(requested.id);
+  }, [requestedSite, sites, selectedSiteId, handleSelectPin]);
 
   const handleCloseDrawer = useCallback(() => {
     setSelectedSiteId(null);

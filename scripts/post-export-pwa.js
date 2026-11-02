@@ -27,6 +27,10 @@ const indexPath = path.join(distDir, 'index.html');
 if (fs.existsSync(indexPath)) {
   let html = fs.readFileSync(indexPath, 'utf8');
 
+  // Replace Expo's default icon links so the browser theme selects the
+  // appropriate diving icon. The installed PWA icon is configured in the manifest.
+  html = html.replace(/^\s*<link rel="(?:manifest|icon|apple-touch-icon)"[^>]*>\s*$/gim, '');
+
   const pwaTags = `
     <!-- PWA Web App Manifest & Mobile Configuration -->
     <link rel="manifest" href="/manifest.json" />
@@ -36,18 +40,14 @@ if (fs.existsSync(indexPath)) {
     <meta name="apple-mobile-web-app-title" content="SINSAY" />
     <meta name="application-name" content="SINSAY" />
     <meta name="theme-color" content="#005AF1" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/pwa-apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/SINSAY Blue Diving Icon.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" href="/SINSAY White Diving Icon.png" media="(prefers-color-scheme: dark)" />
   `;
 
-  if (!html.includes('rel="manifest"')) {
-    html = html.replace('</head>', `${pwaTags}\n</head>`);
-    fs.writeFileSync(indexPath, html, 'utf8');
-    console.log('Injected PWA meta & link tags into dist/index.html');
-  } else {
-    console.log('dist/index.html already contains manifest link.');
-  }
+  html = html.replace('</head>', `${pwaTags}\n</head>`);
+  fs.writeFileSync(indexPath, html, 'utf8');
+  console.log('Injected PWA meta & theme-aware favicon tags into dist/index.html');
 }
 
 console.log('PWA post-export processing complete.');

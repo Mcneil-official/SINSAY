@@ -349,8 +349,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    fetchNotifications();
-    fetchUnreadCount();
+    queueMicrotask(() => {
+      fetchNotifications();
+      fetchUnreadCount();
+    });
 
     const ecoChannel = supabase
       .channel("eco-dive-changes")

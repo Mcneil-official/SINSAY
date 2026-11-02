@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { ContentContainer } from "../components";
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ContentContainer, TextInput } from "../components";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { showAlert } from "../lib/confirm";
@@ -23,17 +23,23 @@ export default function OperatorProfileEditScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("resort");
-  const change = (key: keyof typeof values, value: string) => setValues((prev) => ({ ...prev, [key]: value }));
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof values, string>>>({});
+  const change = (key: keyof typeof values, value: string) => {
+    setValues((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
 
   useEffect(() => {
     if (!roleReady || !user) return;
     if (!isOperator) router.replace("/(operator-tabs)/profile");
   }, [roleReady, user, isOperator, router]);
   useEffect(() => {
-    if (!profile || !app) return;
-    setValues({ resortName: app.resort_name || "", location: app.resort_location || "", description: app.resort_description || "", resortPhone: app.contact_number || "", resortEmail: app.resort_email || "", facebook: app.facebook_url || "", website: app.website_url || "", fullName: profile.full_name || "", phone: profile.contact_number || "", email: user?.email || profile.email || "" });
-    setCovers((app.cover_image_paths || []).map((path) => ({ path, uri: publicUrl(path) })));
-    setAvatar(profile.avatar_path ? { path: profile.avatar_path, uri: publicUrl(profile.avatar_path) } : avatarUri ? { path: null, uri: avatarUri } : null);
+    queueMicrotask(() => {
+      if (!profile || !app) return;
+      setValues({ resortName: app.resort_name || "", location: app.resort_location || "", description: app.resort_description || "", resortPhone: app.contact_number || "", resortEmail: app.resort_email || "", facebook: app.facebook_url || "", website: app.website_url || "", fullName: profile.full_name || "", phone: profile.contact_number || "", email: user?.email || profile.email || "" });
+      setCovers((app.cover_image_paths || []).map((path) => ({ path, uri: publicUrl(path) })));
+      setAvatar(profile.avatar_path ? { path: profile.avatar_path, uri: publicUrl(profile.avatar_path) } : avatarUri ? { path: null, uri: avatarUri } : null);
+    });
   }, [profile, app, user?.email, avatarUri]);
 
   const pickPhoto = async (kind: "cover" | "avatar", index?: number) => {
@@ -51,6 +57,12 @@ export default function OperatorProfileEditScreen() {
     const missingAccount = !values.fullName.trim();
     if (missingResort.length || missingAccount) {
       setActiveTab(missingResort.length ? "resort" : "account");
+      setFieldErrors({
+        resortName: !values.resortName.trim() ? "Required" : undefined,
+        location: !values.location.trim() ? "Required" : undefined,
+        resortPhone: !values.resortPhone.trim() ? "Required" : undefined,
+        fullName: !values.fullName.trim() ? "Required" : undefined,
+      });
       const tabNeeds = [missingResort.length ? `complete ${missingResort.join(", ")} in the Resort tab` : "", missingAccount ? "enter your full name in the Account tab" : ""].filter(Boolean);
       setError(`Please ${tabNeeds.join(" and ")}.`);
       return;
@@ -100,7 +112,7 @@ export default function OperatorProfileEditScreen() {
     } finally { setBusy(false); }
   };
 
-  const field = (label: string, key: keyof typeof values, opts: { multiline?: boolean; keyboardType?: "default" | "email-address" | "phone-pad"; autoCapitalize?: "none" | "sentences" } = {}) => <View style={styles.field} key={key}><Text style={styles.label}>{label}</Text><TextInput value={values[key]} onChangeText={(v) => change(key, v)} style={[styles.input, opts.multiline && styles.multiline]} multiline={opts.multiline} keyboardType={opts.keyboardType || "default"} autoCapitalize={opts.autoCapitalize || "sentences"} placeholder={label} placeholderTextColor="#8A9AAA" /></View>;
+  const field = (label: string, key: keyof typeof values, opts: { multiline?: boolean; keyboardType?: "default" | "email-address" | "phone-pad"; autoCapitalize?: "none" | "sentences" } = {}) => <View style={styles.field} key={key}><TextInput label={label} value={values[key]} onChangeText={(v) => change(key, v)} multiline={opts.multiline} keyboardType={opts.keyboardType || "default"} autoCapitalize={opts.autoCapitalize || "sentences"} placeholder={label} error={fieldErrors[key]} /></View>;
   if (isLoading || !roleReady || !app) return <SafeAreaView style={styles.safe}><ActivityIndicator color={colors.primaryBlue} style={{ marginTop: 48 }} /></SafeAreaView>;
   return <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
     <View style={styles.header}><TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Go back"><Ionicons name="chevron-back" size={21} color="#07156c" /></TouchableOpacity><View style={styles.headerText}><Text style={styles.eyebrow}>PROFILE SETTINGS</Text><Text style={styles.title}>Edit resort profile</Text></View><View style={{ width: 42 }} /></View>

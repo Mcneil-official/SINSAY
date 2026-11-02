@@ -16,12 +16,14 @@ import {
 } from "react-native";
 import {
   ContentContainer,
+  CardRailSkeleton,
   DiveSiteCard,
   EmptyState,
   ErrorState,
   EstablishmentCard,
   HeroCarousel,
   SearchBar,
+  Skeleton,
 } from "../../components";
 import { SearchResult } from "../../components/SearchBar";
 import { colors } from "../../constants/colors";
@@ -357,11 +359,15 @@ export default function HomeScreen() {
   if (authLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator
-          size="large"
-          color={colors.primaryBlue}
-          style={{ marginTop: 40 }}
-        />
+        <View style={styles.authLoading}>
+          <View style={styles.authLoadingHeader}>
+            <Skeleton width={132} height={28} radius={8} />
+            <Skeleton width={40} height={40} radius={20} />
+          </View>
+          <Skeleton height={46} radius={14} />
+          <Skeleton height={180} radius={18} />
+          <CardRailSkeleton count={2} />
+        </View>
       </SafeAreaView>
     );
   }
@@ -768,6 +774,16 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  authLoading: {
+    gap: 18,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  authLoadingHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   safeArea: {
     flex: 1,
     backgroundColor: colors.white,

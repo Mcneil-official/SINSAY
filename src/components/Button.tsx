@@ -1,6 +1,7 @@
 import React from "react";
 import {
-  TouchableOpacity,
+  Animated,
+  Pressable,
   Text,
   StyleSheet,
   ActivityIndicator,
@@ -27,12 +28,13 @@ export function Button({
   icon,
   fullWidth = true,
 }: ButtonProps) {
+  const [scale] = React.useState(() => new Animated.Value(1));
   const isPrimary = variant === "primary";
   const isOutline = variant === "outline";
   const isSecondary = variant === "secondary";
 
   return (
-      <TouchableOpacity
+      <Pressable
       style={[
         styles.base,
         fullWidth && styles.fullWidth,
@@ -42,32 +44,47 @@ export function Button({
         disabled && styles.disabled,
       ]}
       onPress={onPress}
+      onPressIn={() =>
+        Animated.timing(scale, {
+          toValue: 0.97,
+          duration: 120,
+          useNativeDriver: true,
+        }).start()
+      }
+      onPressOut={() =>
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }).start()
+      }
       disabled={disabled || loading}
-      activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || loading }}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={isPrimary ? colors.white : colors.primaryBlue}
-          size="small"
-        />
-      ) : (
-        <View style={styles.content}>
-          {icon && <View style={styles.iconWrap}>{icon}</View>}
-          <Text
-            style={[
-              styles.text,
-              isPrimary && styles.textPrimary,
-              isOutline && styles.textOutline,
-              isSecondary && styles.textSecondary,
-            ]}
-          >
-            {title}
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale }] }}>
+        {loading ? (
+          <ActivityIndicator
+            color={isPrimary ? colors.white : colors.primaryBlue}
+            size="small"
+          />
+        ) : (
+          <View style={styles.content}>
+            {icon && <View style={styles.iconWrap}>{icon}</View>}
+            <Text
+              style={[
+                styles.text,
+                isPrimary && styles.textPrimary,
+                isOutline && styles.textOutline,
+                isSecondary && styles.textSecondary,
+              ]}
+            >
+              {title}
+            </Text>
+          </View>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 }
 

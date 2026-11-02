@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { push } from "expo-router/build/global-state/router";
@@ -11,6 +12,10 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Image,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from "react-native";
 import {
   Button,
@@ -18,8 +23,8 @@ import {
   ContentContainer,
   DateField,
   Dropdown,
-  MarkdownText,
   TextInput,
+  resolveSiteImage,
 } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
@@ -27,6 +32,7 @@ import { shareText } from "../../../lib/snapshot";
 import { toLocalDateString } from "../../../lib/diveDate";
 import { generateDivePlan } from "../../../lib/gemini";
 import { supabase } from "../../../lib/supabase";
+import { resolvePlannerSites, PlannerSite } from "../../../lib/plannerSites";
 
 const diveTypeOptions = [
   { label: "Fun Dive (Relaxed)", value: "fun-dive" },
@@ -58,9 +64,111 @@ const stripMarkdown = (s: string) =>
     .replace(/^#{1,3}\s+/gm, "")
     .replace(/^[•\-\*]\s+/gm, "  • ");
 
-function parseItinerary(text: string): string[] {
-  const days = text.split(/\*\*Day \d+\*\*|\nDay \d+/).filter(Boolean);
-  return days.map((day) => day.trim());
+type PlanActivity = {
+  period: "Morning" | "Afternoon" | "Evening";
+  time: string;
+  title: string;
+  details: string;
+};
+
+type PlanDay = {
+  day: number;
+  title: string;
+  activities: PlanActivity[];
+};
+
+type StructuredPlan = {
+  summary: {
+    experienceLevel: string;
+    duration: string;
+    interest: string;
+    overview: string;
+  };
+  days: PlanDay[];
+  sites: PlannerSite[];
+  ecoAlerts: string[];
+  budgetBreakdown: { label: string; amount: number }[];
+  budgetTotal: number;
+};
+
+function parsePlan(text: string, inputs: {
+  startDate: string;
+  endDate: string;
+  budget: string;
+  interests: string;
+  diveType: string;
+}): StructuredPlan | null {
+  const cleaned = text.replace(/^```(?:json)?\s*|\s*```$/gi, "").trim();
+  try {
+    const raw = JSON.parse(cleaned) as Partial<StructuredPlan>;
+    if (!Array.isArray(raw.days) || !Array.isArray(raw.sites)) return null;
+    return {
+      summary: {
+        experienceLevel: raw.summary?.experienceLevel || inputs.diveType,
+        duration: raw.summary?.duration || `${inputs.startDate} – ${inputs.endDate}`,
+        interest: raw.summary?.interest || inputs.interests || "Reef exploration",
+        overview: raw.summary?.overview || "A practical dive plan built around your preferences.",
+      },
+      days: raw.days.map((day, index) => ({
+        day: Number(day.day) || index + 1,
+        title: day.title || `Dive day ${index + 1}`,
+        activities: (day.activities || []).map((activity) => ({
+          period: activity.period || "Morning",
+          time: activity.time || "Flexible",
+          title: activity.title || "Dive activity",
+          details: activity.details || "Confirm conditions with your dive operator.",
+        })),
+      })),
+      sites: raw.sites.map((site) => ({
+        id: "",
+        name: site.name || "Local reef site",
+        depth: site.depth || "Depth varies",
+        difficulty: site.difficulty || "Intermediate",
+        description: site.description || "Ask your operator about current conditions.",
+        imageUrl: null,
+        photoUrl: null,
+        location: null,
+      })),
+      ecoAlerts: raw.ecoAlerts?.length ? raw.ecoAlerts : ["Follow your operator's brief and avoid touching marine life."],
+      budgetBreakdown: raw.budgetBreakdown || [],
+      budgetTotal: Number(raw.budgetTotal) || Number(inputs.budget) || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function fallbackPlan(inputs: {
+  startDate: string;
+  endDate: string;
+  budget: string;
+  interests: string;
+  diveType: string;
+}): StructuredPlan {
+  return {
+    summary: {
+      experienceLevel: inputs.diveType,
+      duration: `${inputs.startDate} – ${inputs.endDate}`,
+      interest: inputs.interests || "Reef exploration",
+      overview: "A flexible Mabini itinerary with time for guided dives, recovery, and conservation-minded exploration.",
+    },
+    days: [{
+      day: 1,
+      title: "Orientation and reef discovery",
+      activities: [
+        { period: "Morning", time: "08:00", title: "Briefing and first dive", details: "Review conditions, buddy checks, and entry points with your operator." },
+        { period: "Afternoon", time: "13:00", title: "Surface interval and reef visit", details: "Rest, hydrate, then explore a shallow site suited to your group." },
+        { period: "Evening", time: "18:00", title: "Logbook and recovery", details: "Review your sightings and keep the evening free for rest." },
+      ],
+    }],
+    sites: [],
+    ecoAlerts: ["Keep buoyancy neutral, never touch coral, and take all waste back to shore."],
+    budgetBreakdown: [
+      { label: "Guide and boat estimate", amount: Math.round(Number(inputs.budget || 0) * 0.7) },
+      { label: "Fees and surface costs", amount: Math.round(Number(inputs.budget || 0) * 0.3) },
+    ],
+    budgetTotal: Number(inputs.budget) || 0,
+  };
 }
 
 export default function PlannerScreen() {
@@ -79,6 +187,13 @@ export default function PlannerScreen() {
   const [copied, setCopied] = useState(false);
   const [sharedNote, setSharedNote] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [structuredPlan, setStructuredPlan] = useState<StructuredPlan | null>(null);
+
+  React.useEffect(() => {
+    if (Platform.OS === "android") {
+      UIManager.setLayoutAnimationEnabledExperimental?.(true);
+    }
+  }, []);
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -115,6 +230,7 @@ export default function PlannerScreen() {
   };
 
   const runGenerate = async () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setLoading(true);
     setPlan(null);
     setPlanError(false);
@@ -150,10 +266,37 @@ export default function PlannerScreen() {
           length_of_stay: lengthOfStay,
         })
       : Promise.resolve();
+    const sitesPromise = supabase
+      .from("dive_sites")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     try {
-      const [result] = await Promise.all([geminiPromise, dbPromise]);
+      const [result, , sitesResult] = await Promise.all([
+        geminiPromise,
+        dbPromise,
+        sitesPromise,
+      ]);
+      if (sitesResult.error) throw new Error("We couldn't load dive sites right now. Please try again.");
       setPlan(result);
+      const parsed = parsePlan(result, {
+        startDate: startDate.trim(),
+        endDate: endDate.trim(),
+        budget: budget.trim(),
+        interests: interests.trim(),
+        diveType: diveLabel,
+      }) || fallbackPlan({
+        startDate: startDate.trim(),
+        endDate: endDate.trim(),
+        budget: budget.trim(),
+        interests: interests.trim(),
+        diveType: diveLabel,
+      });
+      parsed.sites = resolvePlannerSites(
+        parsed.sites,
+        (sitesResult.data || []).filter((site) => site.status !== "Restricted"),
+      );
+      setStructuredPlan(parsed);
       setPlanError(false);
     } catch (e) {
       setPlan(
@@ -196,6 +339,7 @@ export default function PlannerScreen() {
   };
 
   const handleStartOver = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setDestination("");
     setStartDate("");
     setEndDate("");
@@ -204,11 +348,41 @@ export default function PlannerScreen() {
     setBudget("");
     setInterests("");
     setPlan(null);
+    setStructuredPlan(null);
     setPlanError(false);
     setErrors({});
   };
 
-  const days = plan && !planError ? parseItinerary(plan) : [];
+  const hasResult = Boolean(plan && !planError && structuredPlan);
+  const handleSave = async () => {
+    if (!structuredPlan) return;
+    try {
+      await AsyncStorage.setItem(
+        "sinsay.saved-dive-itinerary",
+        JSON.stringify({
+          destination,
+          startDate,
+          endDate,
+          divers,
+          diveType,
+          budget,
+          interests,
+          plan: structuredPlan,
+          savedAt: new Date().toISOString(),
+        }),
+      );
+      setSharedNote("Itinerary saved on this device.");
+    } catch {
+      setSharedNote("Could not save this itinerary. Please try again.");
+    }
+  };
+  const handleEditInputs = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPlan(null);
+    setStructuredPlan(null);
+    setCopied(false);
+    setSharedNote("");
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -240,7 +414,7 @@ export default function PlannerScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <ContentContainer maxWidth={720}>
-          {/* Trip Planner Card */}
+          {!hasResult && <>{/* Trip Planner Card */}
           <Card style={styles.plannerCard}>
             <Text style={styles.plannerTitle}>DIVE TRIP PLANNER</Text>
 
@@ -331,7 +505,7 @@ export default function PlannerScreen() {
                 AI is building your itinerary, this may take a few seconds.
               </Text>
             )}
-          </View>
+          </View></>}
 
           {/* Error state — never dressed as a successful plan */}
           {plan && planError && (
@@ -353,7 +527,7 @@ export default function PlannerScreen() {
 
           {/* Results — app card language (white surface, blue accents);
               the old mint-green panel was the only off-palette surface. */}
-          {plan && !planError && days.length > 0 && (
+          {hasResult && structuredPlan && (
             <Card style={styles.resultCard}>
               <View style={styles.resultHeader}>
                 <Ionicons
@@ -408,25 +582,61 @@ export default function PlannerScreen() {
               {sharedNote ? (
                 <Text style={styles.copiedNote}>{sharedNote}</Text>
               ) : null}
+              <View style={styles.contextPill}>
+                <Text style={styles.contextPillText}>
+                  ₱{Number(budget).toLocaleString()} Budget · {structuredPlan.summary.duration} · {structuredPlan.summary.interest}
+                </Text>
+                <TouchableOpacity onPress={handleEditInputs} accessibilityRole="button">
+                  <Text style={styles.editInputsText}>Edit inputs</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.overviewText}>{structuredPlan.summary.overview}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+                {[
+                  `₱${Number(budget).toLocaleString()} PHP`,
+                  structuredPlan.summary.experienceLevel,
+                  structuredPlan.summary.duration,
+                  structuredPlan.summary.interest,
+                ].map((chip) => <View key={chip} style={styles.specChip}><Text style={styles.specChipText}>{chip}</Text></View>)}
+              </ScrollView>
               <View style={styles.timeline}>
-                {days.map((day, i) => (
+                {structuredPlan.days.map((day, i) => (
                   <View key={i} style={styles.timelineRow}>
                     <View style={styles.rail}>
                       <View style={styles.railDot}>
-                        <Text style={styles.railDotText}>{i + 1}</Text>
+                        <Text style={styles.railDotText}>{day.day}</Text>
                       </View>
-                      {i < days.length - 1 && <View style={styles.railLine} />}
+                      {i < structuredPlan.days.length - 1 && <View style={styles.railLine} />}
                     </View>
                     <View style={styles.dayCard}>
-                      <MarkdownText
-                        text={day}
-                        color={colors.darkText}
-                        fontSize={13}
-                      />
+                      <Text style={styles.dayTitle}>{day.title}</Text>
+                      {day.activities.map((activity, index) => (
+                        <View key={`${activity.period}-${index}`} style={styles.activityRow}>
+                          <View style={styles.activityIcon}><Ionicons name={activity.period === "Morning" ? "sunny-outline" : activity.period === "Evening" ? "moon-outline" : "partly-sunny-outline"} size={14} color={colors.primaryBlue} /></View>
+                          <View style={styles.activityCopy}><Text style={styles.activityMeta}>{activity.period} · {activity.time}</Text><Text style={styles.activityTitle}>{activity.title}</Text><Text style={styles.activityDetails}>{activity.details}</Text></View>
+                        </View>
+                      ))}
                     </View>
                   </View>
                 ))}
               </View>
+              <Text style={styles.sectionHeading}>Suggested dive sites</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.siteRow}>
+                {structuredPlan.sites.map((site) => (
+                  <View key={site.name} style={styles.siteCard}>
+                    <Image source={resolveSiteImage(site.imageUrl, site.photoUrl, 0)} style={styles.siteImage} />
+                    <Text style={styles.siteName}>{site.name}</Text>
+                    <Text style={styles.siteDepth}>{site.depth}</Text>
+                    <View style={styles.difficultyBadge}><Text style={styles.difficultyText}>{site.difficulty}</Text></View>
+                    <Text style={styles.siteDescription}>{site.description}</Text>
+                    <TouchableOpacity style={styles.mapButton} onPress={() => router.push({ pathname: "/(tabs)/map", params: { site: site.name } })}><Ionicons name="map-outline" size={14} color={colors.primaryBlue} /><Text style={styles.mapButtonText}>View on Map</Text></TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={styles.ecoCard}><Ionicons name="leaf-outline" size={21} color="#059669" /><View style={styles.calloutCopy}><Text style={styles.calloutTitle}>Eco reminder</Text>{structuredPlan.ecoAlerts.map((alert) => <Text key={alert} style={styles.calloutText}>{alert}</Text>)}</View></View>
+              <View style={styles.budgetCard}><Ionicons name="wallet-outline" size={21} color="#0284C7" /><View style={styles.calloutCopy}><Text style={styles.calloutTitle}>Budget summary</Text>{structuredPlan.budgetBreakdown.map((item) => <View key={item.label} style={styles.budgetRow}><Text style={styles.calloutText}>{item.label}</Text><Text style={styles.budgetAmount}>₱{Number(item.amount).toLocaleString()}</Text></View>)}<Text style={styles.budgetCeiling}>Ceiling: ₱{Number(structuredPlan.budgetTotal).toLocaleString()}</Text></View></View>
+              <View style={styles.footerActions}><TouchableOpacity style={styles.saveButton} onPress={handleSave}><Ionicons name="bookmark-outline" size={17} color={colors.white} /><Text style={styles.saveButtonText}>Save Itinerary on Device</Text></TouchableOpacity><TouchableOpacity style={styles.shareButton} onPress={handleShare}><Ionicons name="share-outline" size={17} color={colors.primaryBlue} /><Text style={styles.shareButtonText}>Share / Export Recap Card</Text></TouchableOpacity></View>
+              {sharedNote ? <Text style={styles.copiedNote}>{sharedNote}</Text> : null}
               <TouchableOpacity
                 onPress={handleStartOver}
                 style={styles.startOver}
@@ -438,74 +648,6 @@ export default function PlannerScreen() {
               </TouchableOpacity>
             </Card>
           )}
-          {plan && !planError && days.length === 0 && (
-            <Card style={styles.resultCard}>
-              <View style={styles.resultHeader}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={20}
-                  color={colors.green}
-                />
-                <Text style={styles.resultTitle}>Your Dive Plan</Text>
-                <View style={styles.resultActions}>
-                  <TouchableOpacity
-                    style={styles.iconBtn}
-                    onPress={handleCopy}
-                    accessibilityRole="button"
-                    accessibilityLabel={copied ? "Plan copied" : "Copy plan"}
-                  >
-                    <Ionicons
-                      name={copied ? "checkmark" : "copy-outline"}
-                      size={16}
-                      color={copied ? colors.green : colors.primaryBlue}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.iconBtn}
-                    onPress={handleShare}
-                    accessibilityRole="button"
-                    accessibilityLabel="Share plan"
-                  >
-                    <Ionicons
-                      name="share-outline"
-                      size={16}
-                      color={colors.primaryBlue}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.iconBtn}
-                    onPress={handleGenerate}
-                    disabled={loading}
-                    accessibilityRole="button"
-                    accessibilityLabel="Regenerate plan"
-                  >
-                    <Ionicons
-                      name="refresh"
-                      size={16}
-                      color={colors.primaryBlue}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              {copied && (
-                <Text style={styles.copiedNote}>Copied to clipboard ✓</Text>
-              )}
-              {sharedNote ? (
-                <Text style={styles.copiedNote}>{sharedNote}</Text>
-              ) : null}
-              <MarkdownText text={plan} color={colors.darkText} fontSize={13} />
-              <TouchableOpacity
-                onPress={handleStartOver}
-                style={styles.startOver}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.startOverText}>
-                  Start over with new details
-                </Text>
-              </TouchableOpacity>
-            </Card>
-          )}
-
           <View style={{ height: 24 }} />
         </ContentContainer>
       </ScrollView>
@@ -649,6 +791,54 @@ const styles = StyleSheet.create({
     color: colors.darkText,
     lineHeight: 20,
   },
+  contextPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    marginBottom: 12,
+  },
+  contextPillText: { flex: 1, color: "#315B92", fontSize: 11, fontWeight: "700" },
+  editInputsText: { color: colors.primaryBlue, fontSize: 11, fontWeight: "800" },
+  overviewText: { color: "#526C8D", fontSize: 13, lineHeight: 20, marginBottom: 10 },
+  chipsRow: { gap: 8, paddingVertical: 2, paddingRight: 8, marginBottom: 14 },
+  specChip: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 99, backgroundColor: "#F1F5F9", borderWidth: 1, borderColor: "#E2E8F0" },
+  specChipText: { color: "#475569", fontSize: 11, fontWeight: "700" },
+  dayTitle: { color: colors.navy, fontSize: 14, fontWeight: "800", marginBottom: 8 },
+  activityRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
+  activityIcon: { width: 25, height: 25, borderRadius: 13, backgroundColor: "#EAF4FF", alignItems: "center", justifyContent: "center" },
+  activityCopy: { flex: 1 },
+  activityMeta: { color: colors.primaryBlue, fontSize: 10, fontWeight: "800" },
+  activityTitle: { color: colors.darkText, fontSize: 12, fontWeight: "800", marginTop: 1 },
+  activityDetails: { color: "#64748B", fontSize: 11, lineHeight: 16, marginTop: 2 },
+  sectionHeading: { color: colors.navy, fontSize: 14, fontWeight: "800", marginTop: 16, marginBottom: 8 },
+  siteRow: { gap: 10, paddingRight: 8 },
+  siteCard: { width: 190, borderRadius: 14, borderWidth: 1, borderColor: "#DCE8F4", backgroundColor: colors.white, overflow: "hidden", paddingBottom: 10 },
+  siteImage: { width: "100%", height: 82, resizeMode: "cover" },
+  siteName: { color: colors.navy, fontSize: 13, fontWeight: "800", marginHorizontal: 10, marginTop: 9 },
+  siteDepth: { color: "#64748B", fontSize: 11, marginHorizontal: 10, marginTop: 2 },
+  difficultyBadge: { alignSelf: "flex-start", marginHorizontal: 10, marginTop: 6, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 99, backgroundColor: "#E0F2FE" },
+  difficultyText: { color: "#0369A1", fontSize: 9, fontWeight: "800" },
+  siteDescription: { color: "#64748B", fontSize: 10, lineHeight: 14, marginHorizontal: 10, marginTop: 6, minHeight: 28 },
+  mapButton: { flexDirection: "row", alignItems: "center", gap: 4, marginHorizontal: 10, marginTop: 8 },
+  mapButtonText: { color: colors.primaryBlue, fontSize: 10, fontWeight: "800" },
+  ecoCard: { flexDirection: "row", gap: 10, marginTop: 16, padding: 13, borderRadius: 14, backgroundColor: "#ECFDF5", borderWidth: 1, borderColor: "#A7F3D0" },
+  budgetCard: { flexDirection: "row", gap: 10, marginTop: 10, padding: 13, borderRadius: 14, backgroundColor: "#F0F9FF", borderWidth: 1, borderColor: "#BAE6FD" },
+  calloutCopy: { flex: 1 },
+  calloutTitle: { color: colors.navy, fontSize: 13, fontWeight: "800", marginBottom: 4 },
+  calloutText: { color: "#526C8D", fontSize: 11, lineHeight: 17 },
+  budgetRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
+  budgetAmount: { color: "#0369A1", fontSize: 11, fontWeight: "800" },
+  budgetCeiling: { color: "#0284C7", fontSize: 10, fontWeight: "800", marginTop: 6 },
+  footerActions: { gap: 9, marginTop: 16 },
+  saveButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, minHeight: 44, borderRadius: 13, backgroundColor: "#0EA5E9" },
+  saveButtonText: { color: colors.white, fontSize: 12, fontWeight: "800" },
+  shareButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, minHeight: 42, borderRadius: 13, borderWidth: 1, borderColor: colors.primaryBlue },
+  shareButtonText: { color: colors.primaryBlue, fontSize: 12, fontWeight: "800" },
   dayCard: {
     flex: 1,
     backgroundColor: colors.white,
