@@ -4,7 +4,7 @@
     "slug": "sinsay",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./public/SINSAY-favicon.png",
     "scheme": "sinsay",
     "userInterfaceStyle": "light",
     "ios": {
