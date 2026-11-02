@@ -1,21 +1,21 @@
-import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
+    ActivityIndicator,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import {
-  Checkbox,
-  Dropdown,
-  FileUpload,
-  ProgressiveWizardShell,
-  TextInput,
+    Checkbox,
+    Dropdown,
+    FileUpload,
+    ProgressiveWizardShell,
+    TextInput,
 } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { spacing } from "../../../constants/spacing";

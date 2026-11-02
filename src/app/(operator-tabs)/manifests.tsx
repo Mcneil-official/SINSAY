@@ -15,11 +15,10 @@ import {
   View,
 } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
-import { colors } from "../../constants/colors";
 import { ContentContainer, ManifestSkeleton } from "../../components";
 import { ManifestSnapshotCard } from "../../components/ManifestSnapshotCard";
+import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
-import { supabase } from "../../lib/supabase";
 import { deriveStatus, formatDiveDate, toLocalDateString } from "../../lib/diveDate";
 import {
   deleteDraft,
@@ -29,6 +28,7 @@ import {
   type ManifestDraft,
 } from "../../lib/manifestDrafts";
 import { captureAndDownload, captureAndShare } from "../../lib/snapshot";
+import { supabase } from "../../lib/supabase";
 
 type Tab = "upcoming" | "completed" | "drafts";
 
@@ -345,7 +345,7 @@ export default function ManifestsScreen() {
           ) : loadError ? (
             <View style={styles.stateCard}>
               <View style={styles.stateIcon}><Ionicons name="cloud-offline-outline" size={25} color="#006bff" /></View>
-              <Text style={styles.stateTitle}>Couldn?t load manifests</Text>
+              <Text style={styles.stateTitle}>Couldn't load manifests</Text>
               <Text style={styles.stateMessage}>Check your connection and try again.</Text>
               <TouchableOpacity
                 style={styles.stateAction}
@@ -362,7 +362,7 @@ export default function ManifestsScreen() {
                 <View style={styles.stateIcon}><Ionicons name={query ? "search-outline" : "document-text-outline"} size={25} color="#006bff" /></View>
                 <Text style={styles.stateTitle}>{query ? "No matching drafts" : "No saved drafts"}</Text>
                 <Text style={styles.stateMessage}>
-                  {query ? "Try another boat name or location." : "Unsubmitted forms save on this device and won?t use passes until submitted."}
+                  {query ? "Try another boat name or location." : "Unsubmitted forms save on this device and won't use passes until submitted."}
                 </Text>
                 {query ? (
                   <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.textAction}>

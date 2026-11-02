@@ -2,21 +2,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Linking,
-  ActivityIndicator,
+    ActivityIndicator,
+    Linking,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { supabase } from "../../lib/supabase";
-import { colors } from "../../constants/colors";
-import { EstablishmentRow } from "../../types/supabase";
 import { ContentContainer, ErrorState } from "../../components";
 import { ResortProfileHero } from "../../components/ResortProfileHero";
+import { colors } from "../../constants/colors";
+import { supabase } from "../../lib/supabase";
+import { EstablishmentRow } from "../../types/supabase";
 
 export default function EstablishmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

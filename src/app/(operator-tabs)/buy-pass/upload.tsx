@@ -3,30 +3,29 @@ import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import Svg, {
-  Defs,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
+    Defs,
+    LinearGradient,
+    Path,
+    Rect,
+    Stop,
 } from "react-native-svg";
 import { BuyPassProgress, ContentContainer } from "../../../components";
-import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
-import { supabase } from "../../../lib/supabase";
-import { uploadFile, validateFile } from "../../../lib/storage";
 import type { FileInfo } from "../../../lib/storage";
+import { uploadFile, validateFile } from "../../../lib/storage";
+import { supabase } from "../../../lib/supabase";
 
 export default function UploadReceiptScreen() {
   const router = useRouter();

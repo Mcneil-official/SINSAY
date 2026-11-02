@@ -2,20 +2,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    SafeAreaView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 import {
-  Button,
-  Checkbox,
-  Dropdown,
-  FileUpload,
-  ProgressiveWizardShell,
-  TextInput,
+    Button,
+    Checkbox,
+    Dropdown,
+    FileUpload,
+    ProgressiveWizardShell,
+    TextInput,
 } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";

@@ -2,15 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import ConfirmModal from "../../../components/ConfirmModal";
 import ContentContainer from "../../../components/ContentContainer";

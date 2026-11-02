@@ -1,11 +1,11 @@
 import React from "react";
 import {
-  Animated,
-  Pressable,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  View,
+    ActivityIndicator,
+    Animated,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 import { colors } from "../constants/colors";
 

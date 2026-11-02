@@ -1,25 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import React, { useState, useEffect, useRef } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ActivityIndicator,
-  Modal,
-  TextInput as NativeInput,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Modal,
+    TextInput as NativeInput,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { ContentContainer, DateField as SharedDateField, Dropdown as SharedDropdown, TextInput as SharedTextInput } from "../../../components";
 import { colors } from "../../../constants/colors";
-import { TextInput as SharedTextInput, Dropdown as SharedDropdown, ContentContainer, DateField as SharedDateField } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
-import { supabase } from "../../../lib/supabase";
 import { deleteDraft, saveDraft } from "../../../lib/manifestDrafts";
+import { supabase } from "../../../lib/supabase";
 
 const diveTypes = [
   { label: "Scuba Diving", value: "Scuba Diving" },

@@ -1,9 +1,9 @@
-import React, { createContext, useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { Session, User } from "@supabase/supabase-js";
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
-import { User, Session } from "@supabase/supabase-js";
+import { deleteAvatarBlob, loadAvatarBlob, saveAvatarBlob } from "../lib/avatarStore";
 import { supabase } from "../lib/supabase";
-import { TouristRow, EcoDiveIDRow, OperatorApplicationRow, NotificationRow, TouristUpdate } from "../types/supabase";
-import { saveAvatarBlob, loadAvatarBlob, deleteAvatarBlob } from "../lib/avatarStore";
+import { EcoDiveIDRow, NotificationRow, OperatorApplicationRow, TouristRow, TouristUpdate } from "../types/supabase";
 
 interface AuthState {
   user: User | null;
