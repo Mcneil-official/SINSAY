@@ -505,6 +505,12 @@ export default function PlannerScreen() {
                 AI is building your itinerary, this may take a few seconds.
               </Text>
             )}
+            <View style={styles.privacyNoteRow}>
+              <Ionicons name="shield-checkmark-outline" size={13} color="#657C9B" />
+              <Text style={styles.privacyNoteText}>
+                Trip preferences help the Municipal Tourism Office manage dive site carrying capacities and sustainable tourism.
+              </Text>
+            </View>
           </View></>}
 
           {/* Error state — never dressed as a successful plan */}
@@ -722,6 +728,21 @@ const styles = StyleSheet.create({
   },
   generateWrap: {
     marginTop: 20,
+  },
+  privacyNoteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 12,
+  },
+  privacyNoteText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+    color: "#657C9B",
+    textAlign: "center",
+    lineHeight: 15,
   },
   generatingHint: {
     fontSize: 12,

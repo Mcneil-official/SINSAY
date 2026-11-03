@@ -162,6 +162,43 @@ export default function ProfileScreen() {
               <Text style={styles.profileEmail} numberOfLines={1}>
                 {user?.email || ""}
               </Text>
+
+              {/* Age & Sex Demographics */}
+              {(profile?.age || profile?.sex) ? (
+                <View style={styles.demographicRow}>
+                  {profile.age ? (
+                    <View style={styles.demographicPill}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={10.5}
+                        color={colors.primaryBlue}
+                      />
+                      <Text style={styles.demographicPillText}>
+                        {profile.age} yrs
+                      </Text>
+                    </View>
+                  ) : null}
+                  {profile.sex ? (
+                    <View style={styles.demographicPill}>
+                      <Ionicons
+                        name="person-outline"
+                        size={10.5}
+                        color={colors.primaryBlue}
+                      />
+                      <Text style={styles.demographicPillText}>
+                        {profile.sex === "male"
+                          ? "Male"
+                          : profile.sex === "female"
+                          ? "Female"
+                          : profile.sex === "prefer_not_to_say"
+                          ? "Private"
+                          : "Other"}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
               <View style={styles.syncedIdBadge}>
                 <Ionicons
                   name="id-card-outline"
@@ -464,6 +501,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Quicksand_500Medium",
     color: "#64748B",
+  },
+  demographicRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 3,
+  },
+  demographicPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3.5,
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  demographicPillText: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#334155",
   },
   syncedIdBadge: {
     alignSelf: "flex-start",

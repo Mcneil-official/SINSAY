@@ -99,6 +99,9 @@ export interface Database {
       operator_pass_ledger: {
         Row: OperatorPassLedgerView;
       };
+      to_tourism_preference_analytics: {
+        Row: ToTourismPreferenceAnalyticsView;
+      };
     };
     Functions: {
       save_operator_profile: {
@@ -141,6 +144,8 @@ export interface TouristRow {
   pcss_url: string | null;
   language_preference: string;
   avatar_path?: string | null;
+  age?: number | null;
+  sex?: "male" | "female" | "other" | "prefer_not_to_say" | string | null;
   // 031_tourist_status: operator-intent status (Active/Expired/Suspended).
   // Loose string — the caps differ from eco_dive_ids lowercase union, so a
   // shared enum would lie.
@@ -453,3 +458,11 @@ export interface ToStaffRow {
 
 export type ToStaffInsert = Partial<ToStaffRow> & Pick<ToStaffRow, "id" | "email" | "full_name">;
 export type ToStaffUpdate = Partial<ToStaffInsert>;
+
+export interface ToTourismPreferenceAnalyticsView {
+  preferred_activities: string;
+  length_of_stay: string;
+  total_requests: number;
+  avg_group_size: number;
+  request_month: string;
+}

@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Button, ContentContainer, TextInput } from "../../../components";
+import { Button, ContentContainer, Dropdown, TextInput } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
 import { showAlert } from "../../../lib/confirm";
@@ -20,6 +20,13 @@ import { Locale, t } from "../../../lib/i18n";
 import { supabase } from "../../../lib/supabase";
 
 const PH_MOBILE = /^\+63\s9\d{9}$/;
+
+const sexOptions = [
+  { label: "Male", value: "male" },
+  { label: "Female", value: "female" },
+  { label: "Other", value: "other" },
+  { label: "Prefer not to say", value: "prefer_not_to_say" },
+];
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -31,6 +38,8 @@ export default function EditProfileScreen() {
     profile?.contact_number || "",
   );
   const [email, setEmail] = useState(user?.email || "");
+  const [age, setAge] = useState(profile?.age ? String(profile.age) : "");
+  const [sex, setSex] = useState<string>(profile?.sex || "");
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -55,6 +64,12 @@ export default function EditProfileScreen() {
       errs.contactNumber = t("ph_format", locale);
     }
     if (!email.trim()) errs.email = t("required", locale);
+    if (age.trim()) {
+      const parsedAge = parseInt(age.trim(), 10);
+      if (isNaN(parsedAge) || parsedAge < 1 || parsedAge > 120) {
+        errs.age = "Enter valid age (1-120)";
+      }
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -63,9 +78,12 @@ export default function EditProfileScreen() {
     if (!validate()) return;
     setSaving(true);
 
+    const parsedAge = age.trim() ? parseInt(age.trim(), 10) : null;
     const profileChanged =
       fullName !== (profile?.full_name || "") ||
-      contactNumber !== (profile?.contact_number || "");
+      contactNumber !== (profile?.contact_number || "") ||
+      parsedAge !== (profile?.age ?? null) ||
+      (sex || null) !== (profile?.sex ?? null);
 
     const emailChanged = email !== (user?.email || "");
 
@@ -73,6 +91,8 @@ export default function EditProfileScreen() {
       const { error } = await updateProfile({
         full_name: fullName.trim(),
         contact_number: contactNumber.trim() || null,
+        age: parsedAge,
+        sex: sex || null,
       });
       if (error) {
         setSaving(false);
@@ -223,6 +243,30 @@ export default function EditProfileScreen() {
               keyboardType="email-address"
               error={errors.email}
             />
+
+            {/* Age & Sex Row */}
+            <View style={styles.twoColRow}>
+              <View style={styles.colHalf}>
+                <TextInput
+                  label="Age"
+                  placeholder="e.g. 28"
+                  value={age}
+                  onChangeText={setAge}
+                  keyboardType="numeric"
+                  error={errors.age}
+                />
+              </View>
+              <View style={styles.colHalf}>
+                <Dropdown
+                  label="Sex"
+                  placeholder="Select"
+                  value={sex}
+                  options={sexOptions}
+                  onSelect={setSex}
+                  error={errors.sex}
+                />
+              </View>
+            </View>
 
             <View style={styles.notice}>
               <Ionicons
@@ -493,6 +537,13 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontFamily: "Quicksand_500Medium",
     color: "#64748B",
+  },
+  twoColRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  colHalf: {
+    flex: 1,
   },
   buttonWrap: {
     marginTop: 2,

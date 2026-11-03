@@ -21,19 +21,19 @@ const sections = [
     icon: "person-outline" as const,
     title: "Data We Collect",
     content:
-      "Account data: your name, email address, contact number, and profile details you provide when registering or completing your diver profile.\n\nDive records: dive type, certification details, Eco-Dive ID status, and the manifests you appear on.\n\nPayments: pass purchase amounts, payment reference numbers, and receipt images submitted for verification.\n\nGoogle sign-in: if you sign in with Google, we receive your name, email address, and profile photo from Google. We never see your Google password.\n\nOperator applications: resort details, role, contact information, and uploaded business documents.",
+      "Account data: your name, email address, contact number, and profile details you provide when registering or completing your diver profile.\n\nDive records: dive type, certification details, Eco-Dive ID status, and the manifests you appear on.\n\nTrip planner preferences: trip duration, group size, budget tier, and preferred diving activities entered into the AI Dive Plan Generator.\n\nPayments: pass purchase amounts, payment reference numbers, and receipt images submitted for verification.\n\nGoogle sign-in: if you sign in with Google, we receive your name, email address, and profile photo from Google. We never see your Google password.\n\nOperator applications: resort details, role, contact information, and uploaded business documents.",
   },
   {
     icon: "construct-outline" as const,
     title: "How We Use Your Data",
     content:
-      "We use your data to operate SINSAY: to create and manage your account and Eco-Dive ID, include you in dive manifests, process and verify pass purchases, review operator applications, send service notifications, and keep the platform safe from misuse.",
+      "We use your data to operate SINSAY: to create and manage your account and Eco-Dive ID, include you in dive manifests, process and verify pass purchases, review operator applications, send service notifications, generate personalized itineraries via the AI Dive Assistant, and keep the platform safe from misuse.\n\nTrip preferences are also aggregated into non-identifiable statistical reports by the Municipal Tourism Office for dive site carrying-capacity monitoring, sanctuary preservation, and eco-tourism resource planning.",
   },
   {
     icon: "people-outline" as const,
     title: "How We Share Your Data",
     content:
-      "Dive operators can see the name, Eco-Dive ID, and certification details of divers on their own manifests — this is required for manifest verification by the Tourism Office.\n\nTourism Office staff can review pass payments, receipts, and operator applications for verification purposes.\n\nWe do not sell your personal data. We do not share it with advertisers or unrelated third parties. The AI Dive Assistant only receives the questions you type into it.",
+      "Dive operators can see the name, Eco-Dive ID, and certification details of divers on their own manifests — this is required for manifest verification by the Tourism Office.\n\nTourism Office staff can review pass payments, receipts, operator applications, and aggregated tourism statistics for municipal oversight.\n\nWe do not sell your personal data. We do not share it with advertisers or commercial third parties. The AI Dive Assistant only processes the prompts and trip parameters you submit to generate itineraries and answers.",
   },
   {
     icon: "cloud-upload-outline" as const,

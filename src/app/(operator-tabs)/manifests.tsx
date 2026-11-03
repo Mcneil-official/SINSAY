@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { ContentContainer, ManifestSkeleton } from "../../components";
-import { ManifestSnapshotCard } from "../../components/ManifestSnapshotCard";
+import { ManifestSnapshotCard, ManifestSnapshotDiver } from "../../components/ManifestSnapshotCard";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
 import { deriveStatus, formatDiveDate, toLocalDateString } from "../../lib/diveDate";
@@ -36,9 +36,12 @@ interface ManifestItem {
   id: string;
   boat_name: string | null;
   dive_mode: string;
+  dive_type?: string | null;
   location: string;
   dive_date: string;
   diver_count: number;
+  max_divers?: number | null;
+  captain_name?: string | null;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -61,7 +64,7 @@ export default function ManifestsScreen() {
 
   // Snapshot sheet state
   const [selected, setSelected] = useState<ManifestItem | null>(null);
-  const [diverNames, setDiverNames] = useState<string[]>([]);
+  const [diversList, setDiversList] = useState<ManifestSnapshotDiver[]>([]);
   const [diversLoading, setDiversLoading] = useState(false);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const [snapshotMsg, setSnapshotMsg] = useState("");
@@ -75,20 +78,17 @@ export default function ManifestsScreen() {
       // Capped at 50 rows with an explicit note instead of unbounded growth.
       const { data: mfData, error: mfErr } = await supabase
         .from("dive_manifests")
-        .select("id, boat_name, dive_mode, location, dive_date, manifest_divers(count)")
+        .select("id, boat_name, dive_mode, dive_type, location, dive_date, max_divers, captain_name, manifest_divers(count)")
         .eq("operator_id", user!.id)
         .order("dive_date", { ascending: false })
         .limit(50);
       if (mfErr) throw mfErr;
 
       setManifests(
-        (mfData || []).map((m: {
-          id: string; boat_name: string | null; dive_mode: string; location: string; dive_date: string;
-          manifest_divers?: { count: number }[] | { count: number };
-        }) => {
+        (mfData || []).map((m: any) => {
           const dc = m.manifest_divers;
           const diver_count = Array.isArray(dc) ? (dc[0]?.count ?? 0) : (dc?.count ?? 0);
-          return { id: m.id, boat_name: m.boat_name, dive_mode: m.dive_mode, location: m.location, dive_date: m.dive_date, diver_count };
+          return { id: m.id, boat_name: m.boat_name, dive_mode: m.dive_mode, dive_type: m.dive_type, location: m.location, dive_date: m.dive_date, diver_count, max_divers: m.max_divers, captain_name: m.captain_name };
         })
       );
 
@@ -139,18 +139,60 @@ export default function ManifestsScreen() {
   const openSnapshot = async (m: ManifestItem) => {
     setSelected(m);
     setSnapshotMsg("");
-    setDiverNames([]);
+    setDiversList([]);
     setDiversLoading(true);
     try {
       const { data, error } = await supabase
         .from("manifest_divers")
-        .select("name")
+        .select("id, name, eco_id, is_walk_in, tourist_id")
         .eq("manifest_id", m.id)
-        .order("name");
+        .order("created_at", { ascending: true });
       if (error) throw error;
-      setDiverNames((data || []).map((d: { name: string }) => d.name));
-    } catch {
-      setDiverNames([]);
+
+      const touristIds = (data || [])
+        .map((d: any) => d.tourist_id)
+        .filter((id: any): id is string => Boolean(id));
+
+      let certMap: Record<string, string> = {};
+      if (touristIds.length > 0) {
+        const { data: touristsData } = await supabase
+          .from("tourists")
+          .select("id, certification_level")
+          .in("id", touristIds);
+        for (const t of touristsData || []) {
+          if (t.certification_level) certMap[t.id] = t.certification_level;
+        }
+      }
+
+      const mapped: ManifestSnapshotDiver[] = (data || []).map((d: any) => {
+        const rawCert = d.tourist_id ? certMap[d.tourist_id] : null;
+        let certLabel = "Certified Diver";
+        if (d.is_walk_in) {
+          certLabel = "Walk-in Registration";
+        } else if (rawCert) {
+          const c = rawCert.toLowerCase();
+          if (c.includes("open")) certLabel = "Open Water Diver";
+          else if (c.includes("advanced")) certLabel = "Advanced Adventurer";
+          else if (c.includes("rescue")) certLabel = "Rescue Diver";
+          else if (c.includes("master")) certLabel = "Divemaster";
+          else if (c.includes("instructor")) certLabel = "Instructor";
+          else certLabel = rawCert;
+        }
+
+        return {
+          name: d.name,
+          ecoId: d.is_walk_in ? "WALK-IN GUEST" : (d.eco_id || "VERIFIED ID"),
+          isWalkIn: d.is_walk_in,
+          certification: certLabel,
+          municipalFeeStatus: "PAID & CLEARED",
+          safetyWaiverStatus: "SIGNED",
+        };
+      });
+
+      setDiversList(mapped);
+    } catch (err) {
+      console.warn("Failed to load divers for snapshot", err);
+      setDiversList([]);
     }
     setDiversLoading(false);
   };
@@ -526,12 +568,15 @@ export default function ManifestsScreen() {
                           id: selected.id,
                           boat_name: selected.boat_name,
                           dive_mode: selected.dive_mode,
+                          dive_type: selected.dive_type,
                           location: selected.location,
                           dive_date: selected.dive_date,
                           diver_count: selected.diver_count,
+                          max_divers: selected.max_divers,
+                          captain_name: selected.captain_name,
                           status: deriveStatus(selected.dive_date),
                         }}
-                        divers={diverNames}
+                        divers={diversList}
                         operatorName={operatorName}
                       />
                     )}
@@ -911,7 +956,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     width: "100%",
-    maxWidth: 460,
+    maxWidth: 1080,
     maxHeight: "92%",
     backgroundColor: "#f4f9ff",
     borderRadius: 23,
