@@ -1,6 +1,10 @@
-import React from "react";
-import { View, TextInput as RNTextInput, Text, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { WarningCircle } from "phosphor-react-native";
+import { View, TextInput as RNTextInput, Text, StyleSheet, Platform } from "react-native";
 import { colors } from "../constants/colors";
+
+const FORM_FONT = "Quicksand_500Medium";
 
 interface TextInputProps {
   label?: string;
@@ -8,10 +12,14 @@ interface TextInputProps {
   value: string;
   onChangeText: (text: string) => void;
   error?: string;
+  success?: boolean;
+  successMessage?: string;
   multiline?: boolean;
   keyboardType?: "default" | "numeric" | "phone-pad" | "email-address";
+  autoCapitalize?: "none" | "sentences" | "words";
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  fontFamily?: string;
 }
 
 export function TextInput({
@@ -20,34 +28,69 @@ export function TextInput({
   value,
   onChangeText,
   error,
+  success = false,
+  successMessage,
   multiline = false,
   keyboardType = "default",
+  autoCapitalize = "sentences",
   leftIcon,
   rightIcon,
+  fontFamily,
 }: TextInputProps) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <View style={styles.wrapper}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? (
+        <View style={styles.labelRow}>
+          <View style={styles.labelLeft}>
+            {error ? <WarningCircle size={12} color={colors.red} weight="fill" /> : null}
+            <Text style={[styles.label, { fontFamily: fontFamily || FORM_FONT }]}>
+              {label}
+            </Text>
+          </View>
+          {error ? (
+            <Text
+              style={[styles.errorText, { fontFamily: fontFamily || FORM_FONT }]}
+              numberOfLines={1}
+              accessibilityLiveRegion="polite"
+            >
+              {error}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
       <View
         style={[
           styles.inputRow,
-          error ? styles.inputError : styles.inputNormal,
+          error ? styles.inputError : success ? styles.inputSuccess : focused && Platform.OS === "web" ? styles.inputFocused : styles.inputNormal,
           multiline && styles.multiline,
         ]}
       >
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <RNTextInput
-          style={[styles.input, multiline && styles.multilineInput]}
+          style={[styles.input, multiline && styles.multilineInput, { fontFamily: fontFamily || FORM_FONT }]}
           placeholder={placeholder}
           placeholderTextColor={colors.gray}
           value={value}
           onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           multiline={multiline}
           keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
         />
-        {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
+        {rightIcon ? <View style={styles.rightIcon}>{rightIcon}</View> : success ? <Ionicons name="checkmark-circle" size={18} color={colors.green} /> : null}
       </View>
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {!label && error ? (
+        <Text
+          style={[styles.errorText, { fontFamily: fontFamily || FORM_FONT }]}
+          accessibilityLiveRegion="polite"
+        >
+          {error}
+        </Text>
+      ) : null}
+      {!error && successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
     </View>
   );
 }
@@ -57,9 +100,20 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
     color: colors.darkText,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  labelLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 0,
   },
   inputRow: {
     flexDirection: "row",
@@ -73,8 +127,15 @@ const styles = StyleSheet.create({
   inputNormal: {
     borderColor: colors.inputBorder,
   },
+  inputFocused: {
+    borderColor: colors.primaryBlue,
+  },
   inputError: {
     borderColor: colors.red,
+    backgroundColor: "#FEF2F2",
+  },
+  inputSuccess: {
+    borderColor: colors.green,
   },
   multiline: {
     height: "auto",
@@ -87,9 +148,10 @@ const styles = StyleSheet.create({
     // content width — in narrow columns (planner date halves) the text
     // field overflowed the row and pushed the icon outside the border.
     minWidth: 0,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.darkText,
     padding: 0,
+    outlineStyle: "none" as any,
   },
   multilineInput: {
     textAlignVertical: "top",
@@ -104,6 +166,11 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 11,
+    lineHeight: 14,
     color: colors.red,
+  },
+  successText: {
+    fontSize: 11,
+    color: colors.green,
   },
 });

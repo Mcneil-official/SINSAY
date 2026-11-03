@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-unresolved
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
@@ -21,13 +22,34 @@ as fact (give ranges or "typically"), and end such answers with one line
 advising the visitor to verify locally or with their operator.`;
 
 const PLANNER_SYSTEM = `You are a dive trip planner for SINSAY in Mabini, Batangas, Philippines.
-Generate a detailed dive itinerary based on the user's preferences. Include:
-- Recommended dive sites
-- Suggested schedule/timing for each day
-- Safety tips specific to the dive type
-- Equipment recommendations
-- Marine life to look out for
-Format the response with clear day-by-day sections using emoji headers.`;
+Return ONLY valid JSON. Do not wrap it in markdown fences and do not add commentary.
+Use exactly this shape:
+{
+  "summary": {
+    "experienceLevel": "Beginner|Intermediate|Advanced",
+    "duration": "1-2 Days",
+    "interest": "short label",
+    "overview": "one concise sentence"
+  },
+  "days": [
+    {
+      "day": 1,
+      "title": "short day theme",
+      "activities": [
+        {"period": "Morning|Afternoon|Evening", "time": "08:00", "title": "activity", "details": "short practical guidance"}
+      ]
+    }
+  ],
+  "sites": [
+    {"name": "site name", "depth": "10-18m", "difficulty": "Beginner|Intermediate|Advanced", "description": "why it fits"}
+  ],
+  "ecoAlerts": ["specific conservation or safety rule"],
+  "budgetBreakdown": [
+    {"label": "Sanctuary fees", "amount": 500}
+  ],
+  "budgetTotal": 5000
+}
+Create a useful day-by-day plan, include realistic timing, and keep estimated paid activities within the stated budget when one is provided. Never invent exact business prices or schedules; use estimates and advise confirming locally.`;
 
 const RATE_LIMIT_WINDOW = 60_000;
 const RATE_LIMITS: Record<string, number> = {
@@ -206,7 +228,7 @@ Deno.serve(async (req: Request) => {
 
     if (type === "planner") {
       const { params } = body;
-      const prompt = `Create a dive trip plan with the following details:
+      const prompt = `Create the JSON dive trip plan requested by your instructions using these details:
 - Destination: ${params.destination}
 - Dates: ${params.startDate} to ${params.endDate}
 - Number of divers: ${params.divers}

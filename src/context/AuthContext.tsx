@@ -1,7 +1,9 @@
-import React, { createContext, useEffect, useRef, useState, useCallback } from "react";
-import { User, Session } from "@supabase/supabase-js";
+import { Session, User } from "@supabase/supabase-js";
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Platform } from "react-native";
+import { deleteAvatarBlob, loadAvatarBlob, saveAvatarBlob } from "../lib/avatarStore";
 import { supabase } from "../lib/supabase";
-import { TouristRow, EcoDiveIDRow, OperatorApplicationRow, NotificationRow, TouristUpdate } from "../types/supabase";
+import { EcoDiveIDRow, NotificationRow, OperatorApplicationRow, TouristRow, TouristUpdate } from "../types/supabase";
 
 interface AuthState {
   user: User | null;
@@ -10,6 +12,11 @@ interface AuthState {
   ecoId: EcoDiveIDRow | null;
   operatorApplication: OperatorApplicationRow | null;
   isOperator: boolean;
+  avatarUri: string | null;
+  // Web: pass the picker's File/Blob as `blob` — persisted raw in IndexedDB
+  // (survives reloads, no base64/quota issues) and exposed as an object URL.
+  // Native/legacy: uri alone is kept in memory.
+  setAvatarUri: (uri: string | null, blob?: Blob | null) => void;
   // Lets an approved operator browse the tourist stack (the FAQ promises a
   // "switch back" from the Operator Profile tab). Gates respect it — without
   // this, TouristGate would bounce them straight back to operator tabs.
@@ -50,6 +57,8 @@ const defaultAuthState: AuthState = {
   ecoId: null,
   operatorApplication: null,
   isOperator: false,
+  avatarUri: null,
+  setAvatarUri: () => {},
   viewAsTourist: false,
   setViewAsTourist: () => {},
   isLoading: true,
@@ -109,10 +118,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearLocalAuthState();
     // Logged-out snapshot is definitive for gates.
     setRoleReady(true);
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Supabase auth signOut warning:", err);
+    }
   }, [clearLocalAuthState]);
 
   const isOperator = operatorApplication?.status === "approved";
+
+  // Per-user display URIs. On web these are object URLs created from the
+  // IndexedDB-stored Blob (blob URLs die on reload, so they live only here).
+  const [avatarOverrides, setAvatarOverrides] = useState<Record<string, string | null>>({});
+  const avatarObjectUrlsRef = useRef<Record<string, string>>({});
+
+  const revokeAvatarObjectUrl = useCallback((userId: string) => {
+    const url = avatarObjectUrlsRef.current[userId];
+    if (url && typeof URL !== "undefined" && URL.revokeObjectURL) {
+      URL.revokeObjectURL(url);
+    }
+    delete avatarObjectUrlsRef.current[userId];
+  }, []);
+
+  // Hydrate the avatar from IndexedDB when the signed-in user changes so the
+  // photo survives full page reloads (object URLs cannot).
+  useEffect(() => {
+    if (!user || Platform.OS !== "web") return;
+    let cancelled = false;
+    loadAvatarBlob(user.id).then((blob) => {
+      if (cancelled || !blob) return;
+      if (typeof URL === "undefined" || !URL.createObjectURL) return;
+      revokeAvatarObjectUrl(user.id);
+      const url = URL.createObjectURL(blob);
+      avatarObjectUrlsRef.current[user.id] = url;
+      setAvatarOverrides((prev) => ({ ...prev, [user.id]: url }));
+    }).catch(() => {
+      // IndexedDB read failed — fall back to whatever the caller already has.
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, revokeAvatarObjectUrl]);
+
+  // Revoke lingering object URLs on provider unmount (app teardown).
+  useEffect(() => {
+    const urls = avatarObjectUrlsRef.current;
+    return () => {
+      if (typeof URL === "undefined" || !URL.revokeObjectURL) return;
+      Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
+
+  const avatarUri = useMemo(() => {
+    if (!user) return null;
+    return avatarOverrides[user.id] ?? null;
+  }, [user, avatarOverrides]);
+
+  const setAvatarUri = useCallback(
+    (uri: string | null, blob?: Blob | null) => {
+      if (!user) return;
+      const userId = user.id;
+      revokeAvatarObjectUrl(userId);
+      if (uri === null) {
+        setAvatarOverrides((prev) => ({ ...prev, [userId]: null }));
+        if (Platform.OS === "web") void deleteAvatarBlob(userId);
+        return;
+      }
+      if (
+        blob &&
+        Platform.OS === "web" &&
+        typeof URL !== "undefined" &&
+        URL.createObjectURL
+      ) {
+        const url = URL.createObjectURL(blob);
+        avatarObjectUrlsRef.current[userId] = url;
+        setAvatarOverrides((prev) => ({ ...prev, [userId]: url }));
+        void saveAvatarBlob(userId, blob);
+        return;
+      }
+      // Native/legacy: keep the picker's file URI in memory (cache-dir path
+      // survives app relaunch; no IndexedDB on native).
+      setAvatarOverrides((prev) => ({ ...prev, [userId]: uri }));
+    },
+    [user, revokeAvatarObjectUrl],
+  );
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -153,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .from("tourists")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (!data) {
       const { data: authUser } = await supabase.auth.getUser();
@@ -171,7 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from("tourists")
         .select("*")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
       if (retry) data = retry;
     }
 
@@ -183,7 +272,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .from("eco_dive_ids")
       .select("*")
       .eq("tourist_id", userId)
-      .single();
+      .maybeSingle();
     if (!isLatest()) return false;
     if (ecoData) setEcoId(ecoData);
     else setEcoId(null);
@@ -194,7 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq("tourist_id", userId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
     if (!isLatest()) return false;
     if (opApp) setOperatorApplication(opApp);
     else setOperatorApplication(null);
@@ -224,6 +313,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRoleReady(true);
       }
       setIsLoading(false);
+    }).catch(() => {
+      setIsLoading(false);
     });
 
     const {
@@ -240,7 +331,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .select("*", { count: "exact", head: true })
           .eq("tourist_id", session.user.id)
           .eq("is_read", false)
-          .then(({ count }) => setUnreadCount(count ?? 0));
+          .then(({ count }) => setUnreadCount(count ?? 0), () => setUnreadCount(0));
       } else {
         // SIGNED_OUT (or expired session): clear role-derived state
         // synchronously so gates never see user=null + isOperator=true stale.
@@ -258,8 +349,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    fetchNotifications();
-    fetchUnreadCount();
+    queueMicrotask(() => {
+      fetchNotifications();
+      fetchUnreadCount();
+    });
 
     const ecoChannel = supabase
       .channel("eco-dive-changes")
@@ -419,6 +512,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ecoId,
         operatorApplication,
         isOperator,
+        avatarUri,
+        setAvatarUri,
         viewAsTourist,
         setViewAsTourist,
         isLoading,

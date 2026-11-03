@@ -5,15 +5,21 @@ interface ConfirmLabels {
   confirmText?: string;
 }
 
-// Cross-platform confirm dialog. Alert.alert is a no-op on web
-// (react-native-web stubs it), so use window.confirm there instead.
+// Cross-platform confirm dialog. In browser iframes, window.confirm can be blocked.
 export function confirmDialog(
   title: string,
   message: string,
   labels: ConfirmLabels = {},
 ): Promise<boolean> {
   if (Platform.OS === "web") {
-    return Promise.resolve(window.confirm(`${title}\n${message}`));
+    try {
+      if (typeof window !== "undefined" && typeof window.confirm === "function") {
+        return Promise.resolve(window.confirm(`${title}\n${message}`));
+      }
+    } catch (e) {
+      console.warn("window.confirm blocked or unavailable:", e);
+    }
+    return Promise.resolve(true);
   }
   const { cancelText = "Cancel", confirmText = "Confirm" } = labels;
   return new Promise((resolve) => {
@@ -24,10 +30,18 @@ export function confirmDialog(
   });
 }
 
-// Cross-platform info alert. Same web no-op reason as above.
+// Cross-platform info alert. In browser iframes, window.alert can be blocked.
 export function showAlert(title: string, message?: string): void {
   if (Platform.OS === "web") {
-    window.alert(message ? `${title}\n${message}` : title);
+    try {
+      if (typeof window !== "undefined" && typeof window.alert === "function") {
+        window.alert(message ? `${title}\n${message}` : title);
+        return;
+      }
+    } catch (e) {
+      console.warn("window.alert blocked or unavailable:", e);
+    }
+    console.info(`[Alert] ${title}: ${message || ""}`);
     return;
   }
   Alert.alert(title, message);

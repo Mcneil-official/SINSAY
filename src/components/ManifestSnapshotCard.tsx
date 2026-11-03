@@ -5,7 +5,8 @@ import { formatDiveDate } from "../lib/diveDate";
 
 export interface SnapshotManifest {
   id: string;
-  boat_name: string;
+  boat_name: string | null;
+  dive_mode: string;
   location: string;
   dive_date: string;
   diver_count: number;
@@ -31,7 +32,7 @@ export const ManifestSnapshotCard = forwardRef<
       </View>
       <View style={styles.body}>
         <View style={styles.titleRow}>
-          <Text style={styles.boat}>{manifest.boat_name || "Dive Group"}</Text>
+          <Text style={styles.boat}>{manifest.boat_name || manifest.dive_mode || "Dive Group"}</Text>
           <View
             style={[
               styles.pill,

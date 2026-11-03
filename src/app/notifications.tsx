@@ -14,6 +14,7 @@ import {
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { ContentContainer, EmptyState } from "../components";
+import { safeBack } from "../lib/navigation";
 
 const notifIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   eco_dive_activated: "checkmark-circle",
@@ -30,7 +31,7 @@ const notifColors: Record<string, string> = {
   dive_plan_ready: colors.primaryBlue,
   operator_application_approved: colors.green,
   operator_application_rejected: colors.red,
-  pass_purchase_verified: colors.amberDark,
+  pass_purchase_verified: colors.green,
   manifest_submitted: colors.primaryBlue,
   announcement_published: colors.amberDark,
 };
@@ -48,7 +49,7 @@ function timeAgo(dateStr: string): string {
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const { notifications, fetchNotifications, markAllNotificationsRead, isLoading } = useAuth();
+  const { notifications, fetchNotifications, markAllNotificationsRead, isLoading, isOperator } = useAuth();
 
   useEffect(() => {
     fetchNotifications();
@@ -67,6 +68,7 @@ export default function NotificationsScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" />
         <ActivityIndicator size="large" color={colors.primaryBlue} style={{ marginTop: 40 }} />
       </SafeAreaView>
     );
@@ -76,7 +78,12 @@ export default function NotificationsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => safeBack(router, isOperator ? "/(operator-tabs)" : "/(tabs)")}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="chevron-back" size={22} color={colors.darkText} />
         </TouchableOpacity>
         <Text style={styles.title}>Notifications</Text>

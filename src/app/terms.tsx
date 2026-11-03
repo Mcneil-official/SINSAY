@@ -6,6 +6,7 @@ import { colors } from "../constants/colors";
 import { t, Locale } from "../lib/i18n";
 import { useAuth } from "../hooks/useAuth";
 import ContentContainer from "../components/ContentContainer";
+import { safeBack } from "../lib/navigation";
 
 const LAST_UPDATED = "September 2026";
 
@@ -81,13 +82,14 @@ const sections = [
 export default function TermsScreen() {
   const router = useRouter();
   // Public route: works with or without a session (locale falls back to English).
-  const { profile } = useAuth();
+  const { profile, user, isOperator, viewAsTourist } = useAuth();
   const locale: Locale = (profile?.language_preference as Locale) || "en";
 
-  const goBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace("/");
-  };
+  const fallbackPath = user
+    ? (isOperator && !viewAsTourist ? "/(operator-tabs)/profile" : "/(tabs)/profile")
+    : "/(tabs)";
+
+  const goBack = () => safeBack(router, fallbackPath);
 
   return (
     <SafeAreaView style={styles.safeArea}>

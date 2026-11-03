@@ -12,12 +12,13 @@ export interface DateFieldProps {
   min?: string;
   /** Latest selectable date (YYYY-MM-DD). Enforced by the picker on web. */
   max?: string;
+  fontFamily?: string;
 }
 
 // Native fallback: validated text field (same look as TextInput). The web
 // build uses DateField.web.tsx (real browser calendar) instead — Metro picks
 // the platform file automatically, so this never ships to the PWA.
-export function DateField({ label, value, onChangeText, error }: DateFieldProps) {
+export function DateField({ label, value, onChangeText, error, fontFamily }: DateFieldProps) {
   return (
     <TextInput
       label={label}
@@ -25,6 +26,7 @@ export function DateField({ label, value, onChangeText, error }: DateFieldProps)
       value={value}
       onChangeText={onChangeText}
       error={error}
+      fontFamily={fontFamily}
       rightIcon={<Ionicons name="calendar-outline" size={16} color={colors.gray} />}
     />
   );

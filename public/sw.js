@@ -1,4 +1,4 @@
-const CACHE_NAME = "sinsay-v4";
+const CACHE_NAME = "sinsay-v5";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -32,12 +32,19 @@ self.addEventListener("fetch", (event) => {
 
   if (event.request.method !== "GET") return;
 
+  // Cross-origin (Supabase REST/edge functions, Gemini, fonts, ...) must
+  // fail loudly: never answer an API request from the cache. Serving the
+  // cached HTML shell here would surface as bogus JSON/406 errors.
+  if (url.origin !== self.location.origin) return;
+
   if (url.pathname.startsWith("/_expo/static/")) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         return cached || fetch(event.request).then((response) => {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          caches.open(CACHE_NAME)
+            .then((cache) => cache.put(event.request, clone))
+            .catch(() => {});
           return response;
         });
       })
@@ -58,9 +65,14 @@ self.addEventListener("fetch", (event) => {
             return offline || caches.match("/");
           });
         }
-        return caches.match(event.request).then((cached) => {
-          return cached || caches.match("/");
-        });
+        // Subresources (scripts, styles, images): serve from cache when we
+        // have them, otherwise surface a real network error. Never fall back
+        // to the HTML shell — a JS/CSS request receiving HTML breaks parsing.
+        return (
+          caches.match(event.request).then((cached) => {
+            return cached || Response.error();
+          })
+        );
       })
   );
 });

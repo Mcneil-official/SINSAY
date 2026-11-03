@@ -1,33 +1,87 @@
+import { Ionicons } from "@expo/vector-icons";
+import { Quicksand_400Regular } from "@expo-google-fonts/quicksand/400Regular";
+import { Quicksand_500Medium } from "@expo-google-fonts/quicksand/500Medium";
+import { Quicksand_600SemiBold } from "@expo-google-fonts/quicksand/600SemiBold";
+import { Quicksand_700Bold } from "@expo-google-fonts/quicksand/700Bold";
 import { Image } from "expo-image";
+import { useFonts } from "expo-font";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import {
-  ImageBackground,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { ClipPath, Defs, G, Path } from "react-native-svg";
+import { colors } from "../constants/colors";
 import { useLayout } from "../context/LayoutContext";
+import { useScreenTransition } from "../context/ScreenTransitionContext";
+import { markSplashShown } from "../lib/splash";
+import WaveDivider from "./WaveDivider";
+import { ENABLE_DESKTOP_LAYOUT } from "../constants/layout";
+
+const HERO_PATH =
+  "M411.498 -2H-18V333.272C1.2706 343.155 25.8361 349.175 56.7872 346.54C149.163 338.497 328.689 195.432 411.498 157.832V-2Z";
+const HERO_HIGHLIGHT_PATH =
+  "M411.498 -2H170.32C171.516 46.2727 189.834 92.549 222.002 128.568C254.171 164.587 298.096 188.003 345.937 194.637C371.093 179.029 393.659 165.897 411.498 157.741V-2Z";
 
 interface AuthLayoutProps {
-  activeTab: "login" | "signup";
+  activeTab?: "login" | "signup";
+  onTabPress?: (tab: "login" | "signup") => void;
+  showTabs?: boolean;
   children: React.ReactNode;
 }
 
-export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
+export function AuthLayout({
+  activeTab,
+  onTabPress,
+  showTabs,
+  children,
+}: AuthLayoutProps) {
+  const tabsVisible = showTabs ?? activeTab !== undefined;
   const router = useRouter();
+  const { runTransition } = useScreenTransition();
   const { isTablet, isDesktop } = useLayout();
-  const isWide = isTablet || isDesktop;
-  const { height: screenHeight } = useWindowDimensions();
-  const [contentBottom, setContentBottom] = useState<number | null>(null);
+  const isWide = ENABLE_DESKTOP_LAYOUT && (isTablet || isDesktop);
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const [fontsLoaded] = useFonts({
+    Quicksand_400Regular,
+    Quicksand_500Medium,
+    Quicksand_600SemiBold,
+    Quicksand_700Bold,
+  });
+
+  const goBack = () => {
+    runTransition(() => {
+      markSplashShown();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/");
+      }
+    });
+  };
+
+  const headerHeight = Math.min(Math.max(height * 0.3, 220), 400);
+  const blueHeight = headerHeight * (0.28 / 0.3);
+  const logoWidth = Math.min(Math.max(width * 0.61, 200), 250);
+  const logoHeight = (logoWidth * 306) / 1012;
+  const backIconSize = Math.min(Math.max(width * 0.067, 22), 30);
+  const backButtonTop =
+    insets.top + Math.min(Math.max(headerHeight * 0.08, 20), 32);
+  const backButtonLeft = Math.min(Math.max(width * 0.036, 12), 20);
+  const backButtonPadding = Math.round(backIconSize * 0.23);
 
   const tabRow = (
     <View style={styles.tabRow} accessibilityRole="tablist">
       <Pressable
         style={styles.tabButton}
-        onPress={() => router.replace("/loginpage")}
+        onPress={() => (onTabPress ? onTabPress("login") : router.replace("/loginpage"))}
         accessibilityRole="tab"
         accessibilityState={{ selected: activeTab === "login" }}
       >
@@ -43,7 +97,7 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
       </Pressable>
       <Pressable
         style={styles.tabButton}
-        onPress={() => router.replace("/signup")}
+        onPress={() => (onTabPress ? onTabPress("signup") : router.replace("/signup"))}
         accessibilityRole="tab"
         accessibilityState={{ selected: activeTab === "signup" }}
       >
@@ -65,24 +119,28 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
       <View style={styles.wideRoot}>
         <View style={styles.wideCard}>
           <View style={styles.wideLeft}>
-            <Pressable
-              onPress={() => router.push("/next5")}
-              hitSlop={12}
-              style={styles.wideBackRow}
-              accessibilityRole="button"
-            >
-              <Text style={styles.wideBackArrow}>‹</Text>
-              <Text style={styles.wideBackLabel}>Back</Text>
-            </Pressable>
+            <WaveDivider width={84} />
+            <View style={styles.wideHeaderRow}>
+              <Pressable
+                onPress={goBack}
+                hitSlop={12}
+                style={styles.wideBackRow}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
+                <Ionicons name="chevron-back" size={18} color="#0F172A" />
+                <Text style={styles.wideBackLabel}>Back</Text>
+              </Pressable>
 
-            <Image
-              source={require("../../assets/images/logo.png")}
-              style={styles.wideLogo}
-              contentFit="contain"
-            />
+              <Image
+                source={require("../../assets/SINSAY blue logo.png")}
+                style={styles.wideLogo}
+                contentFit="contain"
+              />
+            </View>
             <Text style={styles.wideSubtitle}>Tara, Sinsay na sa Mabini!</Text>
 
-            {tabRow}
+            {tabsVisible ? tabRow : null}
 
             <View style={styles.wideFormWrap}>{children}</View>
           </View>
@@ -98,157 +156,239 @@ export function AuthLayout({ activeTab, children }: AuthLayoutProps) {
     );
   }
 
-  // ── MOBILE — unchanged ──
   return (
-    <ImageBackground
-      source={require("../../assets/images/1.png")}
-      style={styles.container}
-    >
-      <View
-        style={styles.content}
-        onLayout={(e) => {
-          const { y, height } = e.nativeEvent.layout;
-          setContentBottom(y + height);
-        }}
-      >
-        <Pressable
-          onPress={() => router.push("/next5")}
-          hitSlop={12}
-          style={styles.backButton}
+    <View style={styles.mobileRoot}>
+      <View style={[styles.header, { height: headerHeight }]}>
+        <Svg
+          style={[styles.hero, { height: blueHeight }]}
+          viewBox="0 0 393 348"
+          preserveAspectRatio="none"
+          pointerEvents="none"
         >
-          <Text style={styles.backArrow}>‹</Text>
+          <Defs>
+            <ClipPath id="heroBlueClip">
+              <Path d={HERO_PATH} transform="translate(-4 0)" />
+            </ClipPath>
+          </Defs>
+          <Path d={HERO_PATH} fill={colors.splashBlue} transform="translate(-4 0)" />
+          <G clipPath="url(#heroBlueClip)">
+            <G opacity={0.2} transform="translate(-28 -24) scale(1.25)">
+              <Path d={HERO_HIGHLIGHT_PATH} fill={colors.white} />
+            </G>
+          </G>
+        </Svg>
+
+        <View
+          pointerEvents="none"
+          style={[
+            styles.headerContent,
+            {
+              paddingTop: insets.top + 8,
+              paddingBottom: headerHeight * 0.16,
+            },
+          ]}
+        >
+          <Image
+            source={require("../../assets/SINSAY white logo.png")}
+            style={{ width: logoWidth, height: logoHeight }}
+            contentFit="contain"
+          />
+          <Text
+            style={[
+              styles.tagline,
+              fontsLoaded && styles.taglineFont,
+              { fontSize: 12, lineHeight: 15 },
+            ]}
+          >
+            Tara, Sinsay na sa Mabini!
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={goBack}
+          hitSlop={12}
+          style={[
+            styles.backButton,
+            {
+              top: backButtonTop,
+              left: backButtonLeft,
+              padding: backButtonPadding,
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Ionicons
+            name="chevron-back"
+            size={backIconSize}
+            color={colors.white}
+          />
         </Pressable>
-        <Image
-          source={require("../../assets/images/logo.png")}
-          style={styles.logo}
-          contentFit="contain"
-        />
-        <Text style={styles.subtitle}>Tara, Sinsay na sa Mabini!</Text>
-        {tabRow}
       </View>
-      <View
-        pointerEvents="none"
-        style={[
-          styles.oval,
-          {
-            height:
-              contentBottom == null
-                ? screenHeight * 0.74
-                : Math.min(
-                    Math.max(screenHeight - contentBottom + 20, 200),
-                    screenHeight * 0.74,
-                  ),
-          },
-        ]}
-      />
-      <View style={styles.footer}>
-        <View style={styles.bottomSection}>{children}</View>
+
+      <View style={styles.bodyRegion}>
+        <ScrollView
+          style={styles.formViewport}
+          contentContainerStyle={styles.formContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </ScrollView>
+
+        <Text
+          style={[
+            styles.copyright,
+            { paddingBottom: Math.max(insets.bottom, 10) },
+          ]}
+        >
+          ©2026 Mabini Tourism
+        </Text>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // ── mobile (unchanged) ──
-  container: {
+  // mobile
+  mobileRoot: {
     flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 40,
-    paddingTop: 50,
-    paddingBottom: 32,
-    backgroundColor: "#f7f3ea",
+    backgroundColor: colors.white,
   },
-  content: { gap: 0 },
-  backButton: { padding: 0 },
-  backArrow: {
-    fontSize: 32,
-    lineHeight: 32,
-    color: "#1f1a17",
-    fontWeight: "400",
-    left: -32,
-    top: -6,
-  },
-  logo: { width: 250, height: 60 },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#000000",
-    textAlign: "center",
-    fontWeight: "700",
-    marginTop: -8,
-  },
-  tabRow: {
-    flexDirection: "row",
-    marginTop: 12,
-    gap: 32,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tabButton: { alignItems: "center", gap: 8, paddingBottom: 40 },
-  tabText: { fontSize: 15, fontWeight: "600", color: "#9b9b9b" },
-  tabTextActive: { color: "#1f1a17" },
-  tabUnderline: {
-    height: 2,
+  header: {
     width: "100%",
-    backgroundColor: "#1f1a17",
-    borderRadius: 1,
+    backgroundColor: "transparent",
+    overflow: "hidden",
   },
-  oval: {
+  hero: {
     position: "absolute",
+    top: 0,
     left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "#ffffff",
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -6 },
-    elevation: 8,
+    width: "100%",
+    height: "100%",
   },
-  footer: { alignSelf: "stretch", gap: 10, zIndex: 1, flex: 1 },
-  bottomSection: { width: "100%", gap: 12, flex: 1 },
+  headerContent: {
+    flex: 1,
+    alignItems: "flex-start",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    zIndex: 1,
+    transform: [{ translateY: 0 }],
+  },
+  tagline: {
+    color: colors.white,
+    textAlign: "left",
+    marginTop: 2,
+    marginLeft: 8,
+    letterSpacing: 0.2,
+  },
+  taglineFont: {
+    fontFamily: "Quicksand_600SemiBold",
+  },
+  backButton: {
+    position: "absolute",
+    zIndex: 2,
+    elevation: 2,
+  },
+  bodyRegion: {
+    flex: 1,
+    marginTop: -10,
+    backgroundColor: colors.white,
+  },
+  formViewport: {
+    flex: 1,
+  },
+  formContent: {
+    paddingHorizontal: 33,
+    paddingTop: 10,
+    paddingBottom: 8,
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
+  },
+  copyright: {
+    fontSize: 10,
+    color: "#94A3B8",
+    textAlign: "center",
+    paddingTop: 6,
+  },
 
-  // ── desktop (new — matches reference) ──
+  // desktop / wide
   wideRoot: {
     flex: 1,
-    backgroundColor: "#DCEBFB",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 32,
+    backgroundColor: "#ffffff",
+    padding: 0,
+    margin: 0,
+    width: "100%",
+    height: "100%",
   },
   wideCard: {
     flexDirection: "row",
     width: "100%",
-    maxWidth: 1280,
     height: "100%",
-    maxHeight: 780,
-    borderRadius: 32,
+    backgroundColor: "#ffffff",
+    borderRadius: 0,
     overflow: "hidden",
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
   },
   wideLeft: {
-    width: "42%",
-    backgroundColor: "#fff",
-    borderTopRightRadius: 160,
-    borderBottomRightRadius: 160,
-    paddingHorizontal: 48,
+    width: "45%",
+    maxWidth: 580,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 56,
     paddingVertical: 40,
     gap: 16,
+    justifyContent: "center",
     zIndex: 2,
+    position: "relative",
   },
-  wideBackRow: { flexDirection: "row", alignItems: "center", gap: 2 },
-  wideBackArrow: { fontSize: 20, color: "#16145A", fontWeight: "400" },
-  wideBackLabel: { fontSize: 14, fontWeight: "600", color: "#16145A" },
-  wideLogo: { width: 140, height: 36, alignSelf: "flex-start", marginTop: 4 },
-  wideSubtitle: { fontSize: 14, fontWeight: "700", color: "#000" },
-  wideFormWrap: { marginTop: 8, gap: 12, flex: 1 },
-  wideRight: { flex: 1 },
+  wideHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 4,
+  },
+  wideBackRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  wideBackLabel: {
+    fontSize: 14,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#0F172A",
+  },
+  wideLogo: { width: 140, height: 34 },
+  wideSubtitle: {
+    fontSize: 15,
+    fontFamily: "Quicksand_700Bold",
+    color: "#334155",
+    textAlign: "center",
+    alignSelf: "center",
+    width: "100%",
+  },
+  wideFormWrap: { marginTop: 12, gap: 12, flex: 1 },
+  wideRight: { flex: 1, height: "100%" },
   wideImage: { width: "100%", height: "100%" },
+
+  // shared tab row (wide layout)
+  tabRow: {
+    flexDirection: "row",
+    marginTop: 16,
+    gap: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  tabButton: { alignItems: "center", gap: 6, paddingBottom: 12 },
+  tabText: {
+    fontSize: 15,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#94A3B8",
+  },
+  tabTextActive: { color: "#0F172A" },
+  tabUnderline: {
+    height: 2.5,
+    width: "100%",
+    backgroundColor: "#005EEC",
+    borderRadius: 2,
+  },
 });

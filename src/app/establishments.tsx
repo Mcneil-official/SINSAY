@@ -5,16 +5,18 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  View
+  View,
 } from "react-native";
 import {
   ContentContainer,
   EmptyState,
   ErrorState,
   EstablishmentCard,
-  ScreenHeader
+  resolveEstablishmentMedia,
+  ScreenHeader,
 } from "../components";
 import { colors } from "../constants/colors";
+import { safeBack } from "../lib/navigation";
 import { supabase } from "../lib/supabase";
 import { EstablishmentRow } from "../types/supabase";
 
@@ -23,30 +25,44 @@ export default function EstablishmentsScreen() {
   const [establishments, setEstablishments] = useState<EstablishmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const loadEstablishments = useCallback(async () => {
+  const handleRetry = useCallback(() => {
     setLoading(true);
     setError(false);
-    const { data, error: fetchError } = await supabase
-      .from("establishments")
-      .select("*")
-      .eq("accredited", true)
-      .order("name", { ascending: true });
-    if (fetchError) {
-      setError(true);
-    } else {
-      setEstablishments(data ?? []);
-    }
-    setLoading(false);
+    setReloadKey((k) => k + 1);
   }, []);
 
   useEffect(() => {
-    loadEstablishments();
-  }, [loadEstablishments]);
+    let active = true;
+    supabase
+      .from("establishments")
+      .select("*")
+      .eq("accredited", true)
+      .order("name", { ascending: true })
+      .then(({ data, error: fetchError }) => {
+        if (!active) return;
+        if (fetchError) {
+          setError(true);
+        } else {
+          setEstablishments(data ?? []);
+          setError(false);
+        }
+        setLoading(false);
+      },
+      () => {
+        if (!active) return;
+        setError(true);
+        setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="Dive Establishments" onBack={() => router.back()} />
+      <ScreenHeader title="Dive Resorts" onBack={() => safeBack(router, "/(tabs)")} />
 
       {loading ? (
         <View style={styles.center}>
@@ -54,24 +70,30 @@ export default function EstablishmentsScreen() {
         </View>
       ) : error ? (
         <ErrorState
-          message="Failed to load establishments."
-          onRetry={loadEstablishments}
+          message="Failed to load dive resorts."
+          onRetry={handleRetry}
         />
       ) : establishments.length === 0 ? (
-        <EmptyState icon="map-outline" message="No establishments found" />
+        <EmptyState icon="map-outline" message="No dive resorts found" />
       ) : (
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
         >
           <ContentContainer maxWidth={900} style={styles.gridInner}>
-            <View style={styles.grid}>
-              {establishments.map((est) => (
+            <View style={styles.list}>
+              {establishments.map((est, idx) => {
+                const { imageUrl } = resolveEstablishmentMedia(est);
+                return (
                 <EstablishmentCard
                   key={est.id}
                   name={est.name}
                   location={est.location}
                   accreditation={est.accreditation}
+                  accredited={est.accredited}
+                  imageUrl={imageUrl}
+
+                  index={idx}
                   onPress={() =>
                     router.push({
                       pathname: "/establishment/[id]",
@@ -79,7 +101,8 @@ export default function EstablishmentsScreen() {
                     })
                   }
                 />
-              ))}
+                );
+              })}
             </View>
           </ContentContainer>
         </ScrollView>
@@ -93,12 +116,9 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, paddingHorizontal: 20 },
   scrollContent: { paddingTop: 12, paddingBottom: 40, gap: 12 },
   gridInner: { paddingHorizontal: 0, alignItems: "center" },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 14,
+  list: {
     width: "100%",
-    justifyContent: "center",
+    gap: 12,
   },
   center: {
     flex: 1,

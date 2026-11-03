@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -11,24 +12,27 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  Button,
-  ContentContainer,
-  ScreenHeader,
-  StatCard,
-  StatusBadge,
-} from "../../components";
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient,
+  Path,
+  Rect,
+  Stop,
+  Text as SvgText,
+} from "react-native-svg";
+import { ContentContainer, ManifestSkeleton, Skeleton } from "../../components";
+import AnimatedKpiValue from "../../components/AnimatedKpiValue";
 import { colors } from "../../constants/colors";
-import { spacing } from "../../constants/spacing";
-import { typography } from "../../constants/typography";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
-import { supabase } from "../../lib/supabase";
 import { deriveStatus, formatDiveDate } from "../../lib/diveDate";
+import { supabase } from "../../lib/supabase";
 
 interface ManifestItem {
   id: string;
-  boat_name: string;
+  boat_name: string | null;
+  dive_mode: string;
   location: string;
   dive_date: string;
   diver_count: number;
@@ -47,12 +51,14 @@ interface OperatorStats {
 
 export default function OperatorDashboardScreen() {
   const router = useRouter();
-  const { user, isLoading: authLoading, unreadCount } = useAuth();
+  const { user, profile, operatorApplication, avatarUri, isLoading: authLoading, unreadCount } = useAuth();
   const { isDesktop, isTablet } = useLayout();
   const isWide = isDesktop || isTablet;
-  const statsBasis = isDesktop ? "30%" : isTablet ? "48%" : "100%";
 
-  const [establishmentName, setEstablishmentName] = useState<string>("");
+  const establishmentName =
+    operatorApplication?.resort_name ||
+    user?.user_metadata?.full_name?.split(" ")[0] ||
+    "Operator";
 
   const [todayDivers, setTodayDivers] = useState(0);
   const [yesterdayDivers, setYesterdayDivers] = useState(0);
@@ -67,32 +73,6 @@ export default function OperatorDashboardScreen() {
   const [manifestLoading, setManifestLoading] = useState(true);
   const [manifestError, setManifestError] = useState(false);
 
-  const loadEstablishment = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("operator_applications")
-        .select("resort_name")
-        .eq("tourist_id", user!.id)
-        .eq("status", "approved")
-        .maybeSingle();
-      if (error) throw error;
-      if (data?.resort_name) setEstablishmentName(data.resort_name);
-      else
-        setEstablishmentName(
-          user?.user_metadata?.full_name?.split(" ")[0] || "Operator",
-        );
-    } catch (e) {
-      console.warn("Establishment load error", e);
-      setEstablishmentName(
-        user?.user_metadata?.full_name?.split(" ")[0] || "Operator",
-      );
-    }
-  };
-
-  // Legacy multi-query path (pre-041 backends): stats anchored on dive_date,
-  // not created_at — a manifest made today for next week's dive counts for
-  // next week. Every query checks its own { error } — RLS denials don't
-  // throw, so without these a blocked read would silently render as 0.
   const loadStatsLegacy = useCallback(async () => {
     try {
       const toLocalDate = (d: Date) =>
@@ -150,7 +130,6 @@ export default function OperatorDashboardScreen() {
       setRemainingPasses(ledger?.remaining_passes ?? 0);
       setPurchasedPasses(ledger?.purchased_passes ?? 0);
 
-      // Manifests this week (dive weeks, Sunday-based, bounded both ends)
       const weekStart = new Date(today);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       const weekEnd = new Date(weekStart);
@@ -174,10 +153,8 @@ export default function OperatorDashboardScreen() {
     setStatLoading(true);
     setStatError(false);
     try {
-      // Single round-trip (041 get_operator_stats): ledger + today/yesterday
-      // diver counts + Sunday-based week count + 10 recent manifests w/ counts.
-      // Falls back to the legacy multi-query path on pre-041 backends.
-      const { data: stats, error: statsErr } = await supabase.rpc("get_operator_stats");
+      const { data: stats, error: statsErr } =
+        await supabase.rpc("get_operator_stats");
       if (!statsErr && stats) {
         const s = stats as OperatorStats;
         setTodayDivers(s.today_divers ?? 0);
@@ -191,7 +168,8 @@ export default function OperatorDashboardScreen() {
         setStatLoading(false);
         return;
       }
-      if (statsErr) console.warn("get_operator_stats unavailable, legacy fallback:", statsErr);
+      if (statsErr)
+        console.warn("get_operator_stats unavailable, fallback:", statsErr);
       await loadStatsLegacy();
     } catch (e) {
       console.warn("Stats load error", e);
@@ -204,25 +182,38 @@ export default function OperatorDashboardScreen() {
     setManifestLoading(true);
     setManifestError(false);
     try {
-      // Single query with embedded diver counts (no N+1), ordered by dive
-      // date — the canonical recency axis — not created_at.
       const { data: mfData, error: mfErr } = await supabase
         .from("dive_manifests")
-        .select("id, boat_name, location, dive_date, manifest_divers(count)")
+        .select("id, boat_name, dive_mode, location, dive_date, manifest_divers(count)")
         .eq("operator_id", user!.id)
         .order("dive_date", { ascending: false })
         .limit(10);
       if (mfErr) throw mfErr;
 
       setManifests(
-        (mfData || []).map((m: {
-          id: string; boat_name: string; location: string; dive_date: string;
-          manifest_divers?: { count: number }[] | { count: number };
-        }) => {
-          const dc = m.manifest_divers;
-          const diver_count = Array.isArray(dc) ? (dc[0]?.count ?? 0) : (dc?.count ?? 0);
-          return { id: m.id, boat_name: m.boat_name, location: m.location, dive_date: m.dive_date, diver_count };
-        })
+        (mfData || []).map(
+          (m: {
+            id: string;
+            boat_name: string | null;
+            dive_mode: string;
+            location: string;
+            dive_date: string;
+            manifest_divers?: { count: number }[] | { count: number };
+          }) => {
+            const dc = m.manifest_divers;
+            const diver_count = Array.isArray(dc)
+              ? dc[0]?.count ?? 0
+              : dc?.count ?? 0;
+            return {
+              id: m.id,
+              boat_name: m.boat_name,
+              dive_mode: m.dive_mode,
+              location: m.location,
+              dive_date: m.dive_date,
+              diver_count,
+            };
+          },
+        ),
       );
     } catch (e) {
       console.warn("Manifests load error", e);
@@ -231,127 +222,152 @@ export default function OperatorDashboardScreen() {
     setManifestLoading(false);
   }, [user]);
 
-  // Refetch on every focus (not just mount): returning from confirmed or
-  // buy-pass would otherwise show a stale pass balance.
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
-      void loadEstablishment();
       void loadStats();
       void loadManifests();
-    }, [user, loadStats, loadManifests])
+    }, [user, loadStats, loadManifests]),
   );
 
   if (authLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator
-          size="large"
-          color={colors.primaryBlue}
-          style={{ marginTop: 40 }}
-        />
+        <View style={styles.authLoading}>
+          <View style={styles.authLoadingHeader}>
+            <Skeleton width={160} height={28} radius={8} />
+            <Skeleton width={40} height={40} radius={20} />
+          </View>
+          <View style={styles.authLoadingStats}>
+            <Skeleton height={88} radius={16} />
+            <Skeleton height={88} radius={16} />
+          </View>
+          <ManifestSkeleton />
+          <ManifestSkeleton />
+        </View>
       </SafeAreaView>
     );
   }
 
-  const percentChange =
-    yesterdayDivers > 0
-      ? Math.round(((todayDivers - yesterdayDivers) / yesterdayDivers) * 100)
-      : null;
-  const todayDelta =
-    percentChange !== null
-      ? `${percentChange >= 0 ? "+" : ""}${percentChange}% vs yesterday`
-      : todayDivers > 0
-        ? "New today"
-        : undefined;
-  const isDeltaPositive = percentChange === null || percentChange >= 0;
+  const deltaDivers = todayDivers - yesterdayDivers;
+  const deltaText =
+    deltaDivers > 0
+      ? `+${deltaDivers} from yesterday`
+      : deltaDivers < 0
+        ? `${deltaDivers} from yesterday`
+        : "Equal to yesterday";
+
+  // Remaining passes ring ratio
+  const totalPurchased = purchasedPasses > 0 ? purchasedPasses : 100;
+  const currentRemaining = remainingPasses ?? 0;
+  const passUsagePercent = Math.min(
+    100,
+    Math.max(0, Math.round((currentRemaining / totalPurchased) * 100)),
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <ContentContainer maxWidth={900}>
-          {/* Greeting */}
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.greeting}>Hi, {establishmentName || "Operator"}!</Text>
-              <Text style={styles.subGreeting}>Logged in as Operator</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.bellButton}
-              onPress={() => router.push("/notifications")}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={22}
-                color="#1E293B"
-              />
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+      <StatusBar barStyle="light-content" />
 
-          {/* Stat Cards */}
-          {statError ? (
-            <View style={styles.retrySection}>
-              <Text style={styles.retryText}>Failed to load stats</Text>
-              <TouchableOpacity style={styles.retryBtn} onPress={loadStats}>
-                <Text style={styles.retryBtnText}>Retry</Text>
+      {/* Top Ocean Gradient and Wave Background Header */}
+      <View style={styles.headerBackgroundWrap} pointerEvents="none">
+        <Svg
+          width="100%"
+          height={220}
+          preserveAspectRatio="none"
+          style={StyleSheet.absoluteFill}
+        >
+          <Defs>
+            <LinearGradient id="screenTopGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#0061f5" />
+              <Stop offset="0.3" stopColor="#208bff" />
+              <Stop offset="0.6" stopColor="#97ddfa" />
+              <Stop offset="0.85" stopColor="#e4f5ff" />
+              <Stop offset="1" stopColor="#f1f9ff" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height={220} fill="url(#screenTopGrad)" />
+        </Svg>
+
+        <Svg
+          viewBox="0 0 1024 496"
+          preserveAspectRatio="none"
+          style={styles.headerWaveSvg}
+        >
+          <Path
+            d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z"
+            fill="#FFFFFF"
+            opacity={0.16}
+          />
+        </Svg>
+      </View>
+
+      <View style={styles.fixedDashboard}>
+        <ContentContainer maxWidth={isWide ? 900 : 480} paddingH={18}>
+          {/* Header Top Bar: SINSAY White Logo on left, Notification + Resort/Profile Avatar on right */}
+          <View style={styles.topBar}>
+            <Image
+              source={require("../../../assets/sinsay-white-home.webp")}
+              style={styles.logoImage}
+              contentFit="contain"
+              priority="high"
+              cachePolicy="memory-disk"
+              accessibilityLabel="SINSAY"
+            />
+
+            <View style={styles.topBarActions}>
+              <TouchableOpacity
+                style={styles.notificationBtn}
+                onPress={() => router.push("/notifications")}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`Notifications, ${unreadCount} unread`}
+              >
+                <Ionicons name="notifications" size={17} color="#0b206b" />
+                {unreadCount > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.notificationBadgeText}>
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.avatarCircle}
+                onPress={() => router.push("/(operator-tabs)/profile")}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Operator profile"
+              >
+                {avatarUri ? (
+                  <Image
+                    source={{ uri: avatarUri }}
+                    style={styles.avatarImg}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <Ionicons name="business" size={17} color="#006bff" />
+                )}
               </TouchableOpacity>
             </View>
-          ) : (
-            <View style={styles.statsRow}>
-              {/* Card 1: Blue Card */}
-              <View style={styles.blueStatCard}>
-                <Text style={styles.blueStatLabel}>TODAY'S DIVERS</Text>
-                <Text style={styles.blueStatValue}>
-                  {statLoading ? "…" : String(todayDivers)}
-                </Text>
-                <Text style={styles.blueStatDelta}>
-                  {statLoading ? "…" : todayDelta || "No activity yet"}
-                </Text>
-              </View>
+          </View>
 
-              {/* Card 2: Remaining Passes */}
-              <View style={styles.whiteStatCard}>
-                <Text style={styles.whiteStatLabel}>REMAINING PASSES</Text>
-                <Text style={styles.whiteStatValue}>
-                  {statLoading ? "…" : String(remainingPasses ?? 0)}
-                </Text>
-                <Text style={styles.greenStatDelta}>
-                  {statLoading
-                    ? "…"
-                    : purchasedPasses > 0
-                      ? `of ${purchasedPasses} purchased`
-                      : "No passes purchased yet"}
-                </Text>
-              </View>
+          {/* Greeting Section below Logo */}
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greetingTitle} numberOfLines={1}>
+              Hi, {establishmentName || "Operator"}!
+            </Text>
+            <Text style={styles.greetingSubtitle}>Logged in as Operator</Text>
+          </View>
 
-              {/* Card 3: Manifesto Sent */}
-              <View style={styles.whiteStatCard}>
-                <Text style={styles.whiteStatLabel}>MANIFESTO SENT</Text>
-                <Text style={styles.whiteStatValue}>
-                  {statLoading ? "…" : String(weekCount)}
-                </Text>
-                <Text style={styles.greenStatDelta}>This week</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Pass gate warning */}
+          {/* Pass Gate Depletion Warning */}
           {!statLoading &&
             !statError &&
             remainingPasses !== null &&
             remainingPasses <= 0 && (
               <View style={styles.warningBanner}>
-                <Ionicons name="alert-circle" size={16} color="#F59E0B" />
+                <Ionicons name="alert-circle" size={16} color="#D97706" />
                 <Text style={styles.warningText}>
                   No remaining passes.{" "}
                   <Text
@@ -365,23 +381,248 @@ export default function OperatorDashboardScreen() {
               </View>
             )}
 
-          {/* Create Manifest CTA Button */}
-          <TouchableOpacity
-            style={styles.orangeCtaBtn}
-            activeOpacity={0.88}
-            onPress={() => router.push("/establishment/create-manifest/step1")}
-          >
-            <Ionicons name="add" size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.orangeCtaText}>Create Dive Manifest</Text>
-          </TouchableOpacity>
+          {/* 3 Overview Stat Cards */}
+          {statError ? (
+            <View style={styles.retrySection}>
+              <Text style={styles.retryText}>Failed to load statistics</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={loadStats}>
+                <Text style={styles.retryBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.statsRow}>
+              {/* Card 1: Today's Divers */}
+              <View style={styles.statCard}>
+                <View style={styles.statHeadingRow}>
+                  <View style={styles.statIconBubble}>
+                    <Ionicons name="calendar" size={12} color="#006bff" />
+                  </View>
+                  <Text style={styles.statHeadingText}>TODAY&apos;S DIVERS</Text>
+                </View>
 
+                <AnimatedKpiValue
+                  value={todayDivers}
+                  loading={statLoading}
+                  style={styles.statValue}
+                />
+
+                {/* Top-Right Sparkline */}
+                <Svg
+                  style={styles.sparkline}
+                  viewBox="0 0 145 80"
+                  pointerEvents="none"
+                >
+                  <Defs>
+                    <LinearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                      <Stop offset="0" stopColor="#5cb6fa" stopOpacity={0.55} />
+                      <Stop offset="1" stopColor="#5cb6fa" stopOpacity={0} />
+                    </LinearGradient>
+                  </Defs>
+                  <Path
+                    d="M0 56H20L35 45 50 46 65 37 91 42Q116 11 138 7V80H0Z"
+                    fill="url(#sparkFill)"
+                  />
+                  <Path
+                    d="M0 56H20L35 45 50 46 65 37 91 42Q116 11 138 7"
+                    fill="none"
+                    stroke="#168bff"
+                    strokeWidth={2.8}
+                  />
+                  <Circle
+                    cx={138}
+                    cy={7}
+                    r={4}
+                    fill="#006bff"
+                    stroke="#FFFFFF"
+                    strokeWidth={1.8}
+                  />
+                </Svg>
+
+                <View style={styles.statNoteRow}>
+                  <Ionicons
+                    name={deltaDivers >= 0 ? "arrow-up" : "arrow-down"}
+                    size={9.5}
+                    color="#00bc88"
+                  />
+                  <Text style={styles.statNoteText} numberOfLines={1}>
+                    {deltaText}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Card 2: Remaining Passes */}
+              <View style={styles.statCard}>
+                <View style={styles.statHeadingRow}>
+                  <View style={styles.statIconBubble}>
+                    <Ionicons name="ticket" size={12} color="#006bff" />
+                  </View>
+                  <Text style={styles.statHeadingText}>REMAINING PASSES</Text>
+                </View>
+
+                <AnimatedKpiValue
+                  value={currentRemaining}
+                  loading={statLoading}
+                  style={styles.statValue}
+                />
+
+                {/* Top-Right Mini Donut Ring */}
+                <Svg
+                  style={styles.miniRing}
+                  viewBox="0 0 100 100"
+                  pointerEvents="none"
+                >
+                  <Circle
+                    cx={50}
+                    cy={50}
+                    r={40}
+                    fill="none"
+                    stroke="#d5e8ff"
+                    strokeWidth={11}
+                  />
+                  <Circle
+                    cx={50}
+                    cy={50}
+                    r={40}
+                    fill="none"
+                    stroke="#168bff"
+                    strokeWidth={11}
+                    strokeDasharray={`${(passUsagePercent / 100) * 251.3} 251.3`}
+                    transform="rotate(-90 50 50)"
+                  />
+                  <SvgText
+                    x={50}
+                    y={55}
+                    textAnchor="middle"
+                    fill="#0b206b"
+                    fontSize={17}
+                    fontFamily="Quicksand_700Bold"
+                  >
+                    {passUsagePercent}%
+                  </SvgText>
+                </Svg>
+
+                <Text style={styles.statMutedNote} numberOfLines={1}>
+                  of {totalPurchased} purchased
+                </Text>
+              </View>
+
+              {/* Card 3: Manifesto Sent */}
+              <View style={styles.statCard}>
+                <View style={styles.statHeadingRow}>
+                  <View style={styles.statIconBubble}>
+                    <Ionicons name="paper-plane" size={11} color="#006bff" />
+                  </View>
+                  <Text style={styles.statHeadingText}>MANIFESTO SENT</Text>
+                </View>
+
+                <AnimatedKpiValue
+                  value={weekCount}
+                  loading={statLoading}
+                  style={styles.statValue}
+                />
+
+                {/* Top-Right 4 Ascending Mini Bars */}
+                <View style={styles.barsContainer} pointerEvents="none">
+                  <View style={[styles.miniBar, { height: 10, backgroundColor: "#b7deff" }]} />
+                  <View style={[styles.miniBar, { height: 18, backgroundColor: "#86d7ff" }]} />
+                  <View style={[styles.miniBar, { height: 25, backgroundColor: "#62cefc" }]} />
+                  <View style={[styles.miniBar, { height: 33, backgroundColor: "#78dfd8" }]} />
+                </View>
+
+                <Text style={styles.statMutedNote} numberOfLines={1}>
+                  This week
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Dual Action Buttons directly under the 3 KPI cards */}
+          <View style={styles.actionsRow}>
+            {/* Action 1: Create Dive Manifest */}
+            <TouchableOpacity
+              style={styles.actionBtn}
+              activeOpacity={0.88}
+              onPress={() => router.push("/establishment/create-manifest/step1")}
+              accessibilityRole="button"
+              accessibilityLabel="Create Dive Manifest"
+            >
+              <Svg
+                style={StyleSheet.absoluteFill}
+                preserveAspectRatio="none"
+                pointerEvents="none"
+              >
+                <Defs>
+                  <LinearGradient id="ctaGrad1" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor="#0061f6" />
+                    <Stop offset="1" stopColor="#2d8dff" />
+                  </LinearGradient>
+                </Defs>
+                <Rect width="100%" height="100%" rx={10} fill="url(#ctaGrad1)" />
+              </Svg>
+              <View style={styles.actionSymbol}>
+                <Ionicons name="add" size={15} color="#0061f6" />
+              </View>
+              <Text style={styles.actionBtnText}>Create Dive Manifest</Text>
+              <Ionicons
+                name="arrow-forward"
+                size={11}
+                color="#FFFFFF"
+                style={{ marginLeft: "auto" }}
+              />
+            </TouchableOpacity>
+
+            {/* Action 2: Buy Dive Credits */}
+            <TouchableOpacity
+              style={styles.actionBtn}
+              activeOpacity={0.88}
+              onPress={() => router.push("/(operator-tabs)/buy-pass")}
+              accessibilityRole="button"
+              accessibilityLabel="Buy Dive Credits"
+            >
+              <Svg
+                style={StyleSheet.absoluteFill}
+                preserveAspectRatio="none"
+                pointerEvents="none"
+              >
+                <Defs>
+                  <LinearGradient id="ctaGrad2" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor="#1682ff" />
+                    <Stop offset="1" stopColor="#409dff" />
+                  </LinearGradient>
+                </Defs>
+                <Rect width="100%" height="100%" rx={10} fill="url(#ctaGrad2)" />
+              </Svg>
+              <View style={styles.actionSymbol}>
+                <Ionicons name="card" size={13} color="#0061f6" />
+              </View>
+              <Text style={styles.actionBtnText}>Buy Dive Credits</Text>
+              <Ionicons
+                name="arrow-forward"
+                size={11}
+                color="#FFFFFF"
+                style={{ marginLeft: "auto" }}
+              />
+            </TouchableOpacity>
+          </View>
+        </ContentContainer>
+      </View>
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <ContentContainer maxWidth={isWide ? 900 : 480} paddingH={18}>
           {/* Recent Manifests Section */}
-          <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Manifests</Text>
             <TouchableOpacity
               onPress={() => router.push("/(operator-tabs)/manifests")}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="See all manifests"
             >
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAllLink}>See all ›</Text>
             </TouchableOpacity>
           </View>
 
@@ -396,31 +637,63 @@ export default function OperatorDashboardScreen() {
             <ActivityIndicator
               size="small"
               color={colors.primaryBlue}
-              style={{ marginTop: 20 }}
+              style={{ marginVertical: 20 }}
             />
           ) : manifests.length > 0 ? (
             <View style={styles.manifestList}>
               {manifests.slice(0, 5).map((m) => {
                 const status = deriveStatus(m.dive_date);
-                const isShore = (m.boat_name || "").toLowerCase().includes("shore") || (m.location || "").toLowerCase().includes("shore");
+                const isBoatDive = m.dive_mode === "Boat Dive";
+                const title = m.boat_name || m.dive_mode || "Dive Group";
+
                 return (
                   <TouchableOpacity
                     key={m.id}
-                    style={styles.manifestRow}
-                    activeOpacity={0.7}
+                    style={styles.manifestCard}
+                    activeOpacity={0.78}
                     onPress={() => router.push("/(operator-tabs)/manifests")}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${title}, ${m.location}, ${status === "active" ? "Active" : "Done"}`}
                   >
-                    <View style={[styles.manifestIcon, isShore && styles.manifestIconShore]}>
-                      <Text style={{ fontSize: 20 }}>{isShore ? "⛱️" : "🚤"}</Text>
+                    <View
+                      style={[
+                        styles.manifestSymbol,
+                        !isBoatDive && styles.manifestSymbolShore,
+                      ]}
+                    >
+                      <Ionicons
+                        name={isBoatDive ? "boat" : m.dive_mode === "Night Dive" ? "moon" : "umbrella"}
+                        size={17}
+                        color="#006bff"
+                      />
                     </View>
+
                     <View style={styles.manifestInfo}>
-                      <Text style={styles.manifestTitle}>{m.boat_name || "Dive Group"}</Text>
-                      <Text style={styles.manifestMeta}>
-                        {formatDiveDate(m.dive_date)} · {m.diver_count} divers · {m.location}
+                      <Text style={styles.manifestTitle} numberOfLines={1}>
+                        {title}
+                      </Text>
+                      <Text style={styles.manifestMeta} numberOfLines={1}>
+                        {formatDiveDate(m.dive_date)} · {m.diver_count} divers ·{" "}
+                        {m.location}
                       </Text>
                     </View>
-                    <View style={[styles.statusBadge, status === "active" ? styles.badgeActive : styles.badgeDone]}>
-                      <Text style={[styles.statusBadgeText, status === "active" ? styles.badgeActiveText : styles.badgeDoneText]}>
+
+                    <View
+                      style={[
+                        styles.statusPill,
+                        status === "active"
+                          ? styles.statusPillActive
+                          : styles.statusPillDone,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          status === "active"
+                            ? styles.statusTextActive
+                            : styles.statusTextDone,
+                        ]}
+                      >
                         {status === "active" ? "Active" : "Done"}
                       </Text>
                     </View>
@@ -429,25 +702,19 @@ export default function OperatorDashboardScreen() {
               })}
             </View>
           ) : (
-            /* Honest empty state — never fake reference-design rows as real data. */
-            <Text style={styles.emptyText}>
-              No manifests yet. Create your first one!
-            </Text>
+            <View style={styles.emptyContainer}>
+              <Ionicons
+                name="document-text-outline"
+                size={32}
+                color="#94A3B8"
+              />
+              <Text style={styles.emptyText}>
+                No manifests yet. Create your first one!
+              </Text>
+            </View>
           )}
 
-          {/* 2x2 Placeholder Grid from Design */}
-          <View style={styles.placeholderGrid}>
-            <View style={styles.placeholderRow}>
-              <View style={styles.gridPlaceholder} />
-              <View style={styles.gridPlaceholder} />
-            </View>
-            <View style={styles.placeholderRow}>
-              <View style={styles.gridPlaceholder} />
-              <View style={styles.gridPlaceholder} />
-            </View>
-          </View>
-
-          <View style={{ height: 120 }} />
+          <View style={{ height: 110 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -455,240 +722,401 @@ export default function OperatorDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.white },
-  container: { flex: 1 },
-  scrollContent: { paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16 },
-  headerRow: {
+  authLoading: {
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  authLoadingHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
   },
-  greeting: { fontSize: 22, fontWeight: "800", color: "#0F172A" },
-  subGreeting: { fontSize: 13, color: "#64748B", marginTop: 2, fontWeight: "500" },
-  bellButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.white,
+  authLoadingStats: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#f1f9ff",
+  },
+  container: {
+    flex: 1,
+    minHeight: 0,
+  },
+  fixedDashboard: {
+    flexShrink: 0,
+    paddingTop: 8,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  headerBackgroundWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220,
+    overflow: "hidden",
+    zIndex: -1,
+  },
+  headerWaveSvg: {
+    position: "absolute",
+    top: 10,
+    left: 0,
+    width: "100%",
+    height: 180,
+  },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 6,
+    paddingBottom: 8,
+  },
+  logoImage: {
+    width: 116,
+    height: 36,
+  },
+  topBarActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  notificationBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
     shadowColor: "#000",
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  badge: {
+  notificationBadge: {
     position: "absolute",
-    top: -2,
+    top: -3,
     right: -2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.primaryBlue,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#006bff",
+    borderWidth: 1.2,
+    borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
-  badgeText: { fontSize: 10, fontWeight: "700", color: colors.white },
-  statsRow: {
-    flexDirection: "row",
-    marginTop: 18,
-    gap: 8,
+  notificationBadgeText: {
+    fontSize: 7.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
   },
-  blueStatCard: {
-    flex: 1,
-    backgroundColor: colors.primaryBlue,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    shadowColor: colors.primaryBlue,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  blueStatLabel: {
-    fontSize: 9.5,
-    fontWeight: "800",
-    color: "rgba(255,255,255,0.85)",
-    letterSpacing: 0.4,
-  },
-  blueStatValue: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: colors.white,
-    marginVertical: 4,
-  },
-  blueStatDelta: {
-    fontSize: 9.5,
-    fontWeight: "600",
-    color: "#93C5FD",
-  },
-  whiteStatCard: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingVertical: 14,
-    paddingHorizontal: 10,
+  avatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
     shadowColor: "#000",
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    elevation: 2,
   },
-  whiteStatLabel: {
-    fontSize: 9.5,
-    fontWeight: "800",
-    color: "#64748B",
-    letterSpacing: 0.4,
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 18,
   },
-  whiteStatValue: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginVertical: 4,
+  greetingBlock: {
+    marginTop: 2,
+    marginBottom: 14,
   },
-  greenStatDelta: {
-    fontSize: 9.5,
-    fontWeight: "600",
-    color: "#10B981",
+  greetingTitle: {
+    fontSize: 21,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
+  },
+  greetingSubtitle: {
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: 2,
   },
   warningBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: "#FFF7E6",
-    borderRadius: 12,
-    padding: spacing.md,
-    marginTop: spacing.lg,
-  },
-  warningText: {
-    ...typography.caption,
-    color: "#92400E",
-    flex: 1,
-    lineHeight: 17,
-  },
-  warningLink: {
-    fontWeight: "700",
-    color: colors.primaryBlue,
-    textDecorationLine: "underline",
-  },
-  orangeCtaBtn: {
-    backgroundColor: "#FF7A00",
-    borderRadius: 16,
-    height: 52,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 18,
-    marginBottom: 20,
-    shadowColor: "#FF7A00",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  orangeCtaText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.white,
-  },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFFBEB",
+    borderColor: "#FDE68A",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
     marginBottom: 12,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
-  seeAll: { fontSize: 13, fontWeight: "600", color: colors.primaryBlue },
-  retrySection: { alignItems: "center", marginTop: 24, gap: 8 },
-  retryText: { fontSize: 13, color: colors.gray },
-  retryBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: colors.grayLight,
+  warningText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#92400E",
+    flex: 1,
+    lineHeight: 16,
   },
-  retryBtnText: { fontSize: 12, fontWeight: "600", color: colors.primaryBlue },
-  manifestList: { gap: 10 },
-  manifestRow: {
+  warningLink: {
+    fontFamily: "Quicksand_700Bold",
+    color: "#006bff",
+    textDecorationLine: "underline",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 12,
+  },
+  statCard: {
+    flex: 1,
+    height: 94,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    padding: 8,
+    overflow: "hidden",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.22)",
+    shadowColor: "#6fb9ed",
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  statHeadingRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-    gap: 12,
+    gap: 4,
   },
-  manifestIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#E0F2FE",
+  statIconBubble: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#d7ebff",
     alignItems: "center",
     justifyContent: "center",
   },
-  manifestIconShore: {
-    backgroundColor: "#FEE2E2",
+  statHeadingText: {
+    fontSize: 6.8,
+    fontFamily: "Quicksand_700Bold",
+    color: "#6382cf",
+    letterSpacing: 0.1,
   },
-  manifestInfo: { flex: 1 },
-  manifestTitle: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
-  manifestMeta: { fontSize: 12, color: "#64748B", marginTop: 3 },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 100,
+  statValue: {
+    fontSize: 28,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0b206b",
+    lineHeight: 32,
+    marginTop: 2,
   },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
+  sparkline: {
+    position: "absolute",
+    top: 36,
+    right: 4,
+    width: 52,
+    height: 30,
   },
-  badgeActive: {
-    backgroundColor: "#DCFCE7",
+  miniRing: {
+    position: "absolute",
+    top: 28,
+    right: 5,
+    width: 38,
+    height: 38,
   },
-  badgeActiveText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#16A34A",
-  },
-  badgeDone: {
-    backgroundColor: "#EEF2FF",
-  },
-  badgeDoneText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#4F46E5",
-  },
-  placeholderGrid: {
-    marginTop: 18,
-    gap: 12,
-  },
-  placeholderRow: {
+  barsContainer: {
+    position: "absolute",
+    top: 34,
+    right: 8,
+    height: 34,
     flexDirection: "row",
-    gap: 12,
+    alignItems: "flex-end",
+    gap: 2.5,
   },
-  gridPlaceholder: {
+  miniBar: {
+    width: 5,
+    borderRadius: 3,
+  },
+  statNoteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  statNoteText: {
+    fontSize: 7.2,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#00bc88",
+  },
+  statMutedNote: {
+    fontSize: 7.2,
+    fontFamily: "Quicksand_500Medium",
+    color: "#6382cf",
+    marginTop: 2,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 2,
+    marginBottom: 16,
+  },
+  actionBtn: {
     flex: 1,
-    height: 110,
-    backgroundColor: "#F1F5F9",
+    height: 48,
+    borderRadius: 10,
+    overflow: "hidden",
+    paddingHorizontal: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    shadowColor: "#6fb9ed",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  actionSymbol: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionBtnText: {
+    fontSize: 9.8,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 2,
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0b206b",
+  },
+  seeAllLink: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#006bff",
+  },
+  manifestList: {
+    gap: 6,
+  },
+  manifestCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 46,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.2)",
+    shadowColor: "#6fb9ed",
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  manifestSymbol: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
+    backgroundColor: "#e0efff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  manifestSymbolShore: {
+    backgroundColor: "#fee2e2",
+  },
+  manifestInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  manifestTitle: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0b206b",
+    marginBottom: 2,
+  },
+  manifestMeta: {
+    fontSize: 9.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#7290d6",
+  },
+  statusPill: {
+    minWidth: 50,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  statusPillActive: {
+    backgroundColor: "#d4f7ed",
+  },
+  statusPillDone: {
+    backgroundColor: "#d9eaff",
+  },
+  statusPillText: {
+    fontSize: 9,
+    fontFamily: "Quicksand_700Bold",
+  },
+  statusTextActive: {
+    color: "#00a671",
+  },
+  statusTextDone: {
+    color: "#006bff",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+    gap: 8,
   },
   emptyText: {
-    fontSize: 13,
-    color: colors.gray,
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
     textAlign: "center",
-    marginTop: 20,
+  },
+  retrySection: {
+    alignItems: "center",
+    marginVertical: 14,
+    gap: 6,
+  },
+  retryText: {
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
+  },
+  retryBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: "#E2E8F0",
+  },
+  retryBtnText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#006bff",
   },
 });

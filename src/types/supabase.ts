@@ -100,6 +100,25 @@ export interface Database {
         Row: OperatorPassLedgerView;
       };
     };
+    Functions: {
+      save_operator_profile: {
+        Args: {
+          p_application_id: string;
+          p_resort_name: string;
+          p_resort_location: string;
+          p_resort_description: string | null;
+          p_resort_contact_number: string;
+          p_resort_email: string | null;
+          p_facebook_url: string | null;
+          p_website_url: string | null;
+          p_cover_image_paths: string[];
+          p_full_name: string;
+          p_personal_contact_number: string | null;
+          p_avatar_path: string | null;
+        };
+        Returns: boolean;
+      };
+    };
   };
 }
 
@@ -121,6 +140,7 @@ export interface TouristRow {
   business_permit_url: string | null;
   pcss_url: string | null;
   language_preference: string;
+  avatar_path?: string | null;
   // 031_tourist_status: operator-intent status (Active/Expired/Suspended).
   // Loose string — the caps differ from eco_dive_ids lowercase union, so a
   // shared enum would lie.
@@ -165,6 +185,9 @@ export interface OperatorApplicationRow {
   tourist_id: string;
   resort_name: string;
   resort_location: string;
+  resort_description?: string | null;
+  resort_email?: string | null;
+  cover_image_paths?: string[];
   role: string;
   contact_number: string;
   facebook_url: string | null;
@@ -219,7 +242,7 @@ export interface DiveManifestRow {
   dive_mode: string;
   location: string;
   difficulty: string;
-  boat_name: string;
+  boat_name: string | null;
   captain_name: string | null;
   boat_contact: string | null;
   crew_count: number | null;
@@ -233,7 +256,7 @@ export interface DiveManifestRow {
   created_at: string;
 }
 
-export type DiveManifestInsert = Partial<DiveManifestRow> & Pick<DiveManifestRow, "operator_id" | "dive_type" | "dive_mode" | "location" | "difficulty" | "boat_name">;
+export type DiveManifestInsert = Partial<DiveManifestRow> & Pick<DiveManifestRow, "operator_id" | "dive_type" | "dive_mode" | "location" | "difficulty">;
 export type DiveManifestUpdate = Partial<DiveManifestInsert>;
 
 export interface ManifestDiverRow {
@@ -282,7 +305,16 @@ export interface AnnouncementRow {
   id: string;
   title: string;
   body: string | null;
+  site_code?: string | null;
+  barangay?: string | null;
+  depth_range?: string | null;
+  site_type?: string | null;
+  status?: string | null;
   image_url: string | null;
+  photo_url?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  updated_at?: string | null;
   active: boolean;
   priority: number;
   start_date: string | null;
@@ -299,7 +331,16 @@ export interface DiveSiteRow {
   description: string | null;
   difficulty: string | null;
   rating: string | null;
+  site_code?: string | null;
+  barangay?: string | null;
+  depth_range?: string | null;
+  site_type?: string | null;
+  status?: string | null;
   image_url: string | null;
+  photo_url?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  updated_at?: string | null;
   created_at: string;
 }
 
@@ -326,7 +367,19 @@ export interface EstablishmentRow {
   website: string | null;
   facebook: string | null;
   description: string | null;
+  operator_id?: string | null;
+  operator_avatar_path?: string | null;
+  cover_image_paths?: string[];
+  site_code?: string | null;
+  barangay?: string | null;
+  depth_range?: string | null;
+  site_type?: string | null;
+  status?: string | null;
   image_url: string | null;
+  photo_url?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  updated_at?: string | null;
   accredited: boolean;
   created_at: string;
 }

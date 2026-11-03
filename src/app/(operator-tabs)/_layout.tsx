@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
+import OperatorWiderScreenNavbar from "../../components/OperatorWiderScreenNavbar";
 import { colors } from "../../constants/colors";
+import { ENABLE_DESKTOP_LAYOUT } from "../../constants/layout";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -19,14 +21,6 @@ function OperatorGate() {
       router.replace("/(tabs)");
     }
   }, [isLoading, roleReady, user, isOperator, viewAsTourist, router]);
-
-  if (isLoading || !roleReady) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" color={colors.primaryBlue} />
-      </View>
-    );
-  }
 
   return null;
 }
@@ -68,16 +62,18 @@ export default function OperatorTabLayout() {
   }
 
   return (
-    <>
+    <View style={styles.container}>
       <OperatorGate />
+      {isDesktop && ENABLE_DESKTOP_LAYOUT && <OperatorWiderScreenNavbar />}
       <Tabs
         screenOptions={{ headerShown: false }}
         tabBar={(props) =>
-          isDesktop ? null : (
+          isDesktop && ENABLE_DESKTOP_LAYOUT ? null : (
             <BottomNav
               {...props}
               tabIcons={tabIcons}
               tabLabels={tabLabels}
+              allowLabelWrap
             />
           )
         }
@@ -87,6 +83,13 @@ export default function OperatorTabLayout() {
         <Tabs.Screen name="buy-pass" />
         <Tabs.Screen name="profile" />
       </Tabs>
-    </>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+});

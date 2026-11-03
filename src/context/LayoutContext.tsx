@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useDeferredValue, useMemo } from "react";
 import { useWindowDimensions } from "react-native";
+import { DESKTOP_BREAKPOINT } from "../constants/layout";
 
 const MOBILE_BREAKPOINT = 640;
-const DESKTOP_BREAKPOINT = 1024;
 
 export type LayoutMode = "mobile" | "tablet" | "desktop";
 

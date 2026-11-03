@@ -12,3 +12,15 @@ body,
   overscroll-behavior: none;
   color-scheme: light;
 }
+
+/* Keep browser-default focus rings off interactive controls throughout the
+   web app; form fields use an active border color instead. */
+:is(input, textarea, select, button, a, [contenteditable="true"], [role], [tabindex]):focus {
+  outline: none !important;
+}
+
+input:focus:not([aria-invalid="true"]),
+textarea:focus:not([aria-invalid="true"]),
+select:focus:not([aria-invalid="true"]) {
+  border-color: #087bff;
+}

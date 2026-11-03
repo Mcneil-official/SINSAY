@@ -27,7 +27,7 @@ const faqs: FaqItem[] = [
   },
   {
     q: "How do I reset my password?",
-    a: "On the login screen, tap 'Forgot Password' and enter your registered email address. You'll receive a password reset link in your inbox.",
+    a: "On the login screen, enter your registered email address and tap 'Forgot Password?'. We'll send a reset link to that email.",
   },
   {
     q: "What does the AI Dive Assistant do?",

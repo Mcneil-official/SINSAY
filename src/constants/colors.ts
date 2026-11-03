@@ -1,6 +1,7 @@
 export const colors = {
   primaryBlue: "#005EEC",
   accentBlue: "#005BBF",
+  splashBlue: "#005AF1",
   darkText: "#232323",
   navy: "#16145A",
   dotInactive: "#D9D9D9",
