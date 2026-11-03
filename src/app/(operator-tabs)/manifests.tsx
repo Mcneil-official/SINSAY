@@ -49,13 +49,13 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function ManifestsScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, operatorApplication } = useAuth();
   const [tab, setTab] = useState<Tab>("upcoming");
   const [manifests, setManifests] = useState<ManifestItem[]>([]);
   const [drafts, setDrafts] = useState<ManifestDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [operatorName, setOperatorName] = useState("Operator");
+  const operatorName = operatorApplication?.resort_name || "Operator";
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
@@ -92,13 +92,6 @@ export default function ManifestsScreen() {
         })
       );
 
-      const { data: app } = await supabase
-        .from("operator_applications")
-        .select("resort_name")
-        .eq("tourist_id", user!.id)
-        .eq("status", "approved")
-        .maybeSingle();
-      if (app?.resort_name) setOperatorName(app.resort_name);
     } catch (e) {
       console.warn("Manifests load error", e);
       setLoadError(true);

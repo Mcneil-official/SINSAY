@@ -21,6 +21,7 @@ import {
   EmptyState,
   ErrorState,
   EstablishmentCard,
+  resolveEstablishmentMedia,
   HeroCarousel,
   SearchBar,
   Skeleton,
@@ -633,6 +634,13 @@ export default function HomeScreen() {
               {/* Dive Resorts: Horizontal Information-Card Layout */}
               <View style={[styles.sectionHeaderRow, { marginTop: 26 }]}>
                 <Text style={styles.sectionTitle}>Dive Resorts</Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/establishments")}
+                  accessibilityRole="button"
+                  accessibilityLabel="See all dive resorts"
+                >
+                  <Text style={styles.seeAll}>See all</Text>
+                </TouchableOpacity>
               </View>
 
               {establishmentsLoading ? (
@@ -651,14 +659,16 @@ export default function HomeScreen() {
                 />
               ) : (
                 <View style={styles.resortsList}>
-                  {establishments.slice(0, 6).map((item, idx) => (
+                  {establishments.slice(0, 6).map((item, idx) => {
+                    const { imageUrl } = resolveEstablishmentMedia(item);
+                    return (
                     <EstablishmentCard
                       key={item.id}
                       name={item.name}
                       location={item.location}
                       accreditation={item.accreditation}
                       accredited={item.accredited}
-                      imageUrl={item.image_url}
+                      imageUrl={imageUrl}
                       index={idx}
                       onPress={() =>
                         router.push({
@@ -667,7 +677,8 @@ export default function HomeScreen() {
                         })
                       }
                     />
-                  ))}
+                    );
+                  })}
                 </View>
               )}
             </>

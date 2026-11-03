@@ -16,6 +16,7 @@ import { colors } from "../../../constants/colors";
 import { ContentContainer, TextInput, Dropdown } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
+import { safeBack } from "../../../lib/navigation";
 
 // Standalone add-diver route (deep-linkable). The primary entry remains the
 // + Add Diver modal in step1.tsx; this screen reuses the same search +
@@ -120,7 +121,7 @@ export default function AddDiverScreen() {
         ? `${tourist.full_name} (${ecoId}) selected — go back to add them to the manifest.`
         : `${tourist.full_name} selected — no Eco-Dive ID on file. Go back to add them.`,
     );
-    router.back();
+    safeBack(router, "/establishment/create-manifest/step1");
   };
 
   return (
@@ -128,7 +129,7 @@ export default function AddDiverScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="dark-content" />
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => safeBack(router, "/establishment/create-manifest/step1")} hitSlop={12} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
@@ -177,7 +178,7 @@ export default function AddDiverScreen() {
             </View>
           </View>
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-          <TouchableOpacity style={styles.backCta} onPress={() => router.back()} activeOpacity={0.88}>
+          <TouchableOpacity style={styles.backCta} onPress={() => safeBack(router, "/establishment/create-manifest/step1")} activeOpacity={0.88}>
             <Text style={styles.backCtaText}>Back to Manifest</Text>
           </TouchableOpacity>
           <View style={{ height: 60 }} />

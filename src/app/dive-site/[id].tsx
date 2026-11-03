@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { ContentContainer, ErrorState, resolveSiteImage } from "../../components";
 import { colors } from "../../constants/colors";
+import { safeBack } from "../../lib/navigation";
 import { supabase } from "../../lib/supabase";
 import { DiveSiteRow } from "../../types/supabase";
 
@@ -60,7 +61,7 @@ export default function DiveSiteDetailScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity onPress={() => safeBack(router, "/dive-sites")} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={colors.darkText} />
         </TouchableOpacity>
         <Text style={styles.title}>Dive Site</Text>
@@ -74,7 +75,7 @@ export default function DiveSiteDetailScreen() {
       ) : !site ? (
         <ErrorState
           message="Dive site not found"
-          onRetry={() => router.back()}
+          onRetry={() => safeBack(router, "/dive-sites")}
           retryLabel="Go Back"
         />
       ) : (

@@ -15,6 +15,7 @@ import {
 import { ContentContainer, ErrorState } from "../../components";
 import { ResortProfileHero } from "../../components/ResortProfileHero";
 import { colors } from "../../constants/colors";
+import { safeBack } from "../../lib/navigation";
 import { supabase } from "../../lib/supabase";
 import { EstablishmentRow } from "../../types/supabase";
 
@@ -41,7 +42,7 @@ export default function EstablishmentDetailScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity onPress={() => safeBack(router, "/establishments")} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={colors.darkText} />
         </TouchableOpacity>
         <Text style={styles.title}>Establishment</Text>
@@ -55,7 +56,7 @@ export default function EstablishmentDetailScreen() {
       ) : !est ? (
         <ErrorState
           message="Establishment not found"
-          onRetry={() => router.back()}
+          onRetry={() => safeBack(router, "/establishments")}
           retryLabel="Go Back"
         />
       ) : (

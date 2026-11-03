@@ -2,6 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "../constants/colors";
+import { supabase } from "../lib/supabase";
+
+export function resolveEstablishmentMedia(est: {
+  cover_image_paths?: string[] | null;
+  image_url?: string | null;
+}): { imageUrl: string | null } {
+  const imageUrl = est.cover_image_paths?.[0]
+    ? supabase.storage.from("operator_media").getPublicUrl(est.cover_image_paths[0]).data.publicUrl
+    : est.image_url || null;
+
+  return { imageUrl };
+}
 
 const FALLBACK_RESORT_IMAGES = [
   require("../../assets/establishment-1.png"),
@@ -14,7 +26,6 @@ export interface EstablishmentCardProps {
   accreditation?: string | null;
   accredited?: boolean;
   imageUrl?: string | null;
-  avatarUrl?: string | null;
   phone?: string | null;
   index?: number;
   onPress?: () => void;
@@ -26,7 +37,6 @@ export function EstablishmentCard({
   accreditation,
   accredited = true,
   imageUrl,
-  avatarUrl,
   index = 0,
   onPress,
 }: EstablishmentCardProps) {
@@ -44,10 +54,9 @@ export function EstablishmentCard({
       accessibilityRole="button"
       accessibilityLabel={`${name}${location ? `, ${location}` : ""}`}
     >
-      {/* Large resort photograph on the left */}
+      {/* Resort cover photograph */}
       <View style={styles.imageWrap}>
         <Image source={photoSource} style={styles.image} resizeMode="cover" />
-        {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatar} /> : null}
       </View>
 
       {/* Center information column */}
@@ -108,8 +117,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "#E2E8F0",
   },
-  imageWrap: { width: 90, height: 90, position: "relative" },
-  avatar: { position: "absolute", width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: "#fff", left: 28, bottom: 5, backgroundColor: "#fff" },
+  imageWrap: {
+    width: 90,
+    height: 90,
+    overflow: "hidden",
+    borderRadius: 14,
+  },
   infoCol: {
     flex: 1,
     justifyContent: "center",

@@ -22,6 +22,7 @@ import { spacing } from "../../../constants/spacing";
 import { typography } from "../../../constants/typography";
 import { useAuth } from "../../../hooks/useAuth";
 import { FileInfo, uploadFile } from "../../../lib/storage";
+import { safeBack } from "../../../lib/navigation";
 import { supabase } from "../../../lib/supabase";
 
 const nationalityOptions = [
@@ -245,7 +246,7 @@ export default function DiveDetailsStep1() {
       stepDescription={currentStep === 0
         ? "Confirm your account name, nationality, and emergency contact."
         : "Choose your pass and provide your dive credentials."}
-      onHeaderBack={() => currentStep > 0 ? goBack() : router.back()}
+      onHeaderBack={() => currentStep > 0 ? goBack() : safeBack(router, "/(tabs)/eco-dive-id")}
       secondaryAction={currentStep > 0 ? { label: "Back", onPress: goBack } : undefined}
       primaryLabel={currentStep === 1 ? "Complete Profile" : "Continue"}
       onPrimaryPress={handleContinue}

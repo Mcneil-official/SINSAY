@@ -2,6 +2,7 @@ import React from "react";
 import {
     ActivityIndicator,
     Animated,
+    Platform,
     Pressable,
     StyleSheet,
     Text,
@@ -32,6 +33,7 @@ export function Button({
   const isPrimary = variant === "primary";
   const isOutline = variant === "outline";
   const isSecondary = variant === "secondary";
+  const useNativeDriver = Platform.OS !== "web";
 
   return (
       <Pressable
@@ -48,14 +50,14 @@ export function Button({
         Animated.timing(scale, {
           toValue: 0.97,
           duration: 120,
-          useNativeDriver: true,
+          useNativeDriver,
         }).start()
       }
       onPressOut={() =>
         Animated.timing(scale, {
           toValue: 1,
           duration: 180,
-          useNativeDriver: true,
+          useNativeDriver,
         }).start()
       }
       disabled={disabled || loading}

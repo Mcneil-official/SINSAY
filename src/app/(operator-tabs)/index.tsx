@@ -51,11 +51,14 @@ interface OperatorStats {
 
 export default function OperatorDashboardScreen() {
   const router = useRouter();
-  const { user, profile, avatarUri, isLoading: authLoading, unreadCount } = useAuth();
+  const { user, profile, operatorApplication, avatarUri, isLoading: authLoading, unreadCount } = useAuth();
   const { isDesktop, isTablet } = useLayout();
   const isWide = isDesktop || isTablet;
 
-  const [establishmentName, setEstablishmentName] = useState<string>("");
+  const establishmentName =
+    operatorApplication?.resort_name ||
+    user?.user_metadata?.full_name?.split(" ")[0] ||
+    "Operator";
 
   const [todayDivers, setTodayDivers] = useState(0);
   const [yesterdayDivers, setYesterdayDivers] = useState(0);
@@ -69,28 +72,6 @@ export default function OperatorDashboardScreen() {
   const [manifests, setManifests] = useState<ManifestItem[]>([]);
   const [manifestLoading, setManifestLoading] = useState(true);
   const [manifestError, setManifestError] = useState(false);
-
-  const loadEstablishment = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("operator_applications")
-        .select("resort_name")
-        .eq("tourist_id", user!.id)
-        .eq("status", "approved")
-        .maybeSingle();
-      if (error) throw error;
-      if (data?.resort_name) setEstablishmentName(data.resort_name);
-      else
-        setEstablishmentName(
-          user?.user_metadata?.full_name?.split(" ")[0] || "Operator",
-        );
-    } catch (e) {
-      console.warn("Establishment load error", e);
-      setEstablishmentName(
-        user?.user_metadata?.full_name?.split(" ")[0] || "Operator",
-      );
-    }
-  };
 
   const loadStatsLegacy = useCallback(async () => {
     try {
@@ -244,7 +225,6 @@ export default function OperatorDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
-      void loadEstablishment();
       void loadStats();
       void loadManifests();
     }, [user, loadStats, loadManifests]),

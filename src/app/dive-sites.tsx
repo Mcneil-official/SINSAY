@@ -23,6 +23,7 @@ import {
   resolveSiteImage,
 } from "../components";
 import { colors } from "../constants/colors";
+import { safeBack } from "../lib/navigation";
 import { supabase } from "../lib/supabase";
 import { DiveSiteRow } from "../types/supabase";
 
@@ -237,7 +238,7 @@ export default function DiveSitesScreen() {
               <View style={styles.headerLeftGroup}>
                 <TouchableOpacity
                   style={styles.fallbackBackBtn}
-                  onPress={() => router.back()}
+                  onPress={() => safeBack(router, "/(tabs)")}
                   activeOpacity={0.8}
                   hitSlop={10}
                   accessibilityRole="button"
@@ -303,7 +304,7 @@ export default function DiveSitesScreen() {
                 <View style={styles.headerLeftGroup}>
                   <TouchableOpacity
                     style={styles.heroBackBtn}
-                    onPress={() => router.back()}
+                    onPress={() => safeBack(router, "/(tabs)")}
                     activeOpacity={0.82}
                     hitSlop={10}
                     accessibilityRole="button"

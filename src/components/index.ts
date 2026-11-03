@@ -14,7 +14,7 @@ export { Dropdown } from "./Dropdown";
 export { DateField } from "./DateField";
 export { EmptyState } from "./EmptyState";
 export { ErrorState } from "./ErrorState";
-export { EstablishmentCard } from "./EstablishmentCard";
+export { EstablishmentCard, resolveEstablishmentMedia } from "./EstablishmentCard";
 export { FileUpload } from "./FileUpload";
 export { HeroCarousel } from "./HeroCarousel";
 export { GCashLogo } from "./GCashLogo";

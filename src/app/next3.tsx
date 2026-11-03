@@ -1,6 +1,7 @@
 import { Stack, useRouter } from "expo-router";
 import React from "react";
 import EcoOnboarding from "../components/EcoOnboarding";
+import { safeBack } from "../lib/navigation";
 
 export default function Next3Page() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function Next3Page() {
         titleGap={8}
         illustrationAspect={960 / 1280}
         illustrationOffsetY={52}
-        onBack={() => router.back()}
+        onBack={() => safeBack(router, "/next2")}
         onFinish={() => router.replace("/(tabs)")}
       />
     </>

@@ -12,9 +12,11 @@ import {
   EmptyState,
   ErrorState,
   EstablishmentCard,
+  resolveEstablishmentMedia,
   ScreenHeader,
 } from "../components";
 import { colors } from "../constants/colors";
+import { safeBack } from "../lib/navigation";
 import { supabase } from "../lib/supabase";
 import { EstablishmentRow } from "../types/supabase";
 
@@ -60,7 +62,7 @@ export default function EstablishmentsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="Dive Resorts" onBack={() => router.back()} />
+      <ScreenHeader title="Dive Resorts" onBack={() => safeBack(router, "/(tabs)")} />
 
       {loading ? (
         <View style={styles.center}>
@@ -80,15 +82,17 @@ export default function EstablishmentsScreen() {
         >
           <ContentContainer maxWidth={900} style={styles.gridInner}>
             <View style={styles.list}>
-              {establishments.map((est, idx) => (
+              {establishments.map((est, idx) => {
+                const { imageUrl } = resolveEstablishmentMedia(est);
+                return (
                 <EstablishmentCard
                   key={est.id}
                   name={est.name}
                   location={est.location}
                   accreditation={est.accreditation}
                   accredited={est.accredited}
-                  imageUrl={est.cover_image_paths?.[0] ? supabase.storage.from("operator_media").getPublicUrl(est.cover_image_paths[0]).data.publicUrl : est.image_url}
-                  avatarUrl={est.operator_avatar_path ? supabase.storage.from("operator_media").getPublicUrl(est.operator_avatar_path).data.publicUrl : undefined}
+                  imageUrl={imageUrl}
+
                   index={idx}
                   onPress={() =>
                     router.push({
@@ -97,7 +101,8 @@ export default function EstablishmentsScreen() {
                     })
                   }
                 />
-              ))}
+                );
+              })}
             </View>
           </ContentContainer>
         </ScrollView>

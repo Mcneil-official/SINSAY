@@ -7,6 +7,7 @@ import { ContentContainer, TextInput } from "../components";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { showAlert } from "../lib/confirm";
+import { safeBack } from "../lib/navigation";
 import { uploadFile } from "../lib/storage";
 import { supabase } from "../lib/supabase";
 
@@ -24,6 +25,7 @@ export default function OperatorProfileEditScreen() {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("resort");
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof values, string>>>({});
+  const handleBack = () => safeBack(router, "/(operator-tabs)/profile");
   const change = (key: keyof typeof values, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
     setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
@@ -105,7 +107,7 @@ export default function OperatorProfileEditScreen() {
       if (removed.length) await supabase.storage.from("operator_media").remove(removed);
       await refreshProfile();
       if (emailNotice) showAlert("Profile updated", emailNotice); else showAlert("Profile updated", "Your resort and account details have been saved.");
-      router.back();
+      handleBack();
     } catch (e) {
       if (uploaded.length) await supabase.storage.from("operator_media").remove(uploaded);
       setError(e instanceof Error ? e.message : "Could not save profile. Please try again.");
@@ -115,7 +117,7 @@ export default function OperatorProfileEditScreen() {
   const field = (label: string, key: keyof typeof values, opts: { multiline?: boolean; keyboardType?: "default" | "email-address" | "phone-pad"; autoCapitalize?: "none" | "sentences" } = {}) => <View style={styles.field} key={key}><TextInput label={label} value={values[key]} onChangeText={(v) => change(key, v)} multiline={opts.multiline} keyboardType={opts.keyboardType || "default"} autoCapitalize={opts.autoCapitalize || "sentences"} placeholder={label} error={fieldErrors[key]} /></View>;
   if (isLoading || !roleReady || !app) return <SafeAreaView style={styles.safe}><ActivityIndicator color={colors.primaryBlue} style={{ marginTop: 48 }} /></SafeAreaView>;
   return <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-    <View style={styles.header}><TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Go back"><Ionicons name="chevron-back" size={21} color="#07156c" /></TouchableOpacity><View style={styles.headerText}><Text style={styles.eyebrow}>PROFILE SETTINGS</Text><Text style={styles.title}>Edit resort profile</Text></View><View style={{ width: 42 }} /></View>
+    <View style={styles.header}><TouchableOpacity style={styles.backButton} onPress={handleBack} accessibilityLabel="Go back"><Ionicons name="chevron-back" size={21} color="#07156c" /></TouchableOpacity><View style={styles.headerText}><Text style={styles.eyebrow}>PROFILE SETTINGS</Text><Text style={styles.title}>Edit resort profile</Text></View><View style={{ width: 42 }} /></View>
     <ContentContainer maxWidth={720} paddingH={12}><View style={styles.tabBar} accessibilityRole="tablist">
       {(["resort", "photos", "account"] as const).map((tab) => {
         const active = activeTab === tab;
@@ -135,7 +137,7 @@ export default function OperatorProfileEditScreen() {
       {activeTab === "account" && <View style={styles.card}><View style={styles.sectionHeader}><View style={styles.sectionIcon}><Ionicons name="person-outline" size={19} color="#087BFF" /></View><View><Text style={styles.section}>Your account</Text><Text style={styles.helper}>Personal contact details</Text></View></View>{field("Full name", "fullName")}{field("Personal phone", "phone", { keyboardType: "phone-pad" })}{field("Email address", "email", { keyboardType: "email-address", autoCapitalize: "none" })}<Text style={styles.emailHint}>Changing your email requires confirmation from your inbox.</Text></View>}
       <View style={{ height: 18 }} />
     </ContentContainer></ScrollView>
-    <View style={styles.footer}>{!!error && <Text style={styles.error}>{error}</Text>}<View style={styles.actions}><TouchableOpacity style={styles.cancel} onPress={() => router.back()}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity style={[styles.save, busy && { opacity: .65 }]} disabled={busy} onPress={save}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save changes</Text>}</TouchableOpacity></View></View>
+    <View style={styles.footer}>{!!error && <Text style={styles.error}>{error}</Text>}<View style={styles.actions}><TouchableOpacity style={styles.cancel} onPress={handleBack}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity style={[styles.save, busy && { opacity: .65 }]} disabled={busy} onPress={save}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save changes</Text>}</TouchableOpacity></View></View>
   </KeyboardAvoidingView></SafeAreaView>;
 }
 
