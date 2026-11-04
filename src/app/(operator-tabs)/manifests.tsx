@@ -981,8 +981,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#e7f3ff",
   },
-  sheetPreviewScroll: { flexShrink: 1 },
-  cardWrap: { alignItems: "flex-start", justifyContent: "center", paddingBottom: 8 },
+  sheetPreviewScroll: { flexShrink: 1, marginBottom: 8 },
+  cardWrap: { alignItems: "flex-start", justifyContent: "center", paddingBottom: 36 },
   sheetMessageBox: {
     flexDirection: "row",
     alignItems: "center",
