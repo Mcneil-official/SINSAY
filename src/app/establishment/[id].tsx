@@ -19,6 +19,9 @@ import { safeBack } from "../../lib/navigation";
 import { supabase } from "../../lib/supabase";
 import { EstablishmentRow } from "../../types/supabase";
 
+const PCSSD_LOGO = require("../../../assets/logo-pcssd.png");
+const DOT_LOGO = require("../../../assets/logo-dot.png");
+
 export default function EstablishmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -167,6 +170,51 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   heroOverlay: { opacity: 0.6 },
+  accreditationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4.5,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    borderRadius: 999,
+    paddingHorizontal: 8.5,
+    paddingVertical: 3,
+  },
+  verifiedBadgeText: {
+    color: "#059669",
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+  },
+  officialBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5.5,
+    backgroundColor: "#F0F6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 999,
+    paddingVertical: 2.5,
+    paddingHorizontal: 8,
+  },
+  officialBadgeLogo: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  officialBadgeText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: "#1E40AF",
+  },
   accreditationBadge: {
     position: "absolute",
     top: 12,

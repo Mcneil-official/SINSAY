@@ -142,6 +142,8 @@ export interface TouristRow {
   logbook_upload_path: string | null;
   business_permit_url: string | null;
   pcss_url: string | null;
+  pcssd_url?: string | null;
+  dot_url?: string | null;
   language_preference: string;
   avatar_path?: string | null;
   age?: number | null;
@@ -199,6 +201,8 @@ export interface OperatorApplicationRow {
   website_url: string | null;
   business_permit_url: string | null;
   pcss_url: string | null;
+  pcssd_url?: string | null;
+  dot_url?: string | null;
   status: "pending" | "approved" | "rejected";
   rejection_reason: string | null;
   created_at: string;
@@ -386,6 +390,10 @@ export interface EstablishmentRow {
   lng?: number | null;
   updated_at?: string | null;
   accredited: boolean;
+  is_pcssd_accredited?: boolean | null;
+  is_dot_accredited?: boolean | null;
+  pcssd_url?: string | null;
+  dot_url?: string | null;
   created_at: string;
 }
 

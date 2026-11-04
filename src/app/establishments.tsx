@@ -91,6 +91,8 @@ export default function EstablishmentsScreen() {
                   location={est.location}
                   accreditation={est.accreditation}
                   accredited={est.accredited}
+                  isPcssdAccredited={!!est.is_pcssd_accredited}
+                  isDotAccredited={!!est.is_dot_accredited}
                   imageUrl={imageUrl}
 
                   index={idx}

@@ -4,6 +4,9 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "../constants/colors";
 import { supabase } from "../lib/supabase";
 
+const PCSSD_LOGO = require("../../assets/logo-pcssd.png");
+const DOT_LOGO = require("../../assets/logo-dot.png");
+
 export function resolveEstablishmentMedia(est: {
   cover_image_paths?: string[] | null;
   image_url?: string | null;
@@ -25,6 +28,8 @@ export interface EstablishmentCardProps {
   location?: string | null;
   accreditation?: string | null;
   accredited?: boolean;
+  isPcssdAccredited?: boolean;
+  isDotAccredited?: boolean;
   imageUrl?: string | null;
   phone?: string | null;
   index?: number;
@@ -36,6 +41,8 @@ export function EstablishmentCard({
   location,
   accreditation,
   accredited = true,
+  isPcssdAccredited = false,
+  isDotAccredited = false,
   imageUrl,
   index = 0,
   onPress,
@@ -61,14 +68,32 @@ export function EstablishmentCard({
 
       {/* Center information column */}
       <View style={styles.infoCol}>
-        {badgeLabel ? (
-          <View style={styles.badge}>
-            <Ionicons name="checkmark-circle" size={12} color={colors.green} />
-            <Text style={styles.badgeText} numberOfLines={1}>
-              {badgeLabel}
-            </Text>
-          </View>
-        ) : null}
+        <View style={styles.badgeRow}>
+          {badgeLabel ? (
+            <View style={styles.badge}>
+              <Ionicons name="checkmark-circle" size={12} color={colors.green} />
+              <Text style={styles.badgeText} numberOfLines={1}>
+                {badgeLabel}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Official PCSSD and DOT Accreditation Emblems */}
+          {isPcssdAccredited || isDotAccredited ? (
+            <View style={styles.emblemsWrap}>
+              {isPcssdAccredited ? (
+                <View style={styles.emblemBadge} accessibilityLabel="PCSSD Accredited">
+                  <Image source={PCSSD_LOGO} style={styles.emblemImage} resizeMode="contain" />
+                </View>
+              ) : null}
+              {isDotAccredited ? (
+                <View style={styles.emblemBadge} accessibilityLabel="DOT Accredited">
+                  <Image source={DOT_LOGO} style={styles.emblemImage} resizeMode="contain" />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
 
         <Text style={styles.name} numberOfLines={1}>
           {name}
@@ -111,23 +136,29 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  image: {
-    width: 90,
-    height: 90,
-    borderRadius: 14,
-    backgroundColor: "#E2E8F0",
-  },
   imageWrap: {
-    width: 90,
-    height: 90,
-    overflow: "hidden",
+    width: 96,
+    height: 76,
     borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#E2E8F0",
+    flexShrink: 0,
+  },
+  image: {
+    width: "100%",
+    height: "100%",
   },
   infoCol: {
     flex: 1,
-    justifyContent: "center",
     gap: 4,
+    justifyContent: "center",
     minWidth: 0,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
   },
   badge: {
     flexDirection: "row",
@@ -146,6 +177,31 @@ const styles = StyleSheet.create({
     fontFamily: "Quicksand_700Bold",
     fontWeight: "700",
     color: "#059669",
+  },
+  emblemsWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  emblemBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+    borderWidth: 0.5,
+    borderColor: "#E2E8F0",
+  },
+  emblemImage: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
   },
   name: {
     fontSize: 15,

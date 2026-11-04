@@ -668,6 +668,8 @@ export default function HomeScreen() {
                       location={item.location}
                       accreditation={item.accreditation}
                       accredited={item.accredited}
+                      isPcssdAccredited={!!item.is_pcssd_accredited}
+                      isDotAccredited={!!item.is_dot_accredited}
                       imageUrl={imageUrl}
                       index={idx}
                       onPress={() =>

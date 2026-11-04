@@ -44,12 +44,17 @@ function ProfileRow({ icon, label, subtitle, onPress, destructive }: ProfileRowP
   );
 }
 
+const PCSSD_LOGO = require("../../../assets/logo-pcssd.png");
+const DOT_LOGO = require("../../../assets/logo-dot.png");
+
 export default function OperatorProfileScreen() {
   const { user, profile, operatorApplication, avatarUri, signOut, isLoading, setViewAsTourist, viewAsTourist } = useAuth();
   const { isInstalled, promptInstall } = usePWAInstall();
   const router = useRouter();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const hasPcssd = !!(operatorApplication?.pcssd_url || operatorApplication?.pcss_url);
+  const hasDot = !!operatorApplication?.dot_url;
   const contactLinks: { icon: keyof typeof Ionicons.glyphMap; value: string; url: string }[] = [];
   if (operatorApplication?.contact_number) contactLinks.push({ icon: "call-outline", value: operatorApplication.contact_number, url: `tel:${operatorApplication.contact_number}` });
   if (operatorApplication?.resort_email) contactLinks.push({ icon: "mail-outline", value: operatorApplication.resort_email, url: `mailto:${operatorApplication.resort_email}` });
@@ -113,6 +118,22 @@ export default function OperatorProfileScreen() {
             <View style={styles.identityText}>
               <View style={styles.identityNameRow}><Text style={styles.profileName}>{operatorApplication?.resort_name || "Your dive resort"}</Text><View style={styles.verifiedMark}><Ionicons name="checkmark-circle" size={15} color="#0D9B74" /><Text style={styles.verifiedText}>Verified</Text></View></View>
               <View style={styles.locationRow}><Ionicons name="location-outline" size={16} color="#087BFF" /><Text style={styles.profileEmail}>{operatorApplication?.resort_location || "Add your resort location"}</Text></View>
+              {(hasPcssd || hasDot) ? (
+                <View style={styles.accreditationsRow}>
+                  {hasPcssd ? (
+                    <View style={styles.accreditationChip}>
+                      <Image source={PCSSD_LOGO} style={styles.accreditationChipLogo} resizeMode="contain" />
+                      <Text style={styles.accreditationChipText}>PCSSD Accredited</Text>
+                    </View>
+                  ) : null}
+                  {hasDot ? (
+                    <View style={styles.accreditationChip}>
+                      <Image source={DOT_LOGO} style={styles.accreditationChipLogo} resizeMode="contain" />
+                      <Text style={styles.accreditationChipText}>DOT Accredited</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
           </View>
           <TouchableOpacity style={styles.editProfileButton} onPress={() => router.push("/operator-profile-edit")}><Ionicons name="create-outline" size={17} color="#fff" /><Text style={styles.editProfileText}>Edit resort profile</Text></TouchableOpacity>
@@ -202,6 +223,34 @@ const styles = StyleSheet.create({
   pageHeading: { marginTop: 12, marginBottom: 12 },
   eyebrow: { fontSize: 10, letterSpacing: 1.3, color: "rgba(255,255,255,0.82)", fontFamily: "Quicksand_700Bold" },
   headerTitle: { fontSize: 25, fontFamily: "Quicksand_700Bold", color: "#FFFFFF", marginTop: 2 },
+  accreditationsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+    flexWrap: "wrap",
+  },
+  accreditationChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4.5,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 999,
+    paddingVertical: 2,
+    paddingHorizontal: 7.5,
+  },
+  accreditationChipLogo: {
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
+  },
+  accreditationChipText: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#1E40AF",
+  },
   identityCard: { position: "absolute", left: 0, right: 0, bottom: -40, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e4effa", borderRadius: 20, padding: 15, shadowColor: "#07156c", shadowOpacity: 0.1, shadowRadius: 11, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   identityTitleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   identityAvatar: { width: 62, height: 62, flexShrink: 0, borderRadius: 31, borderWidth: 3, borderColor: "#e7f3ff", backgroundColor: "#edf6ff", alignItems: "center", justifyContent: "center", overflow: "hidden" },
