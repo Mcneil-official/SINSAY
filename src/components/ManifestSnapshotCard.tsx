@@ -1,7 +1,10 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { SINSAY_WHITE_LOGO_URI } from "../constants/manifestLogo";
+import { MANIFESTO_HERO_BG_URI } from "../constants/manifestHeroBg";
+
+const HERO_BG_IMAGE = require("../../assets/manifesto-hero-bg.png");
 
 export interface ManifestSnapshotDiver {
   name: string;
@@ -184,6 +187,8 @@ function renderTileIcon(tile: VesselTile) {
   }
 }
 
+
+
 // 1024px Official Boat Dive Manifesto Canvas
 export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
   function ManifestSnapshotCard({ manifest, divers, operatorName }, ref) {
@@ -260,11 +265,26 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
       },
     ];
 
+    const [heroImgSource, setHeroImgSource] = useState<any>(HERO_BG_IMAGE);
+
     return (
       <View ref={ref} style={styles.canvas} collapsable={false}>
-        {/* Top Underwater Hero Background (1024x362 with diver, bubbles, and organic wave transition) */}
+        {/* Fallback Gradient */}
+        <Svg width={1024} height={362} style={styles.heroBackground}>
+          <Defs>
+            <LinearGradient id="heroFallbackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor="#0B79F2" />
+              <Stop offset="50%" stopColor="#0060DF" />
+              <Stop offset="100%" stopColor="#003599" />
+            </LinearGradient>
+          </Defs>
+          <Rect width={1024} height={362} fill="url(#heroFallbackGrad)" />
+        </Svg>
+
+        {/* Hero Background Image */}
         <Image
-          source={require("../../assets/manifesto-hero-bg.png")}
+          source={heroImgSource}
+          onError={() => setHeroImgSource({ uri: MANIFESTO_HERO_BG_URI })}
           style={styles.heroBackground}
           resizeMode="cover"
         />
@@ -402,6 +422,7 @@ const styles = StyleSheet.create({
     left: 0,
     width: 1024,
     height: 362,
+    backgroundColor: "#0B79F2",
   },
   topHeader: {
     position: "absolute",

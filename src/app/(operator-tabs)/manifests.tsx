@@ -380,7 +380,7 @@ export default function ManifestsScreen() {
           ) : loadError ? (
             <View style={styles.stateCard}>
               <View style={styles.stateIcon}><Ionicons name="cloud-offline-outline" size={25} color="#006bff" /></View>
-              <Text style={styles.stateTitle}>Couldn't load manifests</Text>
+              <Text style={styles.stateTitle}>{"Couldn't load manifests"}</Text>
               <Text style={styles.stateMessage}>Check your connection and try again.</Text>
               <TouchableOpacity
                 style={styles.stateAction}

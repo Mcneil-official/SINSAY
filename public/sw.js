@@ -1,8 +1,9 @@
-const CACHE_NAME = "sinsay-v5";
+const CACHE_NAME = "sinsay-v6";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/offline.html",
+  "/manifesto-hero-bg.png",
 ];
 
 self.addEventListener("install", (event) => {

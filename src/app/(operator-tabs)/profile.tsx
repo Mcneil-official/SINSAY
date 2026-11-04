@@ -11,6 +11,7 @@ import {
   View,
   ActivityIndicator,
   Linking,
+  Image,
 } from "react-native";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
@@ -18,7 +19,6 @@ import { showAlert } from "../../lib/confirm";
 import { ConfirmModal, ContentContainer } from "../../components";
 import { usePWAInstall } from "../../context/PWAContext";
 import { supabase } from "../../lib/supabase";
-import { Image } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 
 interface ProfileRowProps {

@@ -22,6 +22,33 @@ if (fs.existsSync(publicDir)) {
   }
 }
 
+// 1b. Ensure manifesto hero background exists at all potential production URLs
+const heroSrc = path.resolve(__dirname, '../public/manifesto-hero-bg.png');
+if (fs.existsSync(heroSrc)) {
+  const targetDirs = [
+    distDir,
+    path.join(distDir, 'assets'),
+    path.join(distDir, 'assets', 'assets')
+  ];
+  for (const tDir of targetDirs) {
+    if (!fs.existsSync(tDir)) {
+      fs.mkdirSync(tDir, { recursive: true });
+    }
+    fs.copyFileSync(heroSrc, path.join(tDir, 'manifesto-hero-bg.png'));
+  }
+  // Also copy to any hashed manifesto-hero-bg variants found in dist/assets/assets
+  const assetsAssetsDir = path.join(distDir, 'assets', 'assets');
+  if (fs.existsSync(assetsAssetsDir)) {
+    const existing = fs.readdirSync(assetsAssetsDir);
+    for (const f of existing) {
+      if (f.startsWith('manifesto-hero-bg') && f.endsWith('.png')) {
+        fs.copyFileSync(heroSrc, path.join(assetsAssetsDir, f));
+      }
+    }
+  }
+  console.log('Ensured manifesto-hero-bg.png copied to all dist asset paths');
+}
+
 // 2. Patch dist/index.html with PWA tags
 const indexPath = path.join(distDir, 'index.html');
 if (fs.existsSync(indexPath)) {
