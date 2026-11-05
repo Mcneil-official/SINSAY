@@ -7,7 +7,7 @@ import { Platform } from "react-native";
  */
 export function setSystemThemeColor(
   themeColor: string,
-  appleStatusBarStyle: "default" | "black-translucent" = "default"
+  appleStatusBarStyle: "default" | "black-translucent" = "black-translucent"
 ) {
   if (Platform.OS !== "web") return;
   try {

@@ -1,38 +1,48 @@
-import { usePathname } from "expo-router";
+import { useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { colors } from "../constants/colors";
 import { setSystemThemeColor } from "../lib/themeColor";
 
 export function SystemBarsSync() {
-  const pathname = usePathname();
+  const segments = useSegments() as string[];
 
-  // Blue full-screen splash or welcome routes
-  const isSplash = pathname === "/" || pathname === "/splash";
-  const isAuthBlueWave =
-    pathname === "/loginpage" ||
-    pathname === "/signup";
-  const isOperatorDashboard =
-    pathname === "/(operator-tabs)" || pathname === "/(operator-tabs)/";
+  // Route group detection:
+  // - [] -> Root index (src/app/index.tsx, splash / welcome)
+  // - ["(tabs)"] -> Tourist tab screens
+  // - ["(operator-tabs)"] -> Operator tab screens
+  const isRootIndex = segments.length === 0;
+  const isOperatorGroup = segments[0] === "(operator-tabs)";
+  const isTouristGroup = segments[0] === "(tabs)";
+
+  // Auth pages with ocean wave top
+  const isAuthPage =
+    segments[0] === "loginpage" || segments[0] === "signup";
+
+  // Full-bleed splash / welcome screen (ONLY when on the actual root index screen)
+  const isSplash = isRootIndex;
 
   useEffect(() => {
     if (isSplash) {
-      // Full-bleed splash: blue top and bottom edges
+      // Splash screen: full-bleed blue with translucent system bar
       setSystemThemeColor(colors.splashBlue, "black-translucent");
-    } else if (isAuthBlueWave) {
-      // Auth screens with blue wave header: status bar blends with blue, but overall theme is white
-      setSystemThemeColor("#FFFFFF", "default");
     } else {
-      // Standard pages (Tourist Home, Operator Dashboard, Profile, Manifests, etc.):
-      // Default to clean white so the bottom navigation bar and edges match the page!
-      setSystemThemeColor("#FFFFFF", "default");
+      // Standard pages (Tourist Home, Operator Dashboard, Manifests, Profile, etc.):
+      // #FFFFFF theme color guarantees Android's bottom 3-button system bar
+      // blends seamlessly with the white BottomNav container without a blue strip!
+      setSystemThemeColor("#FFFFFF", "black-translucent");
     }
-  }, [pathname, isSplash, isAuthBlueWave]);
+  }, [isSplash]);
 
   // Determine status bar text/icon contrast:
-  // - "light" (white icons) on full-screen splash and operator dashboard blue top header
-  // - "dark" (black icons) on white header pages
-  const isLightStatusBar = isSplash || isAuthBlueWave || isOperatorDashboard;
+  // - "light" (white icons) on full-screen splash and operator dashboard top header
+  // - "dark" (black icons) on white header screens
+  const isOperatorHome = isOperatorGroup && segments.length === 1;
+  const isLightStatusBar = isSplash || isAuthPage || isOperatorHome;
 
-  return <StatusBar style={isLightStatusBar ? "light" : "dark"} />;
+  return (
+    <StatusBar
+      style={isLightStatusBar ? "light" : "dark"}
+    />
+  );
 }
