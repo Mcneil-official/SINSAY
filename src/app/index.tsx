@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   Dimensions,
@@ -33,6 +34,7 @@ export default function Index() {
   if (isWide) {
     return (
       <View style={styles.wideRoot}>
+        <StatusBar style="dark" />
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.wideCard}>
           <View style={styles.wideLeft}>
@@ -73,6 +75,7 @@ export default function Index() {
 
   return (
     <View style={styles.mobileRoot}>
+      <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
       <AuthWelcome active={!showSplash} />
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}

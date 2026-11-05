@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { colors } from "../constants/colors";
 import { useScreenTransition } from "../context/ScreenTransitionContext";
 
@@ -101,6 +102,7 @@ export default function AuthWelcome({ active }: AuthWelcomeProps) {
 
   return (
     <View style={styles.screen}>
+      <StatusBar style="light" />
       <Animated.View
         style={[
           styles.logoSlot,

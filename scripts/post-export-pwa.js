@@ -58,12 +58,17 @@ if (fs.existsSync(indexPath)) {
   // appropriate diving icon. The installed PWA icon is configured in the manifest.
   html = html.replace(/^\s*<link rel="(?:manifest|icon|apple-touch-icon)"[^>]*>\s*$/gim, '');
 
+  // Ensure viewport includes viewport-fit=cover for edge-to-edge rendering behind notch & status bar
+  html = html.replace(/<meta\s+name="viewport"\s+content="([^"]*)"/i, (m, val) => {
+    return val.includes('viewport-fit=cover') ? m : `<meta name="viewport" content="${val}, viewport-fit=cover"`;
+  });
+
   const pwaTags = `
     <!-- PWA Web App Manifest & Mobile Configuration -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="SINSAY" />
     <meta name="application-name" content="SINSAY" />
     <meta name="theme-color" content="#005AF1" />

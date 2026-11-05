@@ -7,6 +7,11 @@
     "icon": "./public/SINSAY-favicon.png",
     "scheme": "sinsay",
     "userInterfaceStyle": "light",
+    "statusBar": {
+      "style": "light",
+      "translucent": true,
+      "backgroundColor": "transparent"
+    },
     "ios": {
       "bundleIdentifier": "com.mcneilofficialsteam.sinsay",
       "infoPlist": {

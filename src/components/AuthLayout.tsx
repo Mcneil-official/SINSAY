@@ -6,6 +6,7 @@ import { Quicksand_700Bold } from "@expo-google-fonts/quicksand/700Bold";
 import { Image } from "expo-image";
 import { useFonts } from "expo-font";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React from "react";
 import {
   Pressable,
@@ -117,6 +118,7 @@ export function AuthLayout({
   if (isWide) {
     return (
       <View style={styles.wideRoot}>
+        <StatusBar style="dark" />
         <View style={styles.wideCard}>
           <View style={styles.wideLeft}>
             <WaveDivider width={84} />
@@ -158,6 +160,7 @@ export function AuthLayout({
 
   return (
     <View style={styles.mobileRoot}>
+      <StatusBar style="light" />
       <View style={[styles.header, { height: headerHeight }]}>
         <Svg
           style={[styles.hero, { height: blueHeight }]}

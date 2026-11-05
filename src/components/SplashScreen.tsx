@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, StyleSheet } from "react-native";
 import { colors } from "../constants/colors";
@@ -55,23 +56,26 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
   }, [logoOpacity, logoScale, overlayOpacity]);
 
   return (
-    <Animated.View
-      style={[styles.overlay, { opacity: overlayOpacity }]}
-      pointerEvents="auto"
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel="SINSAY"
-    >
+    <>
+      <StatusBar style="light" />
       <Animated.View
-        style={{ opacity: logoOpacity, transform: [{ scale: logoScale }] }}
+        style={[styles.overlay, { opacity: overlayOpacity }]}
+        pointerEvents="auto"
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel="SINSAY"
       >
-        <Image
-          source={require("../../assets/SINSAY white logo.png")}
-          style={styles.logo}
-          contentFit="contain"
-        />
+        <Animated.View
+          style={{ opacity: logoOpacity, transform: [{ scale: logoScale }] }}
+        >
+          <Image
+            source={require("../../assets/SINSAY white logo.png")}
+            style={styles.logo}
+            contentFit="contain"
+          />
+        </Animated.View>
       </Animated.View>
-    </Animated.View>
+    </>
   );
 }
 
