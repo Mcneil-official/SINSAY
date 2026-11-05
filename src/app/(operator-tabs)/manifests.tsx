@@ -17,6 +17,7 @@ import {
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { ContentContainer, ManifestSkeleton } from "../../components";
 import { ManifestSnapshotCard, ManifestSnapshotDiver } from "../../components/ManifestSnapshotCard";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
 import { deriveManifestStatus, deriveStatus, formatDiveDate, toLocalDateString } from "../../lib/diveDate";
@@ -56,6 +57,8 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function ManifestsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const safeTop = Math.max(insets.top, 38);
   const { user, operatorApplication } = useAuth();
   const [tab, setTab] = useState<Tab>("upcoming");
   const [manifests, setManifests] = useState<ManifestItem[]>([]);
@@ -286,7 +289,7 @@ export default function ManifestsScreen() {
         </Svg>
       </View>
 
-      <View style={styles.fixedHeader}>
+      <View style={[styles.fixedHeader, { paddingTop: safeTop }]}>
         <ContentContainer maxWidth={480} paddingH={14}>
           <View style={styles.heroHeader}>
             <View style={styles.heroCopy}>
@@ -682,7 +685,7 @@ const styles = StyleSheet.create({
   },
   container: { flex: 1, minHeight: 0 },
   fixedHeader: { flexShrink: 0, paddingTop: 20 },
-  scrollContent: { paddingBottom: 20 },
+  scrollContent: { paddingBottom: 116 },
   heroHeader: {
     flexDirection: "row",
     alignItems: "center",

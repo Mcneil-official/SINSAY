@@ -13,6 +13,7 @@ import {
   Linking,
   Image,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
 import { showAlert } from "../../lib/confirm";
@@ -51,6 +52,8 @@ export default function OperatorProfileScreen() {
   const { user, profile, operatorApplication, avatarUri, signOut, isLoading, setViewAsTourist, viewAsTourist } = useAuth();
   const { isInstalled, promptInstall } = usePWAInstall();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const safeTop = Math.max(insets.top, 38);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasPcssd = Boolean(
@@ -111,7 +114,7 @@ export default function OperatorProfileScreen() {
           <Path d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z" fill="#FFFFFF" opacity={0.16} />
         </Svg>
       </View>
-      <View style={styles.fixedProfileHeader}>
+      <View style={[styles.fixedProfileHeader, { paddingTop: safeTop }]}>
         <ContentContainer maxWidth={720} paddingH={16}>
         <View style={styles.profileTopSection}>
         <View style={styles.pageHeading}><Text style={styles.eyebrow}>OPERATOR ACCOUNT</Text><Text style={styles.headerTitle}>Profile</Text></View>
@@ -221,7 +224,7 @@ const styles = StyleSheet.create({
   headerWaveSvg: { position: "absolute", top: 10, left: 0, width: "100%", height: 190 },
   container: { flex: 1, minHeight: 0 },
   fixedProfileHeader: { flexShrink: 0, paddingTop: 20 },
-  scrollContent: { paddingBottom: 16 },
+  scrollContent: { paddingBottom: 116 },
   profileTopSection: { height: 184, position: "relative" },
   pageHeading: { marginTop: 12, marginBottom: 12 },
   eyebrow: { fontSize: 10, letterSpacing: 1.3, color: "rgba(255,255,255,0.82)", fontFamily: "Quicksand_700Bold" },

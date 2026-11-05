@@ -286,19 +286,6 @@ export default function PaymentScreen() {
             accessibilityRole="button"
             accessibilityLabel="Proceed to upload receipt"
           >
-            <Svg
-              style={StyleSheet.absoluteFill}
-              preserveAspectRatio="none"
-              pointerEvents="none"
-            >
-              <Defs>
-                <LinearGradient id="uploadBtnGrad" x1="0" y1="0" x2="1" y2="1">
-                  <Stop offset="0" stopColor="#0065fa" />
-                  <Stop offset="1" stopColor="#53acff" />
-                </LinearGradient>
-              </Defs>
-              <Rect width="100%" height="100%" rx={18} fill="url(#uploadBtnGrad)" />
-            </Svg>
             <Ionicons name="cloud-upload" size={18} color="#FFFFFF" />
             <Text style={styles.uploadCtaBtnText}>Proceed to Upload Receipt</Text>
             <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
@@ -619,6 +606,7 @@ const styles = StyleSheet.create({
   uploadCtaBtn: {
     height: 48,
     borderRadius: 18,
+    backgroundColor: "#0065fa",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

@@ -12,6 +12,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ConfirmModal from "../../../components/ConfirmModal";
 import ContentContainer from "../../../components/ContentContainer";
 import { colors } from "../../../constants/colors";
@@ -58,6 +59,8 @@ function ProfileRow({
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const safeTop = Math.max(insets.top, 38);
   const {
     user,
     profile,
@@ -114,7 +117,7 @@ export default function ProfileScreen() {
       <StatusBar barStyle="dark-content" />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: safeTop + 6, paddingBottom: 116 }]}
         showsVerticalScrollIndicator={false}
       >
         <ContentContainer maxWidth={560} paddingH={16}>

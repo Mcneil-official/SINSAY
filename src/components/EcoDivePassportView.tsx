@@ -25,6 +25,7 @@ import Svg, {
   Rect,
   Stop,
 } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
@@ -140,6 +141,8 @@ function DefaultAvatarSilhouette() {
 export function EcoDivePassportView() {
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const safeTop = Math.max(insets.top, 38);
   const { user, profile, ecoId, avatarUri, setAvatarUri, clearAvatarOverride, isLoading, refreshProfile, updateProfile } =
     useAuth();
 
@@ -537,7 +540,7 @@ export function EcoDivePassportView() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: safeTop + 6, paddingBottom: 116 }]}
         showsVerticalScrollIndicator={false}
       >
         <ContentContainer maxWidth={560} paddingH={16}>
