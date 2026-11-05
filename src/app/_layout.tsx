@@ -14,6 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import AppShell from "../components/AppShell";
 import PWAInstallBanner from "../components/PWAInstallBanner";
 import PWAInstallModal from "../components/PWAInstallModal";
+import { SystemBarsSync } from "../components/SystemBarsSync";
 import { AuthProvider } from "../context/AuthContext";
 import { LayoutProvider, useLayout } from "../context/LayoutContext";
 import { PWAProvider } from "../context/PWAContext";
@@ -37,6 +38,7 @@ function RootLayoutInner() {
 
   return (
     <View style={styles.root}>
+      <SystemBarsSync />
       <AppShell>
         <PWAInstallBanner />
         <Stack
@@ -90,6 +92,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#E8EDF2",
+    backgroundColor: "#FFFFFF",
   },
 });
