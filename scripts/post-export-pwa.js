@@ -68,10 +68,10 @@ if (fs.existsSync(indexPath)) {
     <link rel="manifest" href="/manifest.json" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="SINSAY" />
     <meta name="application-name" content="SINSAY" />
-    <meta name="theme-color" content="#005AF1" />
+    <meta name="theme-color" content="#FFFFFF" id="sinsay-theme-color" />
     <link rel="apple-touch-icon" href="/pwa-apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="/SINSAY Blue Diving Icon.png" media="(prefers-color-scheme: light)" />
     <link rel="icon" type="image/png" href="/SINSAY White Diving Icon.png" media="(prefers-color-scheme: dark)" />

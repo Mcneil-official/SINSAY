@@ -11,6 +11,7 @@ body,
   overflow: hidden;
   overscroll-behavior: none;
   color-scheme: light;
+  background-color: #ffffff;
 }
 
 /* Keep browser-default focus rings off interactive controls throughout the

@@ -8,7 +8,7 @@
     "scheme": "sinsay",
     "userInterfaceStyle": "light",
     "statusBar": {
-      "style": "light",
+      "style": "auto",
       "translucent": true,
       "backgroundColor": "transparent"
     },
@@ -23,17 +23,18 @@
         "backgroundColor": "#E6F4FE"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.mcneilofficialsteam.sinsay"
+      "package": "com.mcneilofficialsteam.sinsay",
+      "navigationBarColor": "#FFFFFF"
     },
     "web": {
       "output": "single",
       "bundler": "metro",
-        "favicon": "./public/SINSAY-favicon.png",
+      "favicon": "./public/SINSAY-favicon.png",
       "name": "SINSAY",
       "shortName": "SINSAY",
       "description": "Eco-Dive Tourism App for Mabini, Batangas",
-      "themeColor": "#005AF1",
-      "backgroundColor": "#005AF1",
+      "themeColor": "#FFFFFF",
+      "backgroundColor": "#FFFFFF",
       "display": "standalone",
       "startUrl": "/",
       "scope": "/",
@@ -44,13 +45,13 @@
       ],
       "preferRelatedApplications": false,
       "icons": [
-          {
-            "src": "./public/pwa-icon-192.png",
+        {
+          "src": "./public/pwa-icon-192.png",
           "sizes": "192x192",
           "type": "image/png"
         },
         {
-            "src": "./public/pwa-icon-512.png",
+          "src": "./public/pwa-icon-512.png",
           "sizes": "512x512",
           "type": "image/png"
         }
@@ -89,6 +90,10 @@
         "projectId": "e43b1547-7151-48a5-8d42-b9f26a471404"
       }
     },
-    "owner": "mcneil-officials-team"
+    "owner": "mcneil-officials-team",
+    "androidNavigationBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#FFFFFF"
+    }
   }
 }
