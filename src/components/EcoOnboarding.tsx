@@ -5,15 +5,15 @@ import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Animated,
-    Easing,
-    PanResponder,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    useWindowDimensions,
-    View,
+  Animated,
+  Easing,
+  PanResponder,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
@@ -23,16 +23,9 @@ const DESIGN_HEIGHT = 832;
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 const WIDE_BREAKPOINT = 480;
 const WAVE_HEIGHT = 170;
-const CONTENT_TOP = 154;
 const CONTENT_SIDE = 30;
 const FOOTER_SIDE = 24;
-const FOOTER_BOTTOM = 38;
 const BUTTON_HEIGHT = 52;
-
-const ILLUSTRATION_SCALE = 0.7;
-const ILLUSTRATION_WIDTH = 470 * ILLUSTRATION_SCALE;
-const ILLUSTRATION_HEIGHT = 705 * ILLUSTRATION_SCALE;
-const ILLUSTRATION_TOP = 181 + (705 - ILLUSTRATION_HEIGHT) / 2;
 
 type WaveVariant = "marine-life" | "protect" | "control";
 
@@ -84,14 +77,12 @@ export default function EcoOnboarding({
   wave,
   illustrationOffsetY = 0,
   illustrationAspect,
-  illustrationTopLimit,
-  titleGap = 24,
+  titleGap = 12,
   headerOffsetY = 0,
   onNext,
   onBack,
   onSkip,
   onFinish,
-  onReviewTips,
 }: EcoOnboardingProps) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -103,29 +94,29 @@ export default function EcoOnboarding({
   const isWide = width > WIDE_BREAKPOINT;
   const frameWidth = isWide ? DESIGN_WIDTH : width;
   const scale = frameWidth / DESIGN_WIDTH;
-  const availableHeight = height - (isWide ? 0 : insets.top + insets.bottom);
-  const frameHeight = isWide
-    ? Math.min(DESIGN_HEIGHT, availableHeight)
-    : availableHeight;
+  const frameHeight = isWide ? Math.min(DESIGN_HEIGHT, height) : height;
 
-  const baseWidth = ILLUSTRATION_WIDTH * scale;
-  const baseHeight = ILLUSTRATION_HEIGHT * scale;
-  const illustrationBottom = Math.min(
-    (ILLUSTRATION_TOP + illustrationOffsetY + ILLUSTRATION_HEIGHT) * scale,
-    frameHeight
-  );
-  const aspect = illustrationAspect ?? baseWidth / baseHeight;
-  const minImageTop = illustrationTopLimit !== undefined ? illustrationTopLimit * scale : 0;
-  const imageHeight = Math.max(
-    0,
-    Math.min(
-      frameWidth / aspect,
-      illustrationBottom,
-      illustrationBottom - minImageTop
-    )
-  );
+  const safeTop = Math.max(insets.top, 38);
+  const safeBottom = Math.max(insets.bottom, 16);
+
+  // Responsive Content top and height calculations
+  const contentTop = (safeTop + 44) * scale;
+  const contentWidth = frameWidth - CONTENT_SIDE * 2 * scale;
+
+  // Estimate bottom of text block to strictly prevent illustration overlap
+  // dots (20) + titleGap (12) + title 2 lines (~92) + desc margin (14) + desc 3 lines (~65) = ~203
+  const textBlockHeight = (20 + titleGap + 92 + 14 + 65) * scale;
+  const minImageTop = contentTop + textBlockHeight + 10 * scale;
+
+  // Available vertical space for illustration between text block and bottom button
+  const buttonAreaHeight = BUTTON_HEIGHT * scale + safeBottom + 28;
+  const maxImageBottom = frameHeight - buttonAreaHeight;
+  const availableImageHeight = Math.max(120, maxImageBottom - minImageTop);
+
+  const aspect = illustrationAspect ?? (470 / 705);
+  const imageHeight = Math.min(availableImageHeight, frameWidth / aspect);
   const imageWidth = imageHeight * aspect;
-  const imageTop = illustrationBottom - imageHeight;
+  const imageTop = minImageTop + Math.max(0, (availableImageHeight - imageHeight) / 2);
   const imageLeft = (frameWidth - imageWidth) / 2;
 
   const safeTotal = Math.max(total, 1);
@@ -218,7 +209,6 @@ export default function EcoOnboarding({
     [advance, goBack]
   );
 
-  const contentWidth = frameWidth - CONTENT_SIDE * 2 * scale;
   const nextLabel = isLast ? "Done" : "Next";
 
   return (
@@ -228,10 +218,7 @@ export default function EcoOnboarding({
         { backgroundColor: isWide ? "#e8eef5" : "#f8f7f5" },
       ]}
     >
-      <StatusBar style={isWide ? "dark" : "light"} />
-      {!isWide ? (
-        <View style={{ height: insets.top, backgroundColor: "#005EEC" }} />
-      ) : null}
+      <StatusBar style="light" />
       <View
         style={[
           styles.stage,
@@ -242,11 +229,12 @@ export default function EcoOnboarding({
           style={[styles.frame, { width: frameWidth, height: frameHeight }]}
           {...panResponder.panHandlers}
         >
+          {/* Top Wave */}
           <Animated.View
             style={[
               styles.wave,
               {
-                height: (frameWidth * WAVE_HEIGHT) / DESIGN_WIDTH,
+                height: (frameWidth * WAVE_HEIGHT) / DESIGN_WIDTH + safeTop,
                 top: -8 + headerOffsetY,
                 transform: [{ scale: waveScale }],
               },
@@ -257,7 +245,7 @@ export default function EcoOnboarding({
           >
             <Svg
               width={frameWidth}
-              height={(frameWidth * WAVE_HEIGHT) / DESIGN_WIDTH}
+              height={(frameWidth * WAVE_HEIGHT) / DESIGN_WIDTH + safeTop}
               viewBox={`0 0 ${DESIGN_WIDTH} ${WAVE_HEIGHT}`}
               preserveAspectRatio="none"
             >
@@ -268,6 +256,7 @@ export default function EcoOnboarding({
             </Svg>
           </Animated.View>
 
+          {/* Illustration: Constrained strictly below the text block */}
           <Image
             source={illustration}
             style={{
@@ -278,17 +267,25 @@ export default function EcoOnboarding({
               width: imageWidth,
               height: imageHeight,
               opacity: slideOpacity,
-              transform: [{ translateY: slideTranslateX.interpolate({ inputRange: [0, 18], outputRange: [0, 8] }) }],
+              transform: [
+                {
+                  translateY: slideTranslateX.interpolate({
+                    inputRange: [0, 18],
+                    outputRange: [0, 8],
+                  }),
+                },
+              ],
             }}
             contentFit="contain"
             accessibilityLabel={illustrationAlt}
           />
 
+          {/* Text and Controls */}
           <Animated.View
             style={[
               styles.content,
               {
-                top: CONTENT_TOP * scale,
+                top: contentTop,
                 left: CONTENT_SIDE * scale,
                 width: contentWidth,
                 opacity: slideOpacity,
@@ -346,9 +343,9 @@ export default function EcoOnboarding({
                 {
                   marginTop: titleGap * scale,
                   width: contentWidth,
-                  fontSize: 56 * scale,
-                  lineHeight: 56 * 0.96 * scale,
-                  letterSpacing: -1.2 * scale,
+                  fontSize: 42 * scale,
+                  lineHeight: 46 * scale,
+                  letterSpacing: -0.8 * scale,
                 },
               ]}
             >
@@ -360,10 +357,10 @@ export default function EcoOnboarding({
                 styles.description,
                 fontsLoaded && styles.descriptionFont,
                 {
-                  marginTop: 16 * scale,
+                  marginTop: 14 * scale,
                   maxWidth: 330 * scale,
-                  fontSize: 15 * scale,
-                  lineHeight: 15 * 1.47 * scale,
+                  fontSize: 14.5 * scale,
+                  lineHeight: 21 * scale,
                 },
               ]}
             >
@@ -371,11 +368,12 @@ export default function EcoOnboarding({
             </Text>
           </Animated.View>
 
+          {/* Footer Action Button */}
           <Animated.View
             style={[
               styles.footer,
               {
-                bottom: FOOTER_BOTTOM * scale,
+                bottom: safeBottom + 16,
                 left: FOOTER_SIDE * scale,
                 right: FOOTER_SIDE * scale,
                 opacity: slideOpacity,
@@ -424,9 +422,6 @@ export default function EcoOnboarding({
           </Animated.View>
         </View>
       </View>
-      {!isWide ? (
-        <View style={{ height: insets.bottom, backgroundColor: "#f8f7f5" }} />
-      ) : null}
     </View>
   );
 }
@@ -458,6 +453,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     height: 4,
+    position: "relative",
   },
   skip: {
     position: "absolute",
@@ -465,13 +461,14 @@ const styles = StyleSheet.create({
   },
   skipLabel: {
     color: "#1c5eb9",
-    includeFontPadding: false,
+    fontWeight: "700",
   },
   skipFont: {
-    fontFamily: "Jost_400Regular",
+    fontFamily: "Afacad_700Bold",
   },
   title: {
     color: "#1c5eb9",
+    fontWeight: "700",
     includeFontPadding: false,
   },
   titleFont: {
@@ -502,15 +499,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
-  buttonSecondary: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  buttonSecondaryLabel: {
-    color: "#1c5eb9",
-    fontWeight: "600",
-  },
   buttonLabel: {
     fontSize: 15,
     includeFontPadding: false,
@@ -518,15 +506,5 @@ const styles = StyleSheet.create({
   buttonArrow: {
     color: "#FFFFFF",
     fontSize: 15,
-    includeFontPadding: false,
-  },
-  completion: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 4,
-    justifyContent: "center",
   },
 });

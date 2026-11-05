@@ -492,9 +492,9 @@ export default function LoginPage() {
 }
 
 const styles = StyleSheet.create({
-  form: { gap: 9 },
-  formCompact: { gap: 6 },
-  field: { gap: 4 },
+  form: { gap: 13 },
+  formCompact: { gap: 8 },
+  field: { gap: 5 },
   fieldCompact: { gap: 4 },
   label: {
     fontSize: 12,

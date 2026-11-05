@@ -75,43 +75,47 @@ export default function EstablishmentDetailScreen() {
               avatarUrl={est.operator_avatar_path ? supabase.storage.from("operator_media").getPublicUrl(est.operator_avatar_path).data.publicUrl : null}
               fallbackImageUrl={est.image_url}
             />
-            <View>
-              {est.accreditation && (
-                <View style={styles.accreditationBadge}>
-                  <Ionicons name="checkmark-circle" size={12} color={colors.white} />
-                  <Text style={styles.accreditationText}>{est.accreditation}</Text>
-                </View>
-              )}
-            </View>
 
             <View style={styles.contentSection}>
-              <Text style={styles.estName}>{est.name}</Text>
-              {est.location && (
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={16} color={colors.gray} />
-                  <Text style={styles.locationText}>{est.location}</Text>
-                </View>
-              )}
-
-              {/* Official PCSSD and DOT Accreditation Emblems */}
               {(() => {
                 const hasPcssd = Boolean(est.pcssd_url && est.pcssd_url.trim().length > 0);
                 const hasDot = Boolean(est.dot_url && est.dot_url.trim().length > 0);
-                if (!hasPcssd && !hasDot) return null;
+                const hasAnyBadge = Boolean(est.accreditation || hasPcssd || hasDot);
+
                 return (
-                  <View style={styles.accreditationRow}>
-                    {hasPcssd ? (
-                      <View style={styles.officialBadge} accessibilityLabel="PCSSD Accredited">
-                        <Image source={PCSSD_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
-                        <Text style={styles.officialBadgeText}>PCSSD Accredited</Text>
+                  <View style={styles.titleBadgeRow}>
+                    <View style={styles.titleCol}>
+                      <Text style={styles.estName}>{est.name}</Text>
+                      {est.location && (
+                        <View style={styles.locationRow}>
+                          <Ionicons name="location-outline" size={16} color={colors.gray} />
+                          <Text style={styles.locationText}>{est.location}</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {hasAnyBadge && (
+                      <View style={styles.badgesCol}>
+                        {est.accreditation && (
+                          <View style={styles.accreditationBadge}>
+                            <Ionicons name="checkmark-circle" size={13} color={colors.white} />
+                            <Text style={styles.accreditationText}>{est.accreditation}</Text>
+                          </View>
+                        )}
+                        {hasPcssd && (
+                          <View style={styles.officialBadge} accessibilityLabel="PCSSD Accredited">
+                            <Image source={PCSSD_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
+                            <Text style={styles.officialBadgeText}>PCSSD Accredited</Text>
+                          </View>
+                        )}
+                        {hasDot && (
+                          <View style={styles.officialBadge} accessibilityLabel="DOT Accredited">
+                            <Image source={DOT_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
+                            <Text style={styles.officialBadgeText}>DOT Accredited</Text>
+                          </View>
+                        )}
                       </View>
-                    ) : null}
-                    {hasDot ? (
-                      <View style={styles.officialBadge} accessibilityLabel="DOT Accredited">
-                        <Image source={DOT_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
-                        <Text style={styles.officialBadgeText}>DOT Accredited</Text>
-                      </View>
-                    ) : null}
+                    )}
                   </View>
                 );
               })()}
@@ -133,7 +137,6 @@ export default function EstablishmentDetailScreen() {
               {(est.phone || est.email) && (
                 <View style={styles.contactSection}>
                   <View style={styles.sectionHeaderRow}>
-                    <View style={styles.verticalPill} />
                     <View style={styles.headerTextWrap}>
                       <Text style={styles.sectionTitle}>Contact Information</Text>
                       <Text style={styles.sectionSubtitle}>Direct lines and inquiries</Text>
@@ -215,62 +218,49 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   heroOverlay: { opacity: 0.6 },
-  accreditationRow: {
+  titleBadgeRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-    marginTop: 8,
-    marginBottom: 6,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
   },
-  verifiedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4.5,
-    backgroundColor: "#ECFDF5",
-    borderWidth: 1,
-    borderColor: "#A7F3D0",
-    borderRadius: 999,
-    paddingHorizontal: 8.5,
-    paddingVertical: 3,
+  titleCol: {
+    flex: 1,
   },
-  verifiedBadgeText: {
-    color: "#059669",
-    fontSize: 11,
-    fontFamily: "Quicksand_700Bold",
+  badgesCol: {
+    alignItems: "flex-end",
+    gap: 6,
+    flexShrink: 0,
   },
   officialBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5.5,
+    gap: 6,
     backgroundColor: "#F0F6FF",
     borderWidth: 1,
     borderColor: "#BFDBFE",
     borderRadius: 999,
-    paddingVertical: 2.5,
-    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    paddingHorizontal: 9,
   },
   officialBadgeLogo: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   officialBadgeText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: "Quicksand_700Bold",
     color: "#1E40AF",
   },
   accreditationBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.green,
     borderRadius: 100,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    gap: 4,
+    paddingVertical: 4.5,
+    gap: 4.5,
   },
   accreditationText: { fontSize: 11, fontWeight: "700", color: colors.white },
   contentSection: { paddingTop: 20 },
@@ -279,7 +269,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginTop: 8,
+    marginTop: 6,
   },
   locationText: { fontSize: 13, color: colors.gray, flex: 1 },
   description: {
@@ -293,17 +283,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionHeaderRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
     marginBottom: 12,
-  },
-  verticalPill: {
-    width: 4,
-    height: 20,
-    borderRadius: 2,
-    backgroundColor: "#087BFF",
-    marginTop: 2,
   },
   headerTextWrap: {
     flex: 1,

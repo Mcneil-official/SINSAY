@@ -193,14 +193,14 @@ export function EstablishmentBookingSection({
       case "messenger":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#0084FF" }]}>
-            <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
+            <Ionicons name="chatbubble-ellipses" size={26} color="#FFFFFF" />
           </View>
         );
 
       case "agoda":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#1A2035" }]}>
-            <Svg width={24} height={24} viewBox="0 0 24 24">
+            <Svg width={30} height={30} viewBox="0 0 24 24">
               <SvgCircle cx={5} cy={6.5} r={2} fill="#E53935" />
               <SvgCircle cx={12} cy={5} r={2} fill="#FFC107" />
               <SvgCircle cx={19} cy={6.5} r={2} fill="#4CAF50" />
@@ -223,14 +223,14 @@ export function EstablishmentBookingSection({
       case "whatsapp":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#25D366" }]}>
-            <Ionicons name="logo-whatsapp" size={22} color="#FFFFFF" />
+            <Ionicons name="logo-whatsapp" size={28} color="#FFFFFF" />
           </View>
         );
 
       case "booking":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#003580" }]}>
-            <Svg width={22} height={22} viewBox="0 0 24 24">
+            <Svg width={28} height={28} viewBox="0 0 24 24">
               <SvgText
                 x={9}
                 y={18}
@@ -249,14 +249,14 @@ export function EstablishmentBookingSection({
       case "viber":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#7360F2" }]}>
-            <Ionicons name="call" size={18} color="#FFFFFF" />
+            <Ionicons name="call" size={24} color="#FFFFFF" />
           </View>
         );
 
       case "tripadvisor":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#00AA6C" }]}>
-            <Svg width={22} height={22} viewBox="0 0 24 24">
+            <Svg width={28} height={28} viewBox="0 0 24 24">
               <SvgCircle
                 cx={7.5}
                 cy={13}
@@ -288,14 +288,14 @@ export function EstablishmentBookingSection({
       case "klook":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#FF5B00" }]}>
-            <Ionicons name="compass" size={20} color="#FFFFFF" />
+            <Ionicons name="compass" size={26} color="#FFFFFF" />
           </View>
         );
 
       case "airbnb":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#FF385C" }]}>
-            <Svg width={22} height={22} viewBox="0 0 24 24">
+            <Svg width={28} height={28} viewBox="0 0 24 24">
               <Path
                 d="M12 3 C10 3 8 7 8 11 C8 15 10 18 12 21 C14 18 16 15 16 11 C16 7 14 3 12 3 Z"
                 stroke="#FFFFFF"
@@ -310,7 +310,7 @@ export function EstablishmentBookingSection({
       case "instagram":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#E1306C" }]}>
-            <Ionicons name="logo-instagram" size={21} color="#FFFFFF" />
+            <Ionicons name="logo-instagram" size={27} color="#FFFFFF" />
           </View>
         );
 
@@ -319,7 +319,7 @@ export function EstablishmentBookingSection({
       default:
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#0284C7" }]}>
-            <Ionicons name="globe-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="globe-outline" size={26} color="#FFFFFF" />
           </View>
         );
     }
@@ -327,9 +327,8 @@ export function EstablishmentBookingSection({
 
   return (
     <View style={styles.container}>
-      {/* Section Header with Blue Vertical Indicator Pill */}
+      {/* Section Header */}
       <View style={styles.headerRow}>
-        <View style={styles.verticalPill} />
         <View style={styles.headerTextWrap}>
           <Text style={styles.title}>Book Here</Text>
           <Text style={styles.subtitle}>
@@ -338,7 +337,7 @@ export function EstablishmentBookingSection({
         </View>
       </View>
 
-      {/* Booking Platforms & Channels Single Horizontal Scroll Row (Matching Screenshot) */}
+      {/* Booking Platforms & Channels Single Horizontal Scroll Row */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -347,14 +346,14 @@ export function EstablishmentBookingSection({
         {channels.map((channel) => (
           <TouchableOpacity
             key={channel.id}
-            style={styles.card}
-            activeOpacity={0.82}
+            style={styles.channelBtn}
+            activeOpacity={0.78}
             onPress={() => handleOpenChannel(channel)}
             accessibilityRole="link"
             accessibilityLabel={`Book via ${channel.name} at ${establishmentName}`}
           >
             {renderChannelLogo(channel.type)}
-            <Text style={styles.cardLabel} numberOfLines={1}>
+            <Text style={styles.channelLabel} numberOfLines={1}>
               {channel.name}
             </Text>
           </TouchableOpacity>
@@ -370,17 +369,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
     marginBottom: 14,
-  },
-  verticalPill: {
-    width: 4,
-    height: 20,
-    borderRadius: 2,
-    backgroundColor: "#087BFF",
-    marginTop: 2,
   },
   headerTextWrap: {
     flex: 1,
@@ -400,45 +389,33 @@ const styles = StyleSheet.create({
   },
   cardsRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+    alignItems: "flex-start",
+    gap: 16,
     paddingVertical: 4,
     paddingHorizontal: 2,
   },
-  card: {
-    width: 104,
-    height: 88,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+  channelBtn: {
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     gap: 7,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    minWidth: 56,
   },
   logoBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  cardLabel: {
-    fontSize: 11,
+  channelLabel: {
+    fontSize: 11.5,
     fontFamily: "Quicksand_600SemiBold",
-    color: "#1E293B",
+    color: "#334155",
     textAlign: "center",
   },
 });

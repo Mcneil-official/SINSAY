@@ -25,7 +25,7 @@ import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
-type PassType = "one-day" | "annual";
+type PassType = "one-day";
 
 const MAX_PER_ORDER = 50;
 const PRESET_QUANTITIES = [5, 10, 20, 50];
@@ -64,16 +64,13 @@ export default function BuyPassSelectionScreen() {
   const [quantity, setQuantity] = useState<number>(1);
   const [qtyText, setQtyText] = useState("1");
 
-  // Server-read pricing (pass_pricing.code = 'one_day' | 'annual')
+  // Server-read pricing (pass_pricing.code = 'one_day')
   const [oneDayPrice, setOneDayPrice] = useState<number | null>(null);
-  const [annualPrice, setAnnualPrice] = useState<number | null>(null);
   const [pricingError, setPricingError] = useState(false);
 
   // Live ledger metrics
   const [oneDayLeft, setOneDayLeft] = useState<number | null>(null);
   const [oneDayPurchased, setOneDayPurchased] = useState<number | null>(null);
-  const [annualSlots, setAnnualSlots] = useState<number | null>(null);
-  const [annualPurchased, setAnnualPurchased] = useState<number | null>(null);
 
   // Recent transactions
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
@@ -88,7 +85,6 @@ export default function BuyPassSelectionScreen() {
       if (pricingErr) throw pricingErr;
       for (const row of pricing || []) {
         if (row.code === "one_day") setOneDayPrice(Number(row.price));
-        else if (row.code === "annual") setAnnualPrice(Number(row.price));
       }
     } catch (e) {
       console.warn("Could not load pass pricing:", e);
@@ -105,13 +101,9 @@ export default function BuyPassSelectionScreen() {
       if (ledger) {
         setOneDayLeft(ledger.remaining_passes ?? 0);
         setOneDayPurchased(ledger.purchased_passes ?? 0);
-        setAnnualSlots(ledger.annual_remaining ?? null);
-        setAnnualPurchased(ledger.annual_purchased ?? null);
       } else {
         setOneDayLeft(0);
         setOneDayPurchased(0);
-        setAnnualSlots(0);
-        setAnnualPurchased(0);
       }
     } catch (e) {
       console.warn("Could not load operator pass ledger:", e);
@@ -148,7 +140,6 @@ export default function BuyPassSelectionScreen() {
   const effectiveQty = qtyValid ? parsedQty : 0;
   const total = pricingReady ? effectiveQty * (unitPrice as number) : 0;
   const canProceed = pricingReady && qtyValid;
-  const annualAvailable = annualPrice !== null && annualPrice > 0;
 
   const commitQty = (q: number) => {
     const clamped = Math.min(Math.max(q, 1), MAX_PER_ORDER);
@@ -263,30 +254,26 @@ export default function BuyPassSelectionScreen() {
 
           <BuyPassProgress currentStep={1} />
 
-          {/* Pass balance KPIs */}
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryCard}>
+          {/* Pass balance KPI */}
+          <View style={styles.summaryCardSingle}>
+            <View style={styles.summaryCardTopRow}>
               <View style={styles.labelRow}>
-                <View style={styles.kpiIconOneDay}><Ionicons name="ticket" size={16} color="#006bff" /></View>
-                <Text style={styles.cardHeaderTitle} numberOfLines={1}>One-Day Dive Pass</Text>
+                <View style={styles.kpiIconOneDay}>
+                  <Ionicons name="ticket" size={16} color="#006bff" />
+                </View>
+                <Text style={styles.cardHeaderTitle}>One-Day Dive Pass</Text>
               </View>
-              <View style={styles.kpiMetricRow}>
-                <AnimatedKpiValue value={oneDayLeft} placeholder="—" style={styles.balanceNumber} />
-                <Text style={styles.kpiMetricLabel}>credits left</Text>
-              </View>
-              <Text style={styles.subCreditsText} numberOfLines={1}>of {oneDayPurchased !== null ? oneDayPurchased : "—"} purchased</Text>
+              <Text style={styles.subCreditsText}>
+                of {oneDayPurchased !== null ? oneDayPurchased : "—"} purchased
+              </Text>
             </View>
-
-            <View style={styles.summaryCard}>
-              <View style={styles.labelRow}>
-                <View style={styles.kpiIconAnnual}><Ionicons name="calendar-outline" size={16} color="#087b68" /></View>
-                <Text style={styles.cardHeaderTitle} numberOfLines={1}>Annual Dive Pass</Text>
-              </View>
-              <View style={styles.kpiMetricRow}>
-                <AnimatedKpiValue value={annualSlots} placeholder="—" style={styles.balanceNumber} />
-                <Text style={styles.kpiMetricLabel}>slots available</Text>
-              </View>
-              <Text style={styles.subCreditsText} numberOfLines={1}>of {annualPurchased !== null ? annualPurchased : "—"} purchased</Text>
+            <View style={styles.kpiMetricRow}>
+              <AnimatedKpiValue
+                value={oneDayLeft}
+                placeholder="—"
+                style={styles.balanceNumberLarge}
+              />
+              <Text style={styles.kpiMetricLabel}>credits left</Text>
             </View>
           </View>
         </ContentContainer>
@@ -652,6 +639,32 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
+  summaryCardSingle: {
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(111, 185, 237, 0.28)",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    gap: 6,
+  },
+  summaryCardTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  balanceNumberLarge: {
+    fontSize: 28,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+    lineHeight: 32,
+  },
   summaryCardFull: {
     flex: 1,
     minWidth: "100%",
@@ -704,14 +717,6 @@ const styles = StyleSheet.create({
     height: 25,
     borderRadius: 9,
     backgroundColor: "#e8f3ff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  kpiIconAnnual: {
-    width: 25,
-    height: 25,
-    borderRadius: 9,
-    backgroundColor: "#e5f7f3",
     alignItems: "center",
     justifyContent: "center",
   },

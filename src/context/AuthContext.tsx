@@ -5,6 +5,17 @@ import { deleteAvatarBlob, loadAvatarBlob, saveAvatarBlob } from "../lib/avatarS
 import { supabase } from "../lib/supabase";
 import { EcoDiveIDRow, NotificationRow, OperatorApplicationRow, TouristRow, TouristUpdate } from "../types/supabase";
 
+
+export function resolveAvatarUrl(pathOrUrl?: string | null): string | null {
+  if (!pathOrUrl || typeof pathOrUrl !== "string") return null;
+  const trimmed = pathOrUrl.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return supabase.storage.from("operator_media").getPublicUrl(trimmed).data.publicUrl;
+}
+
 interface AuthState {
   user: User | null;
   session: Session | null;
@@ -17,6 +28,7 @@ interface AuthState {
   // (survives reloads, no base64/quota issues) and exposed as an object URL.
   // Native/legacy: uri alone is kept in memory.
   setAvatarUri: (uri: string | null, blob?: Blob | null) => void;
+  clearAvatarOverride: (userId?: string) => void;
   // Lets an approved operator browse the tourist stack (the FAQ promises a
   // "switch back" from the Operator Profile tab). Gates respect it — without
   // this, TouristGate would bounce them straight back to operator tabs.
@@ -59,6 +71,7 @@ const defaultAuthState: AuthState = {
   isOperator: false,
   avatarUri: null,
   setAvatarUri: () => {},
+  clearAvatarOverride: () => {},
   viewAsTourist: false,
   setViewAsTourist: () => {},
   isLoading: true,
@@ -175,19 +188,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return null;
     // 1. Explicit local session override (e.g. while actively previewing a newly picked avatar)
     if (avatarOverrides[user.id] !== undefined) {
-      return avatarOverrides[user.id];
+      if (avatarOverrides[user.id] !== null) {
+        return avatarOverrides[user.id];
+      }
+      // If override is explicitly null, but user has no cloud avatar, return null
+      if (!profile?.avatar_path) {
+        return null;
+      }
+      // If user has a cloud avatar and override was null (e.g. stale override), fall through to cloud avatar
     }
-    // 2. Cloud-saved Supabase storage avatar path
+    // 2. Cloud-saved Supabase storage avatar path or full URL
     if (profile?.avatar_path) {
-      return supabase.storage.from("operator_media").getPublicUrl(profile.avatar_path).data.publicUrl;
+      return resolveAvatarUrl(profile.avatar_path);
     }
     // 3. Fallback to Google OAuth user avatar metadata
     const meta = user.user_metadata as Record<string, unknown> | undefined;
     if (typeof meta?.avatar_url === "string" && meta.avatar_url.trim()) {
-      return meta.avatar_url;
+      return meta.avatar_url.trim();
     }
     if (typeof meta?.picture === "string" && meta.picture.trim()) {
-      return meta.picture;
+      return meta.picture.trim();
     }
     return null;
   }, [user, avatarOverrides, profile?.avatar_path]);
@@ -217,6 +237,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Native/legacy: keep the picker's file URI in memory (cache-dir path
       // survives app relaunch; no IndexedDB on native).
       setAvatarOverrides((prev) => ({ ...prev, [userId]: uri }));
+    },
+    [user, revokeAvatarObjectUrl],
+  );
+
+  
+  const clearAvatarOverride = useCallback(
+    (userId?: string) => {
+      const id = userId || user?.id;
+      if (!id) return;
+      revokeAvatarObjectUrl(id);
+      setAvatarOverrides((prev) => {
+        if (prev[id] === undefined) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     },
     [user, revokeAvatarObjectUrl],
   );
@@ -534,6 +570,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isOperator,
         avatarUri,
         setAvatarUri,
+        clearAvatarOverride,
         viewAsTourist,
         setViewAsTourist,
         isLoading,

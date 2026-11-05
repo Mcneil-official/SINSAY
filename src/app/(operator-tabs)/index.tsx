@@ -23,6 +23,7 @@ import Svg, {
 } from "react-native-svg";
 import { ContentContainer, ManifestSkeleton, Skeleton } from "../../components";
 import AnimatedKpiValue from "../../components/AnimatedKpiValue";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
@@ -50,6 +51,8 @@ interface OperatorStats {
 }
 
 export default function OperatorDashboardScreen() {
+  const insets = useSafeAreaInsets();
+  const safeTop = Math.max(insets.top, 40);
   const router = useRouter();
   const { user, profile, operatorApplication, avatarUri, isLoading: authLoading, unreadCount } = useAuth();
   const { isDesktop, isTablet } = useLayout();
@@ -273,7 +276,7 @@ export default function OperatorDashboardScreen() {
       <View style={styles.headerBackgroundWrap} pointerEvents="none">
         <Svg
           width="100%"
-          height={220}
+          height={240 + safeTop}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -286,7 +289,7 @@ export default function OperatorDashboardScreen() {
               <Stop offset="1" stopColor="#f1f9ff" />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height={220} fill="url(#screenTopGrad)" />
+          <Rect x="0" y="0" width="100%" height={240 + safeTop} fill="url(#screenTopGrad)" />
         </Svg>
 
         <Svg
@@ -305,7 +308,7 @@ export default function OperatorDashboardScreen() {
       <View style={styles.fixedDashboard}>
         <ContentContainer maxWidth={isWide ? 900 : 480} paddingH={18}>
           {/* Header Top Bar: SINSAY White Logo on left, Notification + Resort/Profile Avatar on right */}
-          <View style={styles.topBar}>
+          <View style={[styles.topBar, { paddingTop: safeTop + 4 }]}>
             <Image
               source={require("../../../assets/sinsay-white-home.webp")}
               style={styles.logoImage}

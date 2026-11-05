@@ -30,7 +30,7 @@ const sexOptions = [
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user, profile, avatarUri, setAvatarUri, updateProfile } = useAuth();
+  const { user, profile, avatarUri, setAvatarUri, clearAvatarOverride, updateProfile } = useAuth();
   const locale: Locale = (profile?.language_preference as Locale) || "en";
 
   const [fullName, setFullName] = useState(profile?.full_name || "");
@@ -49,6 +49,12 @@ export default function EditProfileScreen() {
     blob?: Blob | null;
     removed?: boolean;
   } | null>(null);
+
+  const currentAvatar = pendingAvatar
+    ? pendingAvatar.removed
+      ? null
+      : pendingAvatar.uri
+    : avatarUri;
 
   const handlePickPhoto = useCallback(async () => {
     const result = await pickAvatarImage();
@@ -138,7 +144,15 @@ export default function EditProfileScreen() {
         showAlert(t("error", locale), error);
         return;
       }
-      setAvatarUri(null);
+      if (avatarPathToSave !== undefined) {
+        if (pendingAvatar?.removed) {
+          setAvatarUri(null);
+        } else {
+          clearAvatarOverride(user?.id);
+        }
+      } else {
+        clearAvatarOverride(user?.id);
+      }
     }
 
     if (emailChanged) {
@@ -201,9 +215,9 @@ export default function EditProfileScreen() {
               accessibilityRole="button"
               accessibilityLabel="Upload profile and Eco-Dive ID photo"
             >
-              {avatarUri ? (
+              {currentAvatar ? (
                 <Image
-                  source={{ uri: avatarUri }}
+                  source={{ uri: currentAvatar }}
                   style={styles.photoAvatarImg}
                   resizeMode="cover"
                 />
@@ -237,11 +251,11 @@ export default function EditProfileScreen() {
                     color={colors.primaryBlue}
                   />
                   <Text style={styles.changePhotoBtnText}>
-                    {avatarUri ? "Change Photo" : "Upload Photo"}
+                    {currentAvatar ? "Change Photo" : "Upload Photo"}
                   </Text>
                 </TouchableOpacity>
 
-                {avatarUri && (
+                {Boolean(currentAvatar) && (
                   <TouchableOpacity
                     style={styles.removePhotoBtn}
                     onPress={handleRemovePhoto}
