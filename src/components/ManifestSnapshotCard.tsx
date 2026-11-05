@@ -16,7 +16,7 @@ export interface ManifestSnapshotDiver {
 }
 
 export interface SnapshotManifest {
-  id: string;
+  id?: string;
   boat_name: string | null;
   dive_mode: string;
   dive_type?: string | null;
@@ -25,7 +25,9 @@ export interface SnapshotManifest {
   diver_count: number;
   max_divers?: number | null;
   captain_name?: string | null;
-  status: "active" | "done";
+  crew_members?: string[] | null;
+  dive_masters?: string[] | null;
+  status: "active" | "upcoming" | "completed" | "done";
 }
 
 export interface ManifestSnapshotCardProps {
@@ -270,7 +272,7 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
     return (
       <View ref={ref} style={styles.canvas} collapsable={false}>
         {/* Fallback Gradient */}
-        <Svg width={1024} height={362} style={styles.heroBackground}>
+        <Svg width={1024} height={262} style={styles.heroBackground}>
           <Defs>
             <LinearGradient id="heroFallbackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
               <Stop offset="0%" stopColor="#0B79F2" />
@@ -278,7 +280,7 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
               <Stop offset="100%" stopColor="#003599" />
             </LinearGradient>
           </Defs>
-          <Rect width={1024} height={362} fill="url(#heroFallbackGrad)" />
+          <Rect width={1024} height={262} fill="url(#heroFallbackGrad)" />
         </Svg>
 
         {/* Hero Background Image */}
@@ -306,6 +308,27 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
             <Text style={styles.titleLine}>Official {displayMode}</Text>
             <Text style={styles.titleLine}>Manifesto</Text>
           </View>
+        </View>
+
+        {/* Layered Ocean Wavy Transition on Top of Vessel Details */}
+        <View style={styles.waveContainer} pointerEvents="none">
+          <Svg
+            width="100%"
+            height={44}
+            viewBox="0 0 1024 80"
+            preserveAspectRatio="none"
+          >
+            {/* Wave 1: Back Soft Translucent Tint Wave */}
+            <Path
+              d="M 0,40 C 256,15 460,50 716,10 C 870,-10 972,30 1024,35 L 1024,80 L 0,80 Z"
+              fill="rgba(215, 233, 253, 0.65)"
+            />
+            {/* Wave 2: Foreground Crest Wave Matching Canvas Background */}
+            <Path
+              d="M 0,55 C 186,20 391,15 563,42 C 735,68 903,25 1024,45 L 1024,80 L 0,80 Z"
+              fill="rgba(238, 245, 253, 0.92)"
+            />
+          </Svg>
         </View>
 
         {/* Floating White Card Container */}
@@ -350,6 +373,39 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
               ))}
             </View>
           </View>
+
+          {/* Dedicated Crew & Dive Staff Bar (Exempt from Diver Pass Count) */}
+          {((manifest.dive_masters && manifest.dive_masters.length > 0) ||
+            (manifest.crew_members && manifest.crew_members.length > 0)) && (
+            <View style={styles.staffContainer}>
+              {manifest.dive_masters && manifest.dive_masters.length > 0 && (
+                <View style={styles.staffRow}>
+                  <View style={styles.staffLabelBadge}>
+                    <Text style={styles.staffLabelText}>DIVE MASTER / INSTRUCTOR</Text>
+                  </View>
+                  <Text style={styles.staffNamesText}>
+                    {manifest.dive_masters.join(" • ")}
+                  </Text>
+                  <View style={styles.exemptBadge}>
+                    <Text style={styles.exemptBadgeText}>FEE EXEMPT</Text>
+                  </View>
+                </View>
+              )}
+              {manifest.crew_members && manifest.crew_members.length > 0 && (
+                <View style={styles.staffRow}>
+                  <View style={[styles.staffLabelBadge, { backgroundColor: "#475569" }]}>
+                    <Text style={styles.staffLabelText}>BOAT CREW</Text>
+                  </View>
+                  <Text style={styles.staffNamesText}>
+                    {manifest.crew_members.join(" • ")}
+                  </Text>
+                  <View style={styles.exemptBadge}>
+                    <Text style={styles.exemptBadgeText}>FEE EXEMPT</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Section 2: Diver List */}
           <View style={styles.sectionHeader}>
@@ -411,17 +467,26 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
 const styles = StyleSheet.create({
   canvas: {
     width: 1024,
-    minHeight: 783,
+    minHeight: 840,
     backgroundColor: "#EEF5FD",
     position: "relative",
     overflow: "hidden",
+    paddingBottom: 68,
+  },
+  waveContainer: {
+    position: "absolute",
+    top: 220,
+    left: 0,
+    right: 0,
+    height: 44,
+    zIndex: 1,
   },
   heroBackground: {
     position: "absolute",
     top: 0,
     left: 0,
     width: 1024,
-    height: 362,
+    height: 262,
     backgroundColor: "#0B79F2",
   },
   topHeader: {
@@ -430,26 +495,27 @@ const styles = StyleSheet.create({
     left: 0,
     width: 1024,
     height: 262,
-    paddingTop: 60,
-    paddingLeft: 57,
+    paddingTop: 56,
+    paddingLeft: 52,
   },
   brandCol: {
     alignItems: "flex-start",
   },
   logoImage: {
-    width: 132,
-    height: 28,
+    width: 140,
+    height: 42,
+    marginLeft: -3.5,
   },
   logoAccentBar: {
-    width: 43,
-    height: 4.5,
+    width: 44,
+    height: 5,
     borderRadius: 2.5,
     backgroundColor: "rgba(255, 255, 255, 0.45)",
-    marginTop: 18,
-    marginLeft: -5,
+    marginTop: 12,
+    marginLeft: 0,
   },
   titleWrap: {
-    marginTop: 35,
+    marginTop: 26,
   },
   titleLine: {
     fontSize: 34,
@@ -461,18 +527,18 @@ const styles = StyleSheet.create({
   whiteCard: {
     marginTop: 262,
     marginHorizontal: 35,
-    marginBottom: 61,
     minHeight: 460,
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     paddingHorizontal: 30,
     paddingTop: 26,
-    paddingBottom: 24,
+    paddingBottom: 52,
     shadowColor: "#001030",
     shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
+    zIndex: 2,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -525,6 +591,54 @@ const styles = StyleSheet.create({
     fontFamily: "Quicksand_700Bold",
     color: "#0F172A",
     marginTop: 2,
+  },
+  staffContainer: {
+    backgroundColor: "#F0F7FF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#CCE3FF",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 20,
+    gap: 8,
+  },
+  staffRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  staffLabelBadge: {
+    backgroundColor: "#0066FF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  staffLabelText: {
+    fontSize: 9,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
+  },
+  staffNamesText: {
+    fontSize: 12,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#0F2E6B",
+    flex: 1,
+  },
+  exemptBadge: {
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#86EFAC",
+  },
+  exemptBadgeText: {
+    fontSize: 8.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#166534",
+    letterSpacing: 0.5,
   },
   tableHeader: {
     backgroundColor: "#0066FF",

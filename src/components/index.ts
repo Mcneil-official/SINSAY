@@ -36,3 +36,7 @@ export { default as OperatorWiderScreenNavbar } from "./OperatorWiderScreenNavba
 export { default as WaveDivider } from "./WaveDivider";
 export { CardRailSkeleton, ManifestSkeleton, Skeleton } from "./Skeleton";
 export { default as UnsupportedDeviceScreen } from "./UnsupportedDeviceScreen";
+export { EstablishmentBookingSection } from "./EstablishmentBookingSection";
+export { DidYouKnowLoader } from "./DidYouKnowLoader";
+export { DidYouKnowCard } from "./DidYouKnowCard";
+

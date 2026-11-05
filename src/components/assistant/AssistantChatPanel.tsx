@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { colors } from "../../constants/colors";
+import { AI_TRIVIA_STARTERS } from "../../constants/didYouKnowData";
 import { chatWithGemini } from "../../lib/gemini";
 import { MarkdownText } from "../MarkdownText";
 
@@ -26,6 +27,7 @@ export interface ChatMessage {
 
 export interface AssistantChatPanelProps {
   variant?: "screen" | "drawer";
+  initialMessage?: string;
   onSwitchToPlanner?: () => void;
 }
 
@@ -98,6 +100,7 @@ function TypingDots() {
 
 export function AssistantChatPanel({
   variant = "screen",
+  initialMessage,
   onSwitchToPlanner,
 }: AssistantChatPanelProps) {
   const router = useRouter();
@@ -120,6 +123,14 @@ export function AssistantChatPanel({
   useEffect(() => {
     scrollToEnd();
   }, [messages, loading]);
+
+  const initialSentRef = useRef(false);
+  useEffect(() => {
+    if (initialMessage && initialMessage.trim() && !initialSentRef.current) {
+      initialSentRef.current = true;
+      sendMessage(initialMessage.trim());
+    }
+  }, [initialMessage]);
 
   const sendMessage = async (text: string) => {
     const userMsgId = nextMessageId();
@@ -310,17 +321,17 @@ export function AssistantChatPanel({
       {/* Quick prompts (empty state) */}
       {!loading && messages.length <= 1 && (
         <View style={[styles.chipsRow, isDrawer && styles.chipsRowDrawer]}>
-          {QUICK_PROMPTS.map((q) => (
+          {AI_TRIVIA_STARTERS.map((item) => (
             <TouchableOpacity
-              key={q}
+              key={item.label}
               style={[styles.chip, isDrawer && styles.chipDrawer]}
-              onPress={() => sendMessage(q)}
+              onPress={() => sendMessage(item.query)}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={`Ask: ${q}`}
+              accessibilityLabel={`Ask: ${item.label}`}
             >
               <Text style={[styles.chipText, isDrawer && styles.chipTextDrawer]}>
-                {q}
+                {item.label}
               </Text>
             </TouchableOpacity>
           ))}

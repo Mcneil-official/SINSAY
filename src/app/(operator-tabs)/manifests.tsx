@@ -19,7 +19,7 @@ import { ContentContainer, ManifestSkeleton } from "../../components";
 import { ManifestSnapshotCard, ManifestSnapshotDiver } from "../../components/ManifestSnapshotCard";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
-import { deriveStatus, formatDiveDate, toLocalDateString } from "../../lib/diveDate";
+import { deriveManifestStatus, deriveStatus, formatDiveDate, toLocalDateString } from "../../lib/diveDate";
 import {
   deleteDraft,
   draftSubtitle,
@@ -42,6 +42,10 @@ interface ManifestItem {
   diver_count: number;
   max_divers?: number | null;
   captain_name?: string | null;
+  crew_members?: string[] | null;
+  dive_masters?: string[] | null;
+  instructor_name?: string | null;
+  crew_count?: number | null;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -78,7 +82,7 @@ export default function ManifestsScreen() {
       // Capped at 50 rows with an explicit note instead of unbounded growth.
       const { data: mfData, error: mfErr } = await supabase
         .from("dive_manifests")
-        .select("id, boat_name, dive_mode, dive_type, location, dive_date, max_divers, captain_name, manifest_divers(count)")
+        .select("id, boat_name, dive_mode, dive_type, location, dive_date, max_divers, captain_name, crew_members, dive_masters, instructor_name, crew_count, manifest_divers(count)")
         .eq("operator_id", user!.id)
         .order("dive_date", { ascending: false })
         .limit(50);
@@ -88,7 +92,7 @@ export default function ManifestsScreen() {
         (mfData || []).map((m: any) => {
           const dc = m.manifest_divers;
           const diver_count = Array.isArray(dc) ? (dc[0]?.count ?? 0) : (dc?.count ?? 0);
-          return { id: m.id, boat_name: m.boat_name, dive_mode: m.dive_mode, dive_type: m.dive_type, location: m.location, dive_date: m.dive_date, diver_count, max_divers: m.max_divers, captain_name: m.captain_name };
+          return { id: m.id, boat_name: m.boat_name, dive_mode: m.dive_mode, dive_type: m.dive_type, location: m.location, dive_date: m.dive_date, diver_count, max_divers: m.max_divers, captain_name: m.captain_name, crew_members: m.crew_members, dive_masters: m.dive_masters, instructor_name: m.instructor_name, crew_count: m.crew_count };
         })
       );
 
@@ -479,7 +483,13 @@ export default function ManifestsScreen() {
               return (
                 <View style={styles.list}>
                   {rows.map((m) => {
-                    const active = deriveStatus(m.dive_date) === "active";
+                    const realStatus = deriveManifestStatus(m.dive_date);
+                    const statusLabel =
+                      realStatus === "active"
+                        ? "Active"
+                        : realStatus === "upcoming"
+                        ? "Upcoming"
+                        : "Completed";
                     return (
                       <TouchableOpacity
                         key={m.id}
@@ -487,7 +497,7 @@ export default function ManifestsScreen() {
                         activeOpacity={0.82}
                         onPress={() => openSnapshot(m)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Open snapshot for ${m.boat_name || m.dive_mode} on ${m.dive_date}`}
+                        accessibilityLabel={`Open snapshot for ${m.boat_name || m.dive_mode} on ${m.dive_date}, ${statusLabel}`}
                       >
                         <View style={styles.cardTopRow}>
                           <View style={styles.icon}>
@@ -500,9 +510,27 @@ export default function ManifestsScreen() {
                               <Text style={styles.locationText} numberOfLines={1}>{m.location}</Text>
                             </View>
                           </View>
-                          <View style={[styles.statusPill, active ? styles.statusActive : styles.statusDone]}>
-                            <Text style={[styles.statusText, active ? styles.statusTextActive : styles.statusTextDone]}>
-                              {active ? "Upcoming" : "Completed"}
+                          <View
+                            style={[
+                              styles.statusPill,
+                              realStatus === "active"
+                                ? styles.statusActive
+                                : realStatus === "upcoming"
+                                ? styles.statusUpcoming
+                                : styles.statusDone,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusText,
+                                realStatus === "active"
+                                  ? styles.statusTextActive
+                                  : realStatus === "upcoming"
+                                  ? styles.statusTextUpcoming
+                                  : styles.statusTextDone,
+                              ]}
+                            >
+                              {statusLabel}
                             </Text>
                           </View>
                         </View>
@@ -574,7 +602,9 @@ export default function ManifestsScreen() {
                           diver_count: selected.diver_count,
                           max_divers: selected.max_divers,
                           captain_name: selected.captain_name,
-                          status: deriveStatus(selected.dive_date),
+                          crew_members: selected.crew_members,
+                          dive_masters: selected.dive_masters,
+                          status: deriveManifestStatus(selected.dive_date),
                         }}
                         divers={diversList}
                         operatorName={operatorName}
@@ -856,7 +886,9 @@ const styles = StyleSheet.create({
   },
   statusPill: { borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 },
   statusActive: { backgroundColor: "#dcfce7" },
-  statusDone: { backgroundColor: "#e9efff" },
+  statusUpcoming: { backgroundColor: "#e0f2fe" },
+  statusTextUpcoming: { color: "#0284c7" },
+  statusDone: { backgroundColor: "#f1f5f9" },
   statusText: { fontSize: 9, fontFamily: "Quicksand_700Bold" },
   statusTextActive: { color: "#16835e" },
   statusTextDone: { color: "#5368b1" },
@@ -982,7 +1014,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e7f3ff",
   },
   sheetPreviewScroll: { flexShrink: 1, marginBottom: 8 },
-  cardWrap: { alignItems: "flex-start", justifyContent: "center", paddingBottom: 36 },
+  cardWrap: { alignItems: "flex-start", justifyContent: "center", paddingBottom: 48 },
   sheetMessageBox: {
     flexDirection: "row",
     alignItems: "center",

@@ -90,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [roleReady, setRoleReady] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+
   // Single-flight guard: concurrent fetchProfile calls (getSession +
   // INITIAL_SESSION + signIn) race and last-writer-wins with stale nulls.
   // Only the latest request may apply operatorApplication / profile state.
@@ -103,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setNotifications([]);
     setUnreadCount(0);
     setRoleReady(false);
+    setAvatarOverrides({});
   }, []);
 
   const signOut = useCallback(async () => {
@@ -171,8 +173,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const avatarUri = useMemo(() => {
     if (!user) return null;
-    return avatarOverrides[user.id] ?? null;
-  }, [user, avatarOverrides]);
+    // 1. Explicit local session override (e.g. while actively previewing a newly picked avatar)
+    if (avatarOverrides[user.id] !== undefined) {
+      return avatarOverrides[user.id];
+    }
+    // 2. Cloud-saved Supabase storage avatar path
+    if (profile?.avatar_path) {
+      return supabase.storage.from("operator_media").getPublicUrl(profile.avatar_path).data.publicUrl;
+    }
+    // 3. Fallback to Google OAuth user avatar metadata
+    const meta = user.user_metadata as Record<string, unknown> | undefined;
+    if (typeof meta?.avatar_url === "string" && meta.avatar_url.trim()) {
+      return meta.avatar_url;
+    }
+    if (typeof meta?.picture === "string" && meta.picture.trim()) {
+      return meta.picture;
+    }
+    return null;
+  }, [user, avatarOverrides, profile?.avatar_path]);
 
   const setAvatarUri = useCallback(
     (uri: string | null, blob?: Blob | null) => {
@@ -325,6 +343,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         // New identity arriving: role is stale until fetchProfile lands.
         setRoleReady(false);
+    setAvatarOverrides({});
         fetchProfile(session.user.id);
         supabase
           .from("notifications")
@@ -431,6 +450,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
     setRoleReady(false);
+    setAvatarOverrides({});
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {

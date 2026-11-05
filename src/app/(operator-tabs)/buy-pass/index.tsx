@@ -60,7 +60,7 @@ export default function BuyPassSelectionScreen() {
   const router = useRouter();
   const { user, isLoading: authLoading, unreadCount } = useAuth();
 
-  const [passType, setPassType] = useState<PassType>("one-day");
+  const passType: PassType = "one-day";
   const [quantity, setQuantity] = useState<number>(1);
   const [qtyText, setQtyText] = useState("1");
 
@@ -140,7 +140,7 @@ export default function BuyPassSelectionScreen() {
     }, [loadData]),
   );
 
-  const unitPrice = passType === "one-day" ? oneDayPrice : annualPrice;
+  const unitPrice = oneDayPrice;
   const pricingReady = unitPrice !== null && unitPrice > 0;
   const parsedQty = Number(qtyText);
   const qtyValid =
@@ -172,19 +172,14 @@ export default function BuyPassSelectionScreen() {
     if (!qtyValid) setQtyText(String(quantity));
   };
 
-  const handleSelectType = (type: PassType) => {
-    setPassType(type);
-    commitQty(quantity);
-  };
-
+  
   const handleProceed = () => {
     if (!canProceed) return;
     router.push({
       pathname: "/(operator-tabs)/buy-pass/payment",
       params: {
-        passId: passType === "one-day" ? "one-day-pass" : "annual-pass",
-        passLabel:
-          passType === "one-day" ? "One-Day Dive Pass" : "Annual Dive Pass",
+        passId: "one-day-pass",
+        passLabel: "One-Day Dive Pass",
         passCount: String(effectiveQty),
         quantity: String(effectiveQty),
         total: String(total),
@@ -319,26 +314,21 @@ export default function BuyPassSelectionScreen() {
               </View>
             </View>
 
+            {/* One-Day Pass Info Banner */}
+            <View style={styles.passInfoBanner}>
+              <View style={styles.passInfoIcon}>
+                <Ionicons name="ticket" size={20} color="#006bff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.passInfoTitle}>One-Day Dive Pass</Text>
+                <Text style={styles.passInfoPrice}>
+                  {oneDayPrice !== null ? `${peso}${oneDayPrice.toLocaleString()} per pass` : "Official municipal rate"}
+                </Text>
+              </View>
+            </View>
+
             <View style={styles.stageHeading}>
               <Text style={styles.stageNumber}>01</Text>
-              <Text style={styles.stageTitle}>Select Pass</Text>
-            </View>
-
-            <View style={styles.tabsRow}>
-              <TouchableOpacity activeOpacity={0.88} style={[styles.tabButton, passType === "one-day" && styles.tabButtonSelected]} onPress={() => handleSelectType("one-day")} accessibilityRole="button" accessibilityState={{ selected: passType === "one-day" }}>
-                {passType === "one-day" && <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none"><Defs><LinearGradient id="tabGrad1" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#0085ff" /><Stop offset="1" stopColor="#0062ff" /></LinearGradient></Defs><Rect width="100%" height="100%" rx={12} fill="url(#tabGrad1)" /></Svg>}
-                <View style={styles.passOptionTop}><Ionicons name="ticket-outline" size={14} color={passType === "one-day" ? "#FFFFFF" : "#006bff"} /><Text style={[styles.tabButtonText, passType === "one-day" && styles.tabButtonTextSelected]} numberOfLines={1}>One-Day</Text>{passType === "one-day" && <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />}</View>
-                <Text style={[styles.tabSubText, passType === "one-day" && styles.tabSubTextSelected]} numberOfLines={1}>{oneDayPrice !== null ? `${peso}${oneDayPrice} each` : "Standard"}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity activeOpacity={0.88} style={[styles.tabButton, passType === "annual" && styles.tabButtonSelected, !annualAvailable && styles.tabButtonDisabled]} onPress={() => annualAvailable && handleSelectType("annual")} accessibilityRole="button" accessibilityState={{ selected: passType === "annual", disabled: !annualAvailable }}>
-                {passType === "annual" && <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none"><Defs><LinearGradient id="tabGrad2" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#0085ff" /><Stop offset="1" stopColor="#0062ff" /></LinearGradient></Defs><Rect width="100%" height="100%" rx={12} fill="url(#tabGrad2)" /></Svg>}
-                <View style={styles.passOptionTop}><Ionicons name="calendar-outline" size={14} color={passType === "annual" ? "#FFFFFF" : "#006bff"} /><Text style={[styles.tabButtonText, passType === "annual" && styles.tabButtonTextSelected]} numberOfLines={1}>Annual</Text>{passType === "annual" && <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />}</View>
-                <Text style={[styles.tabSubText, passType === "annual" && styles.tabSubTextSelected]} numberOfLines={1}>{annualAvailable ? `${peso}${annualPrice} / yr` : "Coming Soon"}</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.stageHeading}>
-              <Text style={styles.stageNumber}>02</Text>
               <Text style={styles.stageTitle}>Quantity</Text>
             </View>
 
@@ -419,7 +409,7 @@ export default function BuyPassSelectionScreen() {
             )}
 
             <View style={styles.stageHeading}>
-              <Text style={styles.stageNumber}>03</Text>
+              <Text style={styles.stageNumber}>02</Text>
               <Text style={styles.stageTitle}>Order Summary</Text>
             </View>
 
@@ -427,10 +417,10 @@ export default function BuyPassSelectionScreen() {
             <View style={styles.breakdownCard}>
               <View style={styles.breakdownPlanRow}>
                 <View style={styles.breakdownPlanIcon}>
-                  <Ionicons name={passType === "annual" ? "calendar-outline" : "ticket-outline"} size={16} color="#006bff" />
+                  <Ionicons name="ticket-outline" size={16} color="#006bff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.breakdownPlanTitle}>{passType === "annual" ? "Annual Dive Pass" : "One-Day Dive Pass"}</Text>
+                  <Text style={styles.breakdownPlanTitle}>One-Day Dive Pass</Text>
                   <Text style={styles.breakdownPlanHint}>Ready for review</Text>
                 </View>
               </View>
@@ -661,6 +651,39 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 12,
+  },
+  summaryCardFull: {
+    flex: 1,
+    minWidth: "100%",
+  },
+  passInfoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#F0F7FF",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#CCE3FF",
+    padding: 12,
+    marginBottom: 16,
+  },
+  passInfoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  passInfoTitle: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F2E6B",
+  },
+  passInfoPrice: {
+    fontSize: 12,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#006bff",
   },
   summaryCard: {
     flex: 1,

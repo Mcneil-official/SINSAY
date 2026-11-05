@@ -38,3 +38,14 @@ export function formatDiveDate(diveDate: string): string {
 export function toLocalDateString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+export type ManifestStatus = "active" | "upcoming" | "completed";
+
+export function deriveManifestStatus(diveDate: string): ManifestStatus {
+  if (!diveDate) return "upcoming";
+  const dateStr = diveDate.trim().slice(0, 10);
+  const todayStr = toLocalDateString(new Date());
+  if (dateStr === todayStr) return "active";
+  if (dateStr > todayStr) return "upcoming";
+  return "completed";
+}

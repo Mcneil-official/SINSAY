@@ -24,7 +24,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from "react-native-svg";
-import { ErrorState, resolveSiteImage } from "../../components";
+import { DidYouKnowCard, ErrorState, resolveSiteImage } from "../../components";
 import { BOTTOM_NAV_HEIGHT } from "../../components/BottomNav";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
@@ -773,6 +773,39 @@ export default function MapScreen() {
                 opacity={0.38}
               />
 
+              {/* Mabini Municipal Ocean Territorial Water Boundary (RA 8550 / NAMRIA) */}
+              {/* Subtle Territorial Sea Fill for Mabini Municipal Waters */}
+              <Path
+                d="M35 -200 L35 60 Q30 140 45 190 Q70 215 120 230 Q165 252 215 272 Q260 286 315 296 Q370 298 430 278 Q490 252 550 215 L550 -200 Z"
+                fill="#0284C7"
+                opacity={0.038}
+              />
+
+              {/* Outer Nautical Boundary Buffer Glow */}
+              <Path
+                d="M35 -200 L35 60 Q30 140 45 190 Q70 215 120 230 Q165 252 215 272 Q260 286 315 296 Q370 298 430 278 Q490 252 550 215"
+                fill="none"
+                stroke="rgba(2, 132, 199, 0.22)"
+                strokeWidth={5}
+                strokeLinecap="round"
+              />
+
+              {/* Official Ocean Territorial Boundary Line */}
+              <Path
+                d="M35 -200 L35 60 Q30 140 45 190 Q70 215 120 230 Q165 252 215 272 Q260 286 315 296 Q370 298 430 278 Q490 252 550 215"
+                fill="none"
+                stroke="#0284C7"
+                strokeWidth={1.8}
+                strokeDasharray="9,4,2,4"
+              />
+
+              {/* Boundary Demarcation Waypoint Cross Ticks */}
+              <Line x1={30} y1={60} x2={40} y2={60} stroke="#0284C7" strokeWidth={1.2} />
+              <Line x1={40} y1={190} x2={50} y2={190} stroke="#0284C7" strokeWidth={1.2} />
+              <Line x1={210} y1={270} x2={220} y2={274} stroke="#0284C7" strokeWidth={1.2} />
+              <Line x1={310} y1={294} x2={320} y2={298} stroke="#0284C7" strokeWidth={1.2} />
+              <Line x1={425} y1={282} x2={435} y2={274} stroke="#0284C7" strokeWidth={1.2} />
+
               {/* Marine Protected Area (MPA) Sanctuary Zone Boundaries */}
               <Path
                 d="M170 124 Q154 186 196 252 Q238 288 292 282 Q264 232 220 176 Z"
@@ -974,6 +1007,44 @@ export default function MapScreen() {
                 opacity={0.75}
               >
                 BATANGAS BAY
+              </SvgText>
+
+              {/* Ocean Territorial Water Boundary Demarcation Labels */}
+              <SvgText
+                x={24}
+                y={95}
+                fill="#0284C7"
+                fontSize={6.2}
+                fontWeight="700"
+                letterSpacing={0.8}
+                transform="rotate(-90, 24, 95)"
+                opacity={0.85}
+              >
+                MABINI TERRITORIAL WATER LIMIT (15-KM)
+              </SvgText>
+              <SvgText
+                x={175}
+                y={252}
+                fill="#0284C7"
+                fontSize={5.8}
+                fontWeight="700"
+                letterSpacing={0.7}
+                transform="rotate(22, 175, 252)"
+                opacity={0.85}
+              >
+                MARICABAN STRAIT MEDIAN LINE
+              </SvgText>
+              <SvgText
+                x={438}
+                y={270}
+                fill="#0284C7"
+                fontSize={5.8}
+                fontWeight="700"
+                letterSpacing={0.8}
+                transform="rotate(-23, 438, 270)"
+                opacity={0.85}
+              >
+                MABINI MUNICIPAL OCEAN BOUNDARY
               </SvgText>
 
               {/* Subtle Compass Rose Watermark (Upper Left Ocean) */}
@@ -1283,6 +1354,10 @@ export default function MapScreen() {
                   <View style={styles.legendItemRow}>
                     <View style={styles.legendMpaBox} />
                     <Text style={styles.legendItemText}>MPA Zone</Text>
+                  </View>
+                  <View style={styles.legendItemRow}>
+                    <View style={styles.legendTerritorialLine} />
+                    <Text style={styles.legendItemText}>Territorial Line</Text>
                   </View>
                 </View>
               </View>
@@ -1607,6 +1682,9 @@ export default function MapScreen() {
                     ))}
                   </View>
                 </View>
+
+                {/* Contextual Did You Know Card */}
+                <DidYouKnowCard siteName={selectedSite.name} />
               </ScrollView>
             </View>
           )}
@@ -1805,6 +1883,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(16, 185, 129, 0.25)",
     borderWidth: 1,
     borderColor: "#059669",
+  },
+  legendTerritorialLine: {
+    width: 14,
+    height: 0,
+    borderBottomWidth: 2,
+    borderColor: "#0284C7",
+    borderStyle: "dashed",
   },
   legendItemText: {
     fontSize: 11,

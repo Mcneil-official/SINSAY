@@ -29,6 +29,7 @@ import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 import { pickAvatarImage } from "../lib/pickAvatar";
+import { uploadFile } from "../lib/storage";
 import ContentContainer from "./ContentContainer";
 import { resolveSiteImage } from "./DiveSiteCard";
 import { ErrorState } from "./ErrorState";
@@ -54,16 +55,19 @@ const PASS_TYPE_LABELS: Record<string, string> = {
 
 const DIVE_TYPE_LABELS: Record<string, string> = {
   "intro-fun": "Recreational Dive",
-  certified: "Recreational Dive",
+  intro: "Intro Dive",
+  fun: "Fun Dive",
+  "guest-tourist": "Guest / Tourist",
+  certified: "Certified Dive",
 };
 
 const CERT_LEVEL_LABELS: Record<string, string> = {
   "open-water": "Open Water Diver",
   advanced: "Advanced Open Water",
   rescue: "Rescue Diver",
-  divemaster: "Dive Master",
-  "dive-master": "Dive Master",
-  instructor: "Dive Instructor",
+  divemaster: "Dive Master / Instructor",
+  "dive-master": "Dive Master / Instructor",
+  instructor: "Dive Master / Instructor",
 };
 
 export interface DiveTimelineActivity {
@@ -187,7 +191,7 @@ function DefaultAvatarSilhouette() {
 export function EcoDivePassportView() {
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const { user, profile, avatarUri, setAvatarUri, isLoading, refreshProfile } =
+  const { user, profile, avatarUri, setAvatarUri, isLoading, refreshProfile, updateProfile } =
     useAuth();
 
   const [activities, setActivities] = useState<DiveTimelineActivity[]>(
@@ -279,7 +283,23 @@ export function EcoDivePassportView() {
       return;
     }
     setAvatarUri(result.uri, result.blob);
-  }, [setAvatarUri]);
+    if (user) {
+      const fileInfo = {
+        name: `avatar_${Date.now()}.jpg`,
+        mimeType: result.blob?.type || "image/jpeg",
+        size: result.blob?.size || 1024,
+        uri: result.uri,
+      };
+      const uploadRes = await uploadFile("operator_media", "profile-avatar", fileInfo, user.id);
+      if (uploadRes.path) {
+        await updateProfile({ avatar_path: uploadRes.path });
+        setAvatarUri(null);
+        setToastMessage("Eco-Dive ID photo saved to your profile!");
+        setCopiedBanner(true);
+        setTimeout(() => setCopiedBanner(false), 2600);
+      }
+    }
+  }, [setAvatarUri, user, updateProfile]);
 
   const handleSaveIdCard = useCallback(() => {
     setToastMessage("Eco-Dive ID Card saved to device!");
@@ -403,23 +423,24 @@ export function EcoDivePassportView() {
         profile.emergency_contact_name?.trim() &&
           profile.emergency_contact_number?.trim(),
       );
-      const hasPassAndType = Boolean(
-        profile.dive_pass_type?.trim() && profile.type_of_dive?.trim(),
-      );
+      const hasDiveType = Boolean(profile.type_of_dive?.trim());
       const isCertifiedPath = profile.type_of_dive === "certified";
       const hasCertDetails = !isCertifiedPath
-        ? hasPassAndType
+        ? hasDiveType
         : Boolean(
             profile.certification_level?.trim() &&
-              profile.date_accredited?.trim() &&
-              profile.renewal_date?.trim(),
+              (profile.certification_level !== "dive-master" ||
+                Boolean(
+                  (profile.pcssd_accreditation_no?.trim() || profile.pcssd_url?.trim()) &&
+                    (profile.permit_to_operate_no?.trim() || profile.permit_to_operate_url?.trim())
+                ))
           );
 
       const checks = [
         hasName,
         hasNationality,
         hasEmergency,
-        hasPassAndType,
+        hasDiveType,
         hasCertDetails,
       ];
       const completedCount = checks.filter(Boolean).length;
@@ -428,10 +449,10 @@ export function EcoDivePassportView() {
       let hint = "Your Eco-Dive ID is complete and ready for manifest verification.";
       if (!hasNationality || !hasEmergency) {
         hint = "Add your nationality and emergency contact details.";
-      } else if (!hasPassAndType) {
-        hint = "Select your dive pass type and preferred dive category.";
+      } else if (!hasDiveType) {
+        hint = "Select your preferred dive category.";
       } else if (isCertifiedPath && !hasCertDetails) {
-        hint = "Upload your diver certification level and accreditation dates.";
+        hint = "Complete your diver certification and required accreditation.";
       }
 
       return {

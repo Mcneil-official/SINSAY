@@ -56,26 +56,70 @@ export async function chatWithGemini(
   }
 }
 
+export const ACTIVITY_OPTIONS = [
+  { label: "Fun / Reef Diving", value: "fun-reef" },
+  { label: "Macro & Muck Photography", value: "macro-photo" },
+  { label: "Introductory / Discover Scuba", value: "intro-discover" },
+  { label: "Night Diving", value: "night" },
+  { label: "Wreck & Deep Diving", value: "wreck-deep" },
+  { label: "Snorkeling & Freediving", value: "snorkeling-freedive" },
+  { label: "Marine Life & Turtles", value: "marine-life" },
+  { label: "Coral Conservation / Eco-Dive", value: "coral-conservation" },
+];
+
+export const LENGTH_OF_STAY_OPTIONS = [
+  { label: "Day Trip (1 Day)", value: "1-day", days: 1 },
+  { label: "2 Days (Weekend)", value: "2-days", days: 2 },
+  { label: "3 Days (Long Weekend)", value: "3-days", days: 3 },
+  { label: "4–5 Days", value: "4-5-days", days: 5 },
+  { label: "1 Week (7 Days)", value: "1-week", days: 7 },
+  { label: "Extended Stay (8+ Days)", value: "extended", days: 10 },
+];
+
 export async function generateDivePlan(params: {
-  destination: string;
-  startDate: string;
-  endDate: string;
-  divers: string;
-  diveType: string;
-  interests: string;
+  destination?: string;
+  startDate?: string;
+  endDate?: string;
+  divers?: string;
+  groupSize?: string | number;
+  diveType?: string;
+  activities?: string;
+  lengthOfStay?: string;
+  interests?: string;
   budget?: string;
 }): Promise<string> {
+  const destination = params.destination?.trim() || "Anilao, Mabini, Batangas";
+  const divers = String(params.divers || params.groupSize || "2").trim();
+  const diveType = params.activities?.trim() || params.diveType?.trim() || "Recreational Diving";
+  const interests = params.interests?.trim() || params.activities?.trim() || "Reef exploration";
+  const budget = params.budget?.trim() || "";
+  const startDate = params.startDate?.trim() || "Day 1";
+  const endDate = params.endDate?.trim() || (params.lengthOfStay ? params.lengthOfStay.trim() : "Day 2");
+
+  const normalizedParams = {
+    destination,
+    startDate,
+    endDate,
+    divers,
+    diveType,
+    interests,
+    budget,
+    lengthOfStay: params.lengthOfStay || `${startDate} - ${endDate}`,
+    activities: diveType,
+    groupSize: divers,
+  };
+
   try {
     const data = await invokeProxy<{ reply?: string }>({
       type: "planner",
-      params,
+      params: normalizedParams,
     });
     if (data?.reply) return data.reply;
     throw new Error("Empty reply from dive planner.");
   } catch (e) {
     if (USE_MOCK_AI) {
       console.warn("Mock AI fallback (EXPO_PUBLIC_USE_MOCK_AI=1):", e);
-      return getMockPlan(params);
+      return getMockPlan(normalizedParams);
     }
     throw e instanceof Error ? e : new Error("Plan request failed.");
   }

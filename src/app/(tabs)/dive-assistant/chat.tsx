@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { push } from "expo-router/build/global-state/router";
 import React from "react";
 import {
@@ -17,6 +17,7 @@ import { colors } from "../../../constants/colors";
 
 export default function ChatScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ initialQuery?: string }>();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -51,7 +52,10 @@ export default function ChatScreen() {
             paddingH={0}
             style={styles.flexInner}
           >
-            <AssistantChatPanel variant="screen" />
+            <AssistantChatPanel
+              variant="screen"
+              initialMessage={params.initialQuery}
+            />
           </ContentContainer>
         </KeyboardAvoidingView>
       ) : (
@@ -61,7 +65,10 @@ export default function ChatScreen() {
             paddingH={0}
             style={styles.flexInner}
           >
-            <AssistantChatPanel variant="screen" />
+            <AssistantChatPanel
+              variant="screen"
+              initialMessage={params.initialQuery}
+            />
           </ContentContainer>
         </View>
       )}

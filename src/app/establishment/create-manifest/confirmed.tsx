@@ -17,13 +17,15 @@ import { supabase } from "../../../lib/supabase";
 
 export default function ManifestConfirmedScreen() {
   const router = useRouter();
-  const { manifestId, location, diverCount, boatName, captainName, remainingBalance } = useLocalSearchParams<{
+  const { manifestId, location, diverCount, boatName, captainName, remainingBalance, diveMasters, crewMembers } = useLocalSearchParams<{
     manifestId?: string;
     location?: string;
     diverCount?: string;
     boatName?: string;
     captainName?: string;
     remainingBalance?: string;
+    diveMasters?: string;
+    crewMembers?: string;
   }>();
 
   const { user } = useAuth();
@@ -114,6 +116,24 @@ export default function ManifestConfirmedScreen() {
                 {diverCount || "…"} tourists activated
               </Text>
             </View>
+            {diveMasters ? (
+              <>
+                <View style={styles.cardDivider} />
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Dive Master(s)</Text>
+                  <Text style={styles.detailValue}>{diveMasters}</Text>
+                </View>
+              </>
+            ) : null}
+            {crewMembers ? (
+              <>
+                <View style={styles.cardDivider} />
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Boat Crew</Text>
+                  <Text style={styles.detailValue}>{crewMembers}</Text>
+                </View>
+              </>
+            ) : null}
           </View>
 
           {/* Action Buttons from Design */}

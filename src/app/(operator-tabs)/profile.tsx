@@ -53,8 +53,11 @@ export default function OperatorProfileScreen() {
   const router = useRouter();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const hasPcssd = !!(operatorApplication?.pcssd_url || operatorApplication?.pcss_url);
-  const hasDot = !!operatorApplication?.dot_url;
+  const hasPcssd = Boolean(
+    (operatorApplication?.pcssd_url && operatorApplication.pcssd_url.trim().length > 0) ||
+    (operatorApplication?.pcss_url && operatorApplication.pcss_url.trim().length > 0)
+  );
+  const hasDot = Boolean(operatorApplication?.dot_url && operatorApplication.dot_url.trim().length > 0);
   const contactLinks: { icon: keyof typeof Ionicons.glyphMap; value: string; url: string }[] = [];
   if (operatorApplication?.contact_number) contactLinks.push({ icon: "call-outline", value: operatorApplication.contact_number, url: `tel:${operatorApplication.contact_number}` });
   if (operatorApplication?.resort_email) contactLinks.push({ icon: "mail-outline", value: operatorApplication.resort_email, url: `mailto:${operatorApplication.resort_email}` });

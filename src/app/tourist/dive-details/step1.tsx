@@ -21,6 +21,7 @@ import { colors } from "../../../constants/colors";
 import { spacing } from "../../../constants/spacing";
 import { typography } from "../../../constants/typography";
 import { useAuth } from "../../../hooks/useAuth";
+import { toLocalPhDigits, toDbPhPhone, isValidPhDigits } from "../../../lib/phone";
 import { FileInfo, uploadFile } from "../../../lib/storage";
 import { safeBack } from "../../../lib/navigation";
 import { supabase } from "../../../lib/supabase";
@@ -36,13 +37,10 @@ const nationalityOptions = [
   { label: "Other", value: "other" },
 ];
 
-const divePassOptions = [
-  { label: "One-Day Dive Pass", value: "one-day" },
-  { label: "Annual Dive Pass", value: "annual" },
-];
-
 const diveTypeOptions = [
-  { label: "Intro/Fun Dive", value: "intro-fun" },
+  { label: "Intro Dive", value: "intro" },
+  { label: "Fun Dive", value: "fun" },
+  { label: "Guest or Tourist", value: "guest-tourist" },
   { label: "Certified", value: "certified" },
 ];
 
@@ -50,8 +48,7 @@ const certLevelOptions = [
   { label: "Open Water Diver", value: "open-water" },
   { label: "Advanced Open Water", value: "advanced" },
   { label: "Rescue Diver", value: "rescue" },
-  { label: "Dive Master", value: "dive-master" },
-  { label: "Instructor", value: "instructor" },
+  { label: "Dive Master / Instructor", value: "dive-master" },
 ];
 
 const privacyLabel = "I consent to the collection and processing of my personal data in accordance with the Data Privacy Act of 2012.";
@@ -64,14 +61,14 @@ export default function DiveDetailsStep1() {
   const [nationality, setNationality] = useState("");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
-  const [divePassType, setDivePassType] = useState("");
   const [diveType, setDiveType] = useState("");
   const [certLevel, setCertLevel] = useState("");
-  const [dateAccredited, setDateAccredited] = useState("");
-  const [renewalDate, setRenewalDate] = useState("");
-  const [certFile, setCertFile] = useState<FileInfo | null>(null);
-  const [certError, setCertError] = useState("");
-  const [expiredWarning, setExpiredWarning] = useState("");
+  const [pcssdAccreditationNo, setPcssdAccreditationNo] = useState("");
+  const [pcssdFile, setPcssdFile] = useState<FileInfo | null>(null);
+  const [pcssdError, setPcssdError] = useState("");
+  const [permitToOperateNo, setPermitToOperateNo] = useState("");
+  const [permitFile, setPermitFile] = useState<FileInfo | null>(null);
+  const [permitError, setPermitError] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -84,12 +81,11 @@ export default function DiveDetailsStep1() {
       setFullName(profile.full_name || "");
       setNationality(profile.nationality || "");
       setEmergencyName(profile.emergency_contact_name || "");
-      setEmergencyPhone(profile.emergency_contact_number || "");
-      setDivePassType(profile.dive_pass_type || "");
+      setEmergencyPhone(toLocalPhDigits(profile.emergency_contact_number || ""));
       setDiveType(profile.type_of_dive || "");
       setCertLevel(profile.certification_level || "");
-      setDateAccredited(profile.date_accredited || "");
-      setRenewalDate(profile.renewal_date || "");
+      setPcssdAccreditationNo(profile.pcssd_accreditation_no || "");
+      setPermitToOperateNo(profile.permit_to_operate_no || "");
     });
   }, [profile]);
 
@@ -100,19 +96,18 @@ export default function DiveDetailsStep1() {
       if (!nationality) nextErrors.nationality = "Required";
       if (!emergencyName.trim()) nextErrors.emergencyName = "Required";
       if (!emergencyPhone.trim()) nextErrors.emergencyPhone = "Required";
-      else if (!/^\+63\s9\d{9}$/.test(emergencyPhone.trim())) {
-        nextErrors.emergencyPhone = "Format: +63 9XXXXXXXXX";
+      else if (!isValidPhDigits(emergencyPhone)) {
+        nextErrors.emergencyPhone = "Format: 9XXXXXXXXX";
       }
     } else if (currentStep === 1) {
-      if (!divePassType) nextErrors.divePassType = "Required";
       if (!diveType) nextErrors.diveType = "Required";
       if (diveType === "certified") {
         if (!certLevel) nextErrors.certLevel = "Required";
-        if (!dateAccredited.trim()) nextErrors.dateAccredited = "Required";
-        if (!renewalDate.trim()) nextErrors.renewalDate = "Required";
-        if (!certFile && !profile?.cert_upload_path) nextErrors.certFile = "Certification proof is required";
-        if (dateAccredited.trim() && renewalDate.trim() && renewalDate < dateAccredited) {
-          nextErrors.renewalDate = "Renewal date must be after accredited date";
+        if (certLevel === "dive-master") {
+          if (!pcssdAccreditationNo.trim()) nextErrors.pcssdAccreditationNo = "Required";
+          if (!pcssdFile && !profile?.pcssd_url) nextErrors.pcssdFile = "PCSSD Certificate required";
+          if (!permitToOperateNo.trim()) nextErrors.permitToOperateNo = "Required";
+          if (!permitFile && !profile?.permit_to_operate_url) nextErrors.permitFile = "Permit to Operate required";
         }
       }
       if (!agreed) nextErrors.agreed = "You must agree to continue";
@@ -121,7 +116,7 @@ export default function DiveDetailsStep1() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const pickCertFile = async () => {
+  const pickPcssdFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
@@ -129,16 +124,37 @@ export default function DiveDetailsStep1() {
       });
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        setCertFile({ name: asset.name, mimeType: asset.mimeType, size: asset.size, uri: asset.uri });
-        setCertError("");
+        setPcssdFile({ name: asset.name, mimeType: asset.mimeType, size: asset.size, uri: asset.uri });
+        setPcssdError("");
         setErrors((current) => {
           const next = { ...current };
-          delete next.certFile;
+          delete next.pcssdFile;
           return next;
         });
       }
     } catch {
-      setCertError("Failed to pick file.");
+      setPcssdError("Failed to pick file.");
+    }
+  };
+
+  const pickPermitFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        setPermitFile({ name: asset.name, mimeType: asset.mimeType, size: asset.size, uri: asset.uri });
+        setPermitError("");
+        setErrors((current) => {
+          const next = { ...current };
+          delete next.permitFile;
+          return next;
+        });
+      }
+    } catch {
+      setPermitError("Failed to pick file.");
     }
   };
 
@@ -184,24 +200,38 @@ export default function DiveDetailsStep1() {
         full_name: fullName.trim(),
         nationality,
         emergency_contact_name: emergencyName.trim(),
-        emergency_contact_number: emergencyPhone.trim(),
-        dive_pass_type: divePassType,
+        emergency_contact_number: toDbPhPhone(emergencyPhone),
         type_of_dive: diveType,
       };
 
       if (diveType === "certified") {
         updates.certification_level = certLevel;
-        updates.date_accredited = dateAccredited.trim();
-        updates.renewal_date = renewalDate.trim();
-        if (certFile) {
-          const { path, error } = await uploadFile("tourist_uploads", "certifications", certFile, profile?.id || "");
+        if (pcssdAccreditationNo.trim()) {
+          updates.pcssd_accreditation_no = pcssdAccreditationNo.trim();
+        }
+        if (permitToOperateNo.trim()) {
+          updates.permit_to_operate_no = permitToOperateNo.trim();
+        }
+        if (pcssdFile) {
+          const { path, error } = await uploadFile("tourist_uploads", "pcssd", pcssdFile, profile?.id || "");
           if (error) {
             setSaveError(error);
             setSaving(false);
             return;
           }
-          if (path) updates.cert_upload_path = path;
+          if (path) updates.pcssd_url = path;
         }
+        if (permitFile) {
+          const { path, error } = await uploadFile("tourist_uploads", "permits", permitFile, profile?.id || "");
+          if (error) {
+            setSaveError(error);
+            setSaving(false);
+            return;
+          }
+          if (path) updates.permit_to_operate_url = path;
+        }
+      } else {
+        updates.certification_level = null;
       }
 
       const { error } = await updateProfile(updates);
@@ -245,7 +275,7 @@ export default function DiveDetailsStep1() {
       currentIndex={currentStep}
       stepDescription={currentStep === 0
         ? "Confirm your account name, nationality, and emergency contact."
-        : "Choose your pass and provide your dive credentials."}
+        : "Provide your dive details and credentials."}
       onHeaderBack={() => currentStep > 0 ? goBack() : safeBack(router, "/(tabs)/eco-dive-id")}
       secondaryAction={currentStep > 0 ? { label: "Back", onPress: goBack } : undefined}
       primaryLabel={currentStep === 1 ? "Complete Profile" : "Continue"}
@@ -277,7 +307,16 @@ export default function DiveDetailsStep1() {
               </View>
               <View style={styles.fieldsGroup}>
                 <TextInput label="Contact Name" placeholder="Juan Dela Cruz" value={emergencyName} onChangeText={setEmergencyName} error={errors.emergencyName} />
-                <TextInput label="Phone Number" placeholder="+63 9XXXXXXXXX" value={emergencyPhone} onChangeText={setEmergencyPhone} keyboardType="phone-pad" error={errors.emergencyPhone} />
+                <TextInput
+                  label="Phone Number"
+                  placeholder="9XXXXXXXXX"
+                  prefix="+63"
+                  maxLength={10}
+                  value={emergencyPhone}
+                  onChangeText={(val) => setEmergencyPhone(toLocalPhDigits(val))}
+                  keyboardType="phone-pad"
+                  error={errors.emergencyPhone}
+                />
               </View>
             </View>
           </>
@@ -293,33 +332,107 @@ export default function DiveDetailsStep1() {
               </View>
             </View>
             <View style={styles.fieldsGroup}>
-              <Dropdown label="Type of Dive Pass" placeholder="Select dive pass type" value={divePassType} options={divePassOptions} onSelect={setDivePassType} error={errors.divePassType} />
-              <Dropdown label="Type of Dive" placeholder="Select dive type" value={diveType} options={diveTypeOptions} onSelect={(value) => { setDiveType(value); setErrors((current) => { const next = { ...current }; delete next.certLevel; delete next.dateAccredited; delete next.renewalDate; delete next.certFile; return next; }); }} error={errors.diveType} />
+              <Dropdown
+                label="Type of Dive"
+                placeholder="Select dive type"
+                value={diveType}
+                options={diveTypeOptions}
+                onSelect={(value) => {
+                  setDiveType(value);
+                  setErrors((current) => {
+                    const next = { ...current };
+                    delete next.certLevel;
+                    delete next.pcssdAccreditationNo;
+                    delete next.pcssdFile;
+                    delete next.permitToOperateNo;
+                    delete next.permitFile;
+                    return next;
+                  });
+                }}
+                error={errors.diveType}
+              />
+
               {diveType === "certified" ? (
                 <View style={styles.certificationGroup}>
-                  <Text style={styles.subsectionTitle}>Certification details</Text>
-                  <Dropdown label="Certification Level" placeholder="Select certification level" value={certLevel} options={certLevelOptions} onSelect={setCertLevel} error={errors.certLevel} />
-                  <View style={[styles.twoCol, width < 600 && styles.twoColStacked]}>
-                    <View style={styles.twoColItem}>
-                      <TextInput label="Date Accredited" placeholder="YYYY-MM-DD" value={dateAccredited} onChangeText={setDateAccredited} error={errors.dateAccredited} />
-                    </View>
-                    <View style={styles.twoColItem}>
-                      <TextInput label="Renewal Date" placeholder="YYYY-MM-DD" value={renewalDate} onChangeText={(value) => { setRenewalDate(value); const date = new Date(value); date.setHours(0, 0, 0, 0); const today = new Date(); today.setHours(0, 0, 0, 0); setExpiredWarning(date < today ? "This certification is expired. Please renew as needed." : ""); }} error={errors.renewalDate} />
-                    </View>
-                  </View>
-                  {expiredWarning ? <Text style={styles.warningText}>{expiredWarning}</Text> : null}
+                  <Dropdown
+                    label="Type of Diver"
+                    placeholder="Select diver certification level"
+                    value={certLevel}
+                    options={certLevelOptions}
+                    onSelect={(val) => {
+                      setCertLevel(val);
+                      setErrors((curr) => {
+                        const next = { ...curr };
+                        delete next.certLevel;
+                        return next;
+                      });
+                    }}
+                    error={errors.certLevel}
+                  />
+
+                  {/* PCSSD Accreditation */}
                   <View style={styles.uploadCard}>
-                    <Text style={styles.uploadTitle}>Certification proof</Text>
-                    <Text style={styles.sectionHint}>Add a clear photo or PDF of your certification.</Text>
-                    <FileUpload label="Upload Certification" onPress={pickCertFile} fileName={certFile?.name || (profile?.cert_upload_path ? "Previously uploaded" : undefined)} showCamera />
-                    {errors.certFile ? <Text style={styles.errorText}>{errors.certFile}</Text> : null}
-                    {certError ? <Text style={styles.errorText}>{certError}</Text> : null}
+                    <Text style={styles.uploadTitle}>PCSSD Accreditation</Text>
+                    <Text style={styles.sectionHint}>
+                      {certLevel === "dive-master"
+                        ? "Mandatory for Dive Masters & Instructors. Accreditation number & certificate."
+                        : "Official Philippine Commission on Sports Scuba Diving number & certificate (if accredited)."}
+                    </Text>
+                    <TextInput
+                      label="PCSSD Accreditation Number"
+                      placeholder="e.g. PCSSD-2024-XXXX"
+                      value={pcssdAccreditationNo}
+                      onChangeText={(val) => {
+                        setPcssdAccreditationNo(val);
+                        setErrors((curr) => { const next = { ...curr }; delete next.pcssdAccreditationNo; return next; });
+                      }}
+                      error={errors.pcssdAccreditationNo}
+                    />
+                    <FileUpload
+                      label="Upload PCSSD Certificate"
+                      onPress={pickPcssdFile}
+                      fileName={pcssdFile?.name || (profile?.pcssd_url ? "Previously uploaded" : undefined)}
+                      showCamera
+                    />
+                    {errors.pcssdFile ? <Text style={styles.errorText}>{errors.pcssdFile}</Text> : null}
+                    {pcssdError ? <Text style={styles.errorText}>{pcssdError}</Text> : null}
+                  </View>
+
+                  {/* Permit to Operate */}
+                  <View style={styles.uploadCard}>
+                    <Text style={styles.uploadTitle}>Permit to Operate</Text>
+                    <Text style={styles.sectionHint}>
+                      {certLevel === "dive-master"
+                        ? "Mandatory municipal guide permit number & document for commercial dives."
+                        : "Local government / MTO municipal dive permit number & document (if issued)."}
+                    </Text>
+                    <TextInput
+                      label="Permit to Operate Number"
+                      placeholder="e.g. PTO-PG-2024-XXXX"
+                      value={permitToOperateNo}
+                      onChangeText={(val) => {
+                        setPermitToOperateNo(val);
+                        setErrors((curr) => { const next = { ...curr }; delete next.permitToOperateNo; return next; });
+                      }}
+                      error={errors.permitToOperateNo}
+                    />
+                    <FileUpload
+                      label="Upload Permit to Operate"
+                      onPress={pickPermitFile}
+                      fileName={permitFile?.name || (profile?.permit_to_operate_url ? "Previously uploaded" : undefined)}
+                      showCamera
+                    />
+                    {errors.permitFile ? <Text style={styles.errorText}>{errors.permitFile}</Text> : null}
+                    {permitError ? <Text style={styles.errorText}>{permitError}</Text> : null}
                   </View>
                 </View>
               ) : null}
-              {diveType === "intro-fun" ? (
+
+              {diveType && diveType !== "certified" ? (
                 <View style={styles.infoHint}>
-                  <Text style={styles.infoHintText}>Intro/Fun divers can continue without certification details.</Text>
+                  <Text style={styles.infoHintText}>
+                    Intro, Fun, and Guest/Tourist divers can continue without certification details.
+                  </Text>
                 </View>
               ) : null}
               <View style={styles.privacyCard}>
@@ -347,6 +460,7 @@ const styles = StyleSheet.create({
   fieldsGroup: { gap: 14 },
   subsection: { gap: 12, paddingTop: 2 },
   certificationGroup: { gap: 12, paddingTop: 4 },
+  proCredentialsGroup: { gap: 12, paddingTop: 8 },
   subsectionTitle: { fontSize: 12, fontFamily: "Quicksand_700Bold", color: "#17366e" },
   twoCol: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
   twoColStacked: { flexDirection: "column" },
