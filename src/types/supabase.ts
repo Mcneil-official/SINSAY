@@ -143,6 +143,9 @@ export interface TouristRow {
   business_permit_url: string | null;
   pcss_url: string | null;
   pcssd_url?: string | null;
+  pcssd_accreditation_no?: string | null;
+  permit_to_operate_url?: string | null;
+  permit_to_operate_no?: string | null;
   dot_url?: string | null;
   language_preference: string;
   avatar_path?: string | null;
@@ -187,6 +190,26 @@ export interface EcoDiveIDRow {
 export type EcoDiveIDInsert = Partial<EcoDiveIDRow> & Pick<EcoDiveIDRow, "tourist_id" | "eco_id_number">;
 export type EcoDiveIDUpdate = Partial<EcoDiveIDInsert>;
 
+export type BookingPlatformType =
+  | "messenger"
+  | "agoda"
+  | "whatsapp"
+  | "booking"
+  | "viber"
+  | "tripadvisor"
+  | "klook"
+  | "airbnb"
+  | "instagram"
+  | "website"
+  | "direct";
+
+export interface BookingLinkItem {
+  id: string;
+  platform: BookingPlatformType;
+  label: string;
+  url: string;
+}
+
 export interface OperatorApplicationRow {
   id: string;
   tourist_id: string;
@@ -199,9 +222,14 @@ export interface OperatorApplicationRow {
   contact_number: string;
   facebook_url: string | null;
   website_url: string | null;
+  booking_url?: string | null;
+  booking_links?: BookingLinkItem[] | null;
   business_permit_url: string | null;
   pcss_url: string | null;
   pcssd_url?: string | null;
+  pcssd_accreditation_no?: string | null;
+  permit_to_operate_url?: string | null;
+  permit_to_operate_no?: string | null;
   dot_url?: string | null;
   status: "pending" | "approved" | "rejected";
   rejection_reason: string | null;
@@ -256,6 +284,8 @@ export interface DiveManifestRow {
   boat_contact: string | null;
   crew_count: number | null;
   instructor_name: string | null;
+  crew_members?: string[] | null;
+  dive_masters?: string[] | null;
   max_divers: number;
   duty_of_care: boolean;
   status: "active" | "done";
@@ -374,6 +404,8 @@ export interface EstablishmentRow {
   phone: string | null;
   email: string | null;
   website: string | null;
+  booking_url?: string | null;
+  booking_links?: BookingLinkItem[] | null;
   facebook: string | null;
   description: string | null;
   operator_id?: string | null;

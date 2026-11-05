@@ -12,12 +12,16 @@ import {
 } from "react-native";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
-import { toLocalDateString } from "../../lib/diveDate";
-import { generateDivePlan } from "../../lib/gemini";
+import {
+  ACTIVITY_OPTIONS,
+  LENGTH_OF_STAY_OPTIONS,
+  generateDivePlan,
+} from "../../lib/gemini";
 import { resolvePlannerSites, PlannerSite } from "../../lib/plannerSites";
 import { supabase } from "../../lib/supabase";
 import { Button } from "../Button";
 import { Card } from "../Card";
+import { DidYouKnowLoader } from "../DidYouKnowLoader";
 import { Dropdown } from "../Dropdown";
 import { TextInput } from "../TextInput";
 import { resolveSiteImage } from "../DiveSiteCard";
@@ -25,20 +29,6 @@ import { resolveSiteImage } from "../DiveSiteCard";
 const DEFAULT_DESTINATION = "Anilao, Mabini";
 const stripMarkdown = (s: string) =>
   s.replace(/\*\*/g, "").replace(/^#{1,3}\s+/gm, "").replace(/^[•\-\*]\s+/gm, "  • ");
-
-const EXPERIENCE_OPTIONS = [
-  { label: "Beginner", value: "Beginner" },
-  { label: "Open Water", value: "Open Water" },
-  { label: "Advanced", value: "Advanced" },
-  { label: "Professional", value: "Professional" },
-];
-
-const DURATION_OPTIONS = [
-  { label: "Day trip", value: "day-trip", days: 1 },
-  { label: "2–3 days", value: "2-3-days", days: 3 },
-  { label: "4–5 days", value: "4-5-days", days: 5 },
-  { label: "6+ days", value: "6-plus-days", days: 7 },
-];
 
 type PlanActivity = {
   period: "Morning" | "Afternoon" | "Evening";
@@ -48,7 +38,12 @@ type PlanActivity = {
 };
 
 type StructuredPlan = {
-  summary: { experienceLevel: string; duration: string; interest: string; overview: string };
+  summary: {
+    experienceLevel: string;
+    duration: string;
+    interest: string;
+    overview: string;
+  };
   days: { day: number; title: string; activities: PlanActivity[] }[];
   sites: PlannerSite[];
   ecoAlerts: string[];
@@ -56,16 +51,28 @@ type StructuredPlan = {
   budgetTotal: number;
 };
 
-function parsePlan(text: string): StructuredPlan | null {
+function parsePlan(
+  text: string,
+  inputs: {
+    budget: string;
+    groupSize: string;
+    activity: string;
+    lengthOfStay: string;
+  }
+): StructuredPlan | null {
   try {
-    const raw = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/gi, "").trim()) as Partial<StructuredPlan>;
+    const raw = JSON.parse(
+      text.replace(/^```(?:json)?\s*|\s*```$/gi, "").trim()
+    ) as Partial<StructuredPlan>;
     if (!Array.isArray(raw.days) || !Array.isArray(raw.sites)) return null;
     return {
       summary: {
-        experienceLevel: raw.summary?.experienceLevel || "Diver",
-        duration: raw.summary?.duration || "Your selected dates",
-        interest: raw.summary?.interest || activitiesFallback,
-        overview: raw.summary?.overview || "A practical itinerary built around your preferences.",
+        experienceLevel: raw.summary?.experienceLevel || inputs.activity,
+        duration: raw.summary?.duration || inputs.lengthOfStay,
+        interest: raw.summary?.interest || inputs.activity,
+        overview:
+          raw.summary?.overview ||
+          "A practical itinerary built around your preferences.",
       },
       days: raw.days.map((day, index) => ({
         day: Number(day.day) || index + 1,
@@ -74,7 +81,8 @@ function parsePlan(text: string): StructuredPlan | null {
           period: activity.period || "Morning",
           time: activity.time || "Flexible",
           title: activity.title || "Dive activity",
-          details: activity.details || "Confirm conditions with your dive operator.",
+          details:
+            activity.details || "Confirm conditions with your dive operator.",
         })),
       })),
       sites: raw.sites.map((site) => ({
@@ -82,7 +90,8 @@ function parsePlan(text: string): StructuredPlan | null {
         name: site.name || "Local reef site",
         depth: site.depth || "Depth varies",
         difficulty: site.difficulty || "Intermediate",
-        description: site.description || "Ask your operator about current conditions.",
+        description:
+          site.description || "Ask your operator about current conditions.",
         imageUrl: null,
         photoUrl: null,
         location: null,
@@ -91,40 +100,66 @@ function parsePlan(text: string): StructuredPlan | null {
         ? raw.ecoAlerts
         : ["Keep buoyancy neutral and never touch marine life."],
       budgetBreakdown: raw.budgetBreakdown || [],
-      budgetTotal: Number(raw.budgetTotal) || 0,
+      budgetTotal: Number(raw.budgetTotal) || Number(inputs.budget) || 0,
     };
   } catch {
     return null;
   }
 }
 
-const activitiesFallback = "Reef exploration";
+function fallbackPlan(inputs: {
+  budget: string;
+  groupSize: string;
+  activity: string;
+  lengthOfStay: string;
+}): StructuredPlan {
+  const total = Number(inputs.budget) || 0;
+  const stayDays =
+    LENGTH_OF_STAY_OPTIONS.find(
+      (o) => o.value === inputs.lengthOfStay || o.label === inputs.lengthOfStay
+    )?.days || 1;
 
-function fallbackPlan(
-  experienceLevel: string,
-  duration: string,
-  interests: string,
-  budget: string,
-): StructuredPlan {
-  const total = Number(budget) || 0;
+  const days: { day: number; title: string; activities: PlanActivity[] }[] = [];
+  for (let d = 1; d <= Math.min(stayDays, 3); d++) {
+    days.push({
+      day: d,
+      title: d === 1 ? "Orientation and reef discovery" : `Day ${d} Guided dive & exploration`,
+      activities: [
+        {
+          period: "Morning",
+          time: "08:00",
+          title: d === 1 ? "Briefing and first dive" : "Morning boat dive",
+          details: "Review conditions and buddy checks with your operator.",
+        },
+        {
+          period: "Afternoon",
+          time: "13:00",
+          title: "Surface interval and reef visit",
+          details: "Rest, hydrate, then explore a shallow site suited to your group.",
+        },
+        {
+          period: "Evening",
+          time: "18:00",
+          title: "Logbook and recovery",
+          details: "Review sightings and keep the evening free for rest.",
+        },
+      ],
+    });
+  }
+
   return {
     summary: {
-      experienceLevel,
-      duration,
-      interest: interests || activitiesFallback,
-      overview: "A flexible Mabini itinerary with guided dives, recovery time, and conservation-minded exploration.",
+      experienceLevel: inputs.activity,
+      duration: inputs.lengthOfStay,
+      interest: inputs.activity,
+      overview:
+        "A flexible Mabini itinerary with guided dives, recovery time, and conservation-minded exploration.",
     },
-    days: [{
-      day: 1,
-      title: "Orientation and reef discovery",
-      activities: [
-        { period: "Morning", time: "08:00", title: "Briefing and first dive", details: "Review conditions and buddy checks with your operator." },
-        { period: "Afternoon", time: "13:00", title: "Surface interval and reef visit", details: "Rest, hydrate, then explore a shallow site suited to your group." },
-        { period: "Evening", time: "18:00", title: "Logbook and recovery", details: "Review sightings and keep the evening free for rest." },
-      ],
-    }],
-      sites: [],
-    ecoAlerts: ["Keep buoyancy neutral, never touch coral, and take all waste back to shore."],
+    days,
+    sites: [],
+    ecoAlerts: [
+      "Keep buoyancy neutral, never touch coral, and take all waste back to shore.",
+    ],
     budgetBreakdown: [
       { label: "Guide and boat estimate", amount: Math.round(total * 0.7) },
       { label: "Fees and surface costs", amount: Math.round(total * 0.3) },
@@ -136,12 +171,15 @@ function fallbackPlan(
 export function AssistantPlannerPanel() {
   const router = useRouter();
   const { user } = useAuth();
-  const [experienceLevel, setExperienceLevel] = useState("");
-  const [tripDuration, setTripDuration] = useState("");
-  const [activities, setActivities] = useState("");
   const [budget, setBudget] = useState("");
+  const [groupSize, setGroupSize] = useState("");
+  const [activity, setActivity] = useState("");
+  const [lengthOfStay, setLengthOfStay] = useState("");
+
   const [plan, setPlan] = useState<string | null>(null);
-  const [structuredPlan, setStructuredPlan] = useState<StructuredPlan | null>(null);
+  const [structuredPlan, setStructuredPlan] = useState<StructuredPlan | null>(
+    null
+  );
   const [planError, setPlanError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -149,11 +187,17 @@ export function AssistantPlannerPanel() {
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!experienceLevel) errs.experienceLevel = "Required";
-    if (!tripDuration) errs.tripDuration = "Required";
-    if (!activities.trim()) errs.activities = "Enter preferred activities";
     if (!budget.trim() || isNaN(Number(budget)) || Number(budget) < 1) {
       errs.budget = "Enter a valid budget";
+    }
+    if (!groupSize.trim() || !/^\d+$/.test(groupSize.trim()) || Number(groupSize) < 1) {
+      errs.groupSize = "Whole number, at least 1";
+    }
+    if (!activity) {
+      errs.activity = "Select an activity";
+    }
+    if (!lengthOfStay) {
+      errs.lengthOfStay = "Select length of stay";
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -168,36 +212,27 @@ export function AssistantPlannerPanel() {
     setPlanError(false);
     setCopied(false);
 
-    const durationEntry = DURATION_OPTIONS.find((d) => d.value === tripDuration);
-    const offsetDays = durationEntry?.days ?? 2;
-    const durationLabel = durationEntry?.label || tripDuration;
-
-    const today = new Date();
-    const endDt = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() + offsetDays,
-    );
-    const startDate = toLocalDateString(today);
-    const endDate = toLocalDateString(endDt);
+    const activityLabel =
+      ACTIVITY_OPTIONS.find((o) => o.value === activity)?.label || activity;
+    const lengthLabel =
+      LENGTH_OF_STAY_OPTIONS.find((o) => o.value === lengthOfStay)?.label ||
+      lengthOfStay;
 
     const geminiPromise = generateDivePlan({
       destination: DEFAULT_DESTINATION,
-      startDate,
-      endDate,
-      divers: "1",
-      diveType: `${experienceLevel} (${durationLabel})`,
-      interests: activities.trim(),
       budget: budget.trim(),
+      groupSize: groupSize.trim(),
+      activities: activityLabel,
+      lengthOfStay: lengthLabel,
     });
 
     const dbPromise = user
       ? supabase.from("dive_plan_inputs").insert({
           tourist_id: user.id,
           budget: budget.trim() || null,
-          group_size: 1,
-          preferred_activities: `${experienceLevel} - ${activities.trim()}`,
-          length_of_stay: durationLabel,
+          group_size: Number(groupSize) || null,
+          preferred_activities: activityLabel,
+          length_of_stay: lengthLabel,
         })
       : Promise.resolve();
     const sitesPromise = supabase
@@ -211,27 +246,35 @@ export function AssistantPlannerPanel() {
         dbPromise,
         sitesPromise,
       ]);
-      if (sitesResult.error) throw new Error("We couldn't load dive sites right now. Please try again.");
+      if (sitesResult.error)
+        throw new Error(
+          "We couldn't load dive sites right now. Please try again."
+        );
       setPlan(result);
-      const parsed = parsePlan(result) || fallbackPlan(
-        experienceLevel,
-        durationLabel,
-        activities.trim(),
-        budget.trim(),
-      );
+      const parsed =
+        parsePlan(result, {
+          budget: budget.trim(),
+          groupSize: groupSize.trim(),
+          activity: activityLabel,
+          lengthOfStay: lengthLabel,
+        }) ||
+        fallbackPlan({
+          budget: budget.trim(),
+          groupSize: groupSize.trim(),
+          activity: activityLabel,
+          lengthOfStay: lengthLabel,
+        });
       parsed.sites = resolvePlannerSites(
         parsed.sites,
-        (sitesResult.data || []).filter((site) => site.status !== "Restricted"),
+        (sitesResult.data || []).filter((site) => site.status !== "Restricted")
       );
-      setStructuredPlan(
-        parsed,
-      );
+      setStructuredPlan(parsed);
       setPlanError(false);
     } catch (e) {
       setPlan(
         e instanceof Error
           ? e.message
-          : "Couldn't generate your dive plan. Check your connection and try again.",
+          : "Couldn't generate your dive plan. Check your connection and try again."
       );
       setPlanError(true);
     }
@@ -246,10 +289,10 @@ export function AssistantPlannerPanel() {
   };
 
   const handleStartOver = () => {
-    setExperienceLevel("");
-    setTripDuration("");
-    setActivities("");
     setBudget("");
+    setGroupSize("");
+    setActivity("");
+    setLengthOfStay("");
     setPlan(null);
     setStructuredPlan(null);
     setPlanError(false);
@@ -263,67 +306,72 @@ export function AssistantPlannerPanel() {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      {(!plan || planError) && <Card style={styles.plannerCard}>
-        <Text style={styles.plannerTitle}>QUICK TRIP PLANNER</Text>
-        <Text style={styles.plannerSubtitle}>
-          Destination: {DEFAULT_DESTINATION}
-        </Text>
+      {(!plan || planError) && (
+        <Card style={styles.plannerCard}>
+          <Text style={styles.plannerTitle}>QUICK TRIP PLANNER</Text>
+          <Text style={styles.plannerSubtitle}>
+            Destination: {DEFAULT_DESTINATION}
+          </Text>
 
-        <Dropdown
-          label="Experience Level"
-          placeholder="Select experience level"
-          value={experienceLevel}
-          options={EXPERIENCE_OPTIONS}
-          onSelect={setExperienceLevel}
-          error={errors.experienceLevel}
-        />
+          <TextInput
+            label="Budget (PHP)"
+            placeholder="e.g. 5000"
+            value={budget}
+            onChangeText={setBudget}
+            keyboardType="numeric"
+            error={errors.budget}
+          />
 
-        <Dropdown
-          label="Trip Duration"
-          placeholder="Select duration"
-          value={tripDuration}
-          options={DURATION_OPTIONS}
-          onSelect={setTripDuration}
-          error={errors.tripDuration}
-        />
+          <TextInput
+            label="Group Size"
+            placeholder="e.g. 2"
+            value={groupSize}
+            onChangeText={setGroupSize}
+            keyboardType="numeric"
+            error={errors.groupSize}
+          />
 
-        <TextInput
-          label="Preferred Activities"
-          placeholder="e.g. Macro photography, reef dive, turtles"
-          value={activities}
-          onChangeText={setActivities}
-          error={errors.activities}
-        />
+          <Dropdown
+            label="Activities"
+            placeholder="Select an activity"
+            value={activity}
+            options={ACTIVITY_OPTIONS}
+            onSelect={setActivity}
+            error={errors.activity}
+          />
 
-        <TextInput
-          label="Budget (PHP)"
-          placeholder="e.g. 5000"
-          value={budget}
-          onChangeText={setBudget}
-          keyboardType="numeric"
-          error={errors.budget}
-        />
-      </Card>}
+          <Dropdown
+            label="Length of Stay"
+            placeholder="Select length of stay"
+            value={lengthOfStay}
+            options={LENGTH_OF_STAY_OPTIONS}
+            onSelect={setLengthOfStay}
+            error={errors.lengthOfStay}
+          />
+        </Card>
+      )}
 
-      {(!plan || planError) && <View style={styles.generateWrap}>
-        <Button
-          title={
-            loading
-              ? "Generating your dive plan…"
-              : plan && !planError
+      {(!plan || planError) && (
+        <View style={styles.generateWrap}>
+          <Button
+            title={
+              loading
+                ? "Generating your dive plan…"
+                : plan && !planError
                 ? "Regenerate Plan"
                 : "Generate Dive Plan"
-          }
-          onPress={handleGenerate}
-          loading={loading}
-          icon={<Ionicons name="map" size={18} color={colors.white} />}
-        />
-        {loading && (
-          <Text style={styles.generatingHint}>
-            AI is building your itinerary, this may take a few seconds.
-          </Text>
-        )}
-      </View>}
+            }
+            onPress={handleGenerate}
+            loading={loading}
+            icon={<Ionicons name="map" size={18} color={colors.white} />}
+          />
+          {loading && (
+            <View style={{ marginTop: 14 }}>
+              <DidYouKnowLoader compact />
+            </View>
+          )}
+        </View>
+      )}
 
       {plan && planError && (
         <View style={styles.errorCard}>
@@ -382,48 +430,86 @@ export function AssistantPlannerPanel() {
           )}
           <View style={styles.contextPill}>
             <Text style={styles.contextPillText}>
-              ₱{Number(budget).toLocaleString()} Budget · {structuredPlan.summary.duration} · {structuredPlan.summary.interest}
+              ₱{Number(budget).toLocaleString()} Budget ·{" "}
+              {structuredPlan.summary.duration} ·{" "}
+              {structuredPlan.summary.interest}
             </Text>
-            <TouchableOpacity onPress={handleStartOver} accessibilityRole="button">
+            <TouchableOpacity
+              onPress={handleStartOver}
+              accessibilityRole="button"
+            >
               <Text style={styles.editInputsText}>Edit inputs</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.overviewText}>{structuredPlan.summary.overview}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+          <Text style={styles.overviewText}>
+            {structuredPlan.summary.overview}
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsRow}
+          >
             {[
               `₱${Number(budget).toLocaleString()} PHP`,
-              structuredPlan.summary.experienceLevel,
+              `Group: ${groupSize} diver${Number(groupSize) === 1 ? "" : "s"}`,
               structuredPlan.summary.duration,
               structuredPlan.summary.interest,
-            ].map((chip) => <View key={chip} style={styles.specChip}><Text style={styles.specChipText}>{chip}</Text></View>)}
+            ].map((chip) => (
+              <View key={chip} style={styles.specChip}>
+                <Text style={styles.specChipText}>{chip}</Text>
+              </View>
+            ))}
           </ScrollView>
           <View style={styles.timeline}>
             {structuredPlan.days.map((day, i) => (
-                <View key={i} style={styles.timelineRow}>
-                  <View style={styles.rail}>
-                    <View style={styles.railDot}>
-                      <Text style={styles.railDotText}>{day.day}</Text>
-                    </View>
-                    {i < structuredPlan.days.length - 1 && <View style={styles.railLine} />}
+              <View key={i} style={styles.timelineRow}>
+                <View style={styles.rail}>
+                  <View style={styles.railDot}>
+                    <Text style={styles.railDotText}>{day.day}</Text>
                   </View>
-                  <View style={styles.dayCard}>
-                    <Text style={styles.dayTitle}>{day.title}</Text>
-                    {day.activities.map((activity, index) => (
-                      <View key={`${activity.period}-${index}`} style={styles.activityRow}>
-                        <Ionicons name={activity.period === "Morning" ? "sunny-outline" : activity.period === "Evening" ? "moon-outline" : "partly-sunny-outline"} size={14} color={colors.primaryBlue} />
-                        <View style={styles.activityCopy}>
-                          <Text style={styles.activityMeta}>{activity.period} · {activity.time}</Text>
-                          <Text style={styles.activityTitle}>{activity.title}</Text>
-                          <Text style={styles.activityDetails}>{activity.details}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
+                  {i < structuredPlan.days.length - 1 && (
+                    <View style={styles.railLine} />
+                  )}
                 </View>
-              ))}
+                <View style={styles.dayCard}>
+                  <Text style={styles.dayTitle}>{day.title}</Text>
+                  {day.activities.map((act, index) => (
+                    <View
+                      key={`${act.period}-${index}`}
+                      style={styles.activityRow}
+                    >
+                      <Ionicons
+                        name={
+                          act.period === "Morning"
+                            ? "sunny-outline"
+                            : act.period === "Evening"
+                            ? "moon-outline"
+                            : "partly-sunny-outline"
+                        }
+                        size={14}
+                        color={colors.primaryBlue}
+                      />
+                      <View style={styles.activityCopy}>
+                        <Text style={styles.activityMeta}>
+                          {act.period} · {act.time}
+                        </Text>
+                        <Text style={styles.activityTitle}>{act.title}</Text>
+                        <Text style={styles.activityDetails}>
+                          {act.details}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
           </View>
           <Text style={styles.sectionHeading}>Suggested dive sites</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.siteRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.siteRow}
+          >
             {structuredPlan.sites.map((site) => (
               <View key={site.name} style={styles.siteCard}>
                 <Image
@@ -432,10 +518,24 @@ export function AssistantPlannerPanel() {
                 />
                 <Text style={styles.siteName}>{site.name}</Text>
                 <Text style={styles.siteDepth}>{site.depth}</Text>
-                <View style={styles.difficultyBadge}><Text style={styles.difficultyText}>{site.difficulty}</Text></View>
+                <View style={styles.difficultyBadge}>
+                  <Text style={styles.difficultyText}>{site.difficulty}</Text>
+                </View>
                 <Text style={styles.siteDescription}>{site.description}</Text>
-                <TouchableOpacity style={styles.mapButton} onPress={() => router.push({ pathname: "/(tabs)/map", params: { site: site.name } })}>
-                  <Ionicons name="map-outline" size={14} color={colors.primaryBlue} />
+                <TouchableOpacity
+                  style={styles.mapButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(tabs)/map",
+                      params: { site: site.name },
+                    })
+                  }
+                >
+                  <Ionicons
+                    name="map-outline"
+                    size={14}
+                    color={colors.primaryBlue}
+                  />
                   <Text style={styles.mapButtonText}>View on Map</Text>
                 </TouchableOpacity>
               </View>
@@ -443,18 +543,58 @@ export function AssistantPlannerPanel() {
           </ScrollView>
           <View style={styles.ecoCard}>
             <Ionicons name="leaf-outline" size={21} color="#059669" />
-            <View style={styles.calloutCopy}><Text style={styles.calloutTitle}>Eco reminder</Text>{structuredPlan.ecoAlerts.map((alert) => <Text key={alert} style={styles.calloutText}>{alert}</Text>)}</View>
+            <View style={styles.calloutCopy}>
+              <Text style={styles.calloutTitle}>Eco reminder</Text>
+              {structuredPlan.ecoAlerts.map((alert) => (
+                <Text key={alert} style={styles.calloutText}>
+                  {alert}
+                </Text>
+              ))}
+            </View>
           </View>
           <View style={styles.budgetCard}>
             <Ionicons name="wallet-outline" size={21} color="#0284C7" />
-            <View style={styles.calloutCopy}><Text style={styles.calloutTitle}>Budget summary</Text>{structuredPlan.budgetBreakdown.map((item) => <View key={item.label} style={styles.budgetRow}><Text style={styles.calloutText}>{item.label}</Text><Text style={styles.budgetAmount}>₱{Number(item.amount).toLocaleString()}</Text></View>)}<Text style={styles.budgetCeiling}>Ceiling: ₱{Number(structuredPlan.budgetTotal).toLocaleString()}</Text></View>
+            <View style={styles.calloutCopy}>
+              <Text style={styles.calloutTitle}>Budget summary</Text>
+              {structuredPlan.budgetBreakdown.map((item) => (
+                <View key={item.label} style={styles.budgetRow}>
+                  <Text style={styles.calloutText}>{item.label}</Text>
+                  <Text style={styles.budgetAmount}>
+                    ₱{Number(item.amount).toLocaleString()}
+                  </Text>
+                </View>
+              ))}
+              <Text style={styles.budgetCeiling}>
+                Ceiling: ₱{Number(structuredPlan.budgetTotal).toLocaleString()}
+              </Text>
+            </View>
           </View>
           <View style={styles.footerActions}>
-            <TouchableOpacity style={styles.saveButton} onPress={() => Clipboard.setStringAsync(JSON.stringify(structuredPlan))}>
-              <Ionicons name="bookmark-outline" size={17} color={colors.white} /><Text style={styles.saveButtonText}>Save Itinerary on Device</Text>
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={() => Clipboard.setStringAsync(JSON.stringify(structuredPlan))}
+            >
+              <Ionicons
+                name="bookmark-outline"
+                size={17}
+                color={colors.white}
+              />
+              <Text style={styles.saveButtonText}>
+                Save Itinerary on Device
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.shareButton} onPress={handleCopy}>
-              <Ionicons name="share-outline" size={17} color={colors.primaryBlue} /><Text style={styles.shareButtonText}>Share / Export Recap Card</Text>
+            <TouchableOpacity
+              style={styles.shareButton}
+              onPress={handleCopy}
+            >
+              <Ionicons
+                name="share-outline"
+                size={17}
+                color={colors.primaryBlue}
+              />
+              <Text style={styles.shareButtonText}>
+                Share / Export Recap Card
+              </Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity

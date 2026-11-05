@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as DocumentPicker from "expo-document-picker";
+import { pickAvatarImage } from "../../../lib/pickAvatar";
+import { uploadFile } from "../../../lib/storage";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -18,8 +19,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { showAlert } from "../../../lib/confirm";
 import { Locale, t } from "../../../lib/i18n";
 import { supabase } from "../../../lib/supabase";
-
-const PH_MOBILE = /^\+63\s9\d{9}$/;
+import { toLocalPhDigits, toDbPhPhone, isValidPhDigits } from "../../../lib/phone";
 
 const sexOptions = [
   { label: "Male", value: "male" },
@@ -35,32 +35,41 @@ export default function EditProfileScreen() {
 
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [contactNumber, setContactNumber] = useState(
-    profile?.contact_number || "",
+    toLocalPhDigits(profile?.contact_number || ""),
   );
   const [email, setEmail] = useState(user?.email || "");
   const [age, setAge] = useState(profile?.age ? String(profile.age) : "");
   const [sex, setSex] = useState<string>(profile?.sex || "");
+  const [pcssdNo, setPcssdNo] = useState(profile?.pcssd_accreditation_no || "");
+  const [permitNo, setPermitNo] = useState(profile?.permit_to_operate_no || "");
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pendingAvatar, setPendingAvatar] = useState<{
+    uri: string;
+    blob?: Blob | null;
+    removed?: boolean;
+  } | null>(null);
 
   const handlePickPhoto = useCallback(async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["image/jpeg", "image/png", "image/webp"],
-        copyToCacheDirectory: true,
-      });
-      if (!result.canceled && result.assets?.[0]?.uri) {
-        setAvatarUri(result.assets[0].uri);
-      }
-    } catch {
-      // Ignore picker cancel
+    const result = await pickAvatarImage();
+    if (!result) return;
+    if (!result.ok) {
+      showAlert(t("error", locale), result.error);
+      return;
     }
+    setPendingAvatar({ uri: result.uri, blob: result.blob, removed: false });
+    setAvatarUri(result.uri, result.blob);
+  }, [setAvatarUri, locale]);
+
+  const handleRemovePhoto = useCallback(() => {
+    setPendingAvatar({ uri: "", removed: true });
+    setAvatarUri(null);
   }, [setAvatarUri]);
 
   const validate = () => {
     const errs: Record<string, string> = {};
     if (!fullName.trim()) errs.fullName = t("required", locale);
-    if (contactNumber.trim() && !PH_MOBILE.test(contactNumber.trim())) {
+    if (contactNumber.trim() && !isValidPhDigits(contactNumber)) {
       errs.contactNumber = t("ph_format", locale);
     }
     if (!email.trim()) errs.email = t("required", locale);
@@ -79,26 +88,57 @@ export default function EditProfileScreen() {
     setSaving(true);
 
     const parsedAge = age.trim() ? parseInt(age.trim(), 10) : null;
+    const dbContactNumber = toDbPhPhone(contactNumber);
     const profileChanged =
       fullName !== (profile?.full_name || "") ||
-      contactNumber !== (profile?.contact_number || "") ||
+      dbContactNumber !== (profile?.contact_number || null) ||
       parsedAge !== (profile?.age ?? null) ||
-      (sex || null) !== (profile?.sex ?? null);
+      (sex || null) !== (profile?.sex ?? null) ||
+      pcssdNo.trim() !== (profile?.pcssd_accreditation_no || "") ||
+      permitNo.trim() !== (profile?.permit_to_operate_no || "");
 
     const emailChanged = email !== (user?.email || "");
 
-    if (profileChanged) {
-      const { error } = await updateProfile({
+    const avatarChanged = pendingAvatar !== null;
+    if (profileChanged || avatarChanged) {
+      let avatarPathToSave: string | null | undefined = undefined;
+      if (pendingAvatar?.removed) {
+        avatarPathToSave = null;
+      } else if (pendingAvatar?.uri && user) {
+        const fileInfo = {
+          name: `avatar_${Date.now()}.jpg`,
+          mimeType: pendingAvatar.blob?.type || "image/jpeg",
+          size: pendingAvatar.blob?.size || 1024,
+          uri: pendingAvatar.uri,
+        };
+        const uploadRes = await uploadFile("operator_media", "profile-avatar", fileInfo, user.id);
+        if (uploadRes.error || !uploadRes.path) {
+          setSaving(false);
+          showAlert(t("error", locale), uploadRes.error || "Failed to upload profile photo.");
+          return;
+        }
+        avatarPathToSave = uploadRes.path;
+      }
+
+      const updates: any = {
         full_name: fullName.trim(),
-        contact_number: contactNumber.trim() || null,
+        contact_number: dbContactNumber,
         age: parsedAge,
         sex: sex || null,
-      });
+        pcssd_accreditation_no: pcssdNo.trim() || null,
+        permit_to_operate_no: permitNo.trim() || null,
+      };
+      if (avatarPathToSave !== undefined) {
+        updates.avatar_path = avatarPathToSave;
+      }
+
+      const { error } = await updateProfile(updates);
       if (error) {
         setSaving(false);
         showAlert(t("error", locale), error);
         return;
       }
+      setAvatarUri(null);
     }
 
     if (emailChanged) {
@@ -204,7 +244,7 @@ export default function EditProfileScreen() {
                 {avatarUri && (
                   <TouchableOpacity
                     style={styles.removePhotoBtn}
-                    onPress={() => setAvatarUri(null)}
+                    onPress={handleRemovePhoto}
                     activeOpacity={0.8}
                   >
                     <Text style={styles.removePhotoText}>Remove</Text>
@@ -228,9 +268,11 @@ export default function EditProfileScreen() {
 
             <TextInput
               label={t("contact_number", locale)}
-              placeholder="+63 9XXXXXXXXX"
+              placeholder="9XXXXXXXXX"
+              prefix="+63"
+              maxLength={10}
               value={contactNumber}
-              onChangeText={setContactNumber}
+              onChangeText={(val) => setContactNumber(toLocalPhDigits(val))}
               keyboardType="phone-pad"
               error={errors.contactNumber}
             />
@@ -279,6 +321,33 @@ export default function EditProfileScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Guiding Accreditations Card (for certified divers / dive professionals) */}
+          {(profile?.type_of_dive === "certified" || profile?.certification_level === "dive-master" || profile?.certification_level === "instructor") ? (
+            <View style={styles.formCard}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <Ionicons name="shield-checkmark-outline" size={18} color={colors.primaryBlue} />
+                <Text style={styles.cardSectionTitle}>Guiding Accreditations</Text>
+              </View>
+              <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 12 }}>
+                Accreditation details used when operators add you as a Dive Master / Instructor on dive manifests.
+              </Text>
+
+              <TextInput
+                label="PCSSD Accreditation Number"
+                placeholder="e.g. PCSSD-DM-2024-XXXX"
+                value={pcssdNo}
+                onChangeText={setPcssdNo}
+              />
+
+              <TextInput
+                label="Permit to Operate Number"
+                placeholder="e.g. PTO-PG-2024-XXXX"
+                value={permitNo}
+                onChangeText={setPermitNo}
+              />
+            </View>
+          ) : null}
 
           {/* Quick Link to Dive Pass & Certification Details */}
           <TouchableOpacity

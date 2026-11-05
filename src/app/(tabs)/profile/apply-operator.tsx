@@ -19,6 +19,7 @@ import {
 } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
+import { toLocalPhDigits, toDbPhPhone, isValidPhDigits } from "../../../lib/phone";
 import { uploadFile } from "../../../lib/storage";
 import { supabase } from "../../../lib/supabase";
 
@@ -76,6 +77,7 @@ export default function ApplyOperatorScreen() {
     } else if (currentStep === 1) {
       if (!role) errs.role = "Required";
       if (!contactNumber.trim()) errs.contactNumber = "Required";
+      else if (!isValidPhDigits(contactNumber)) errs.contactNumber = "Format: 9XXXXXXXXX";
     } else {
       if (!businessPermitUrl) errs.businessPermitUrl = "Upload required";
       if (!agreed) errs.agreed = "You must confirm to proceed";
@@ -90,6 +92,7 @@ export default function ApplyOperatorScreen() {
     if (!resortLocation.trim()) errs.resortLocation = "Required";
     if (!role) errs.role = "Required";
     if (!contactNumber.trim()) errs.contactNumber = "Required";
+    else if (!isValidPhDigits(contactNumber)) errs.contactNumber = "Format: 9XXXXXXXXX";
     if (!businessPermitUrl) errs.businessPermitUrl = "Upload required";
     if (!agreed) errs.agreed = "You must confirm to proceed";
     setErrors(errs);
@@ -179,7 +182,7 @@ export default function ApplyOperatorScreen() {
       resort_name: resortName.trim(),
       resort_location: resortLocation.trim(),
       role,
-      contact_number: contactNumber.trim(),
+      contact_number: toDbPhPhone(contactNumber) || "",
       facebook_url: facebook.trim() || null,
       website_url: website.trim() || null,
       business_permit_url: businessPermitUrl,
@@ -373,9 +376,11 @@ export default function ApplyOperatorScreen() {
             />
             <TextInput
               label="Contact Number"
-              placeholder="+63 9XXXXXXXXX"
+              placeholder="9XXXXXXXXX"
+              prefix="+63"
+              maxLength={10}
               value={contactNumber}
-              onChangeText={setContactNumber}
+              onChangeText={(val) => setContactNumber(toLocalPhDigits(val))}
               keyboardType="phone-pad"
               error={errors.contactNumber}
             />
@@ -424,7 +429,7 @@ export default function ApplyOperatorScreen() {
                 A clear photo or PDF of your resort’s current mayor’s or business permit.
               </Text>
               <FileUpload
-                label="Upload Business Permit"
+                label="Upload"
                 onFileSelect={handleUploadPermit}
                 fileName={businessPermitUrl ? "Uploaded" : undefined}
                 showCamera
@@ -446,26 +451,26 @@ export default function ApplyOperatorScreen() {
                 Philippine Commission on Sports Scuba Diving accreditation certificate.
               </Text>
               <FileUpload
-                label="Upload PCSSD Accreditation"
+                label="Upload"
                 onFileSelect={handleUploadPcssd}
                 fileName={pcssdUrl ? "Uploaded" : undefined}
                 showCamera
               />
             </View>
 
-            {/* DOT Certification (Optional) */}
+            {/* DOT Accreditation (Optional) */}
             <View style={styles.uploadCard}>
               <View style={styles.uploadCardHeader}>
-                <Text style={styles.uploadLabel}>DOT Certification</Text>
+                <Text style={styles.uploadLabel}>DOT Accreditation</Text>
                 <View style={styles.optionalBadge}>
                   <Text style={styles.optionalBadgeText}>Optional</Text>
                 </View>
               </View>
               <Text style={styles.uploadHint}>
-                Department of Tourism accreditation or certificate.
+                Department of Tourism accreditation certificate.
               </Text>
               <FileUpload
-                label="Upload DOT Certification"
+                label="Upload"
                 onFileSelect={handleUploadDot}
                 fileName={dotUrl ? "Uploaded" : undefined}
                 showCamera

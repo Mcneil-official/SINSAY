@@ -209,6 +209,24 @@ export default function ProfileScreen() {
                   Synced with Eco-Dive ID
                 </Text>
               </View>
+
+              {profile?.pcssd_accreditation_no || profile?.pcssd_url ? (
+                <View style={[styles.syncedIdBadge, { backgroundColor: "#E6F4EA", borderColor: "#B7E1CD" }]}>
+                  <Ionicons name="shield-checkmark" size={12} color="#137333" />
+                  <Text style={[styles.syncedIdBadgeText, { color: "#137333" }]}>
+                    PCSSD Accredited{profile.pcssd_accreditation_no ? `: ${profile.pcssd_accreditation_no}` : ""}
+                  </Text>
+                </View>
+              ) : null}
+
+              {profile?.permit_to_operate_no || profile?.permit_to_operate_url ? (
+                <View style={[styles.syncedIdBadge, { backgroundColor: "#E8F0FE", borderColor: "#C2D7FA" }]}>
+                  <Ionicons name="document-text" size={12} color="#1A73E8" />
+                  <Text style={[styles.syncedIdBadgeText, { color: "#1A73E8" }]}>
+                    Permit to Operate{profile.permit_to_operate_no ? `: ${profile.permit_to_operate_no}` : ""}
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
             <TouchableOpacity

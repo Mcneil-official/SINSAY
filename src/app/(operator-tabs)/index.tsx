@@ -26,7 +26,7 @@ import AnimatedKpiValue from "../../components/AnimatedKpiValue";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
-import { deriveStatus, formatDiveDate } from "../../lib/diveDate";
+import { deriveManifestStatus, deriveStatus, formatDiveDate } from "../../lib/diveDate";
 import { supabase } from "../../lib/supabase";
 
 interface ManifestItem {
@@ -642,7 +642,8 @@ export default function OperatorDashboardScreen() {
           ) : manifests.length > 0 ? (
             <View style={styles.manifestList}>
               {manifests.slice(0, 5).map((m) => {
-                const status = deriveStatus(m.dive_date);
+                const realStatus = deriveManifestStatus(m.dive_date);
+                const statusLabel = realStatus === "active" ? "Active" : realStatus === "upcoming" ? "Upcoming" : "Completed";
                 const isBoatDive = m.dive_mode === "Boat Dive";
                 const title = m.boat_name || m.dive_mode || "Dive Group";
 
@@ -653,7 +654,7 @@ export default function OperatorDashboardScreen() {
                     activeOpacity={0.78}
                     onPress={() => router.push("/(operator-tabs)/manifests")}
                     accessibilityRole="button"
-                    accessibilityLabel={`${title}, ${m.location}, ${status === "active" ? "Active" : "Done"}`}
+                    accessibilityLabel={`${title}, ${m.location}, ${statusLabel}`}
                   >
                     <View
                       style={[
@@ -681,20 +682,24 @@ export default function OperatorDashboardScreen() {
                     <View
                       style={[
                         styles.statusPill,
-                        status === "active"
+                        realStatus === "active"
                           ? styles.statusPillActive
+                          : realStatus === "upcoming"
+                          ? styles.statusPillUpcoming
                           : styles.statusPillDone,
                       ]}
                     >
                       <Text
                         style={[
                           styles.statusPillText,
-                          status === "active"
+                          realStatus === "active"
                             ? styles.statusTextActive
+                            : realStatus === "upcoming"
+                            ? styles.statusTextUpcoming
                             : styles.statusTextDone,
                         ]}
                       >
-                        {status === "active" ? "Active" : "Done"}
+                        {statusLabel}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -1072,6 +1077,12 @@ const styles = StyleSheet.create({
   },
   statusPillActive: {
     backgroundColor: "#d4f7ed",
+  },
+  statusPillUpcoming: {
+    backgroundColor: "#e0f2fe",
+  },
+  statusTextUpcoming: {
+    color: "#0284c7",
   },
   statusPillDone: {
     backgroundColor: "#d9eaff",

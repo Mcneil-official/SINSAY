@@ -18,6 +18,7 @@ import {
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import {
   ContentContainer,
+  DidYouKnowLoader,
   EmptyState,
   ErrorState,
   resolveSiteImage,
@@ -272,7 +273,7 @@ export default function DiveSitesScreen() {
 
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.primaryBlue} />
+            <DidYouKnowLoader compact />
           </View>
         ) : error ? (
           <ErrorState

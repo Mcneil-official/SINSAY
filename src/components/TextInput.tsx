@@ -20,6 +20,8 @@ interface TextInputProps {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   fontFamily?: string;
+  prefix?: string;
+  maxLength?: number;
 }
 
 export function TextInput({
@@ -36,6 +38,8 @@ export function TextInput({
   leftIcon,
   rightIcon,
   fontFamily,
+  prefix,
+  maxLength,
 }: TextInputProps) {
   const [focused, setFocused] = useState(false);
 
@@ -68,6 +72,13 @@ export function TextInput({
         ]}
       >
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+        {prefix ? (
+          <View style={styles.prefixBadge}>
+            <Text style={[styles.prefixBadgeText, { fontFamily: fontFamily || FORM_FONT }]}>
+              {prefix}
+            </Text>
+          </View>
+        ) : null}
         <RNTextInput
           style={[styles.input, multiline && styles.multilineInput, { fontFamily: fontFamily || FORM_FONT }]}
           placeholder={placeholder}
@@ -79,6 +90,7 @@ export function TextInput({
           multiline={multiline}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          maxLength={maxLength}
         />
         {rightIcon ? <View style={styles.rightIcon}>{rightIcon}</View> : success ? <Ionicons name="checkmark-circle" size={18} color={colors.green} /> : null}
       </View>
@@ -114,6 +126,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     flexShrink: 0,
+  },
+  prefixBadge: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 7,
+    marginRight: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  prefixBadgeText: {
+    fontSize: 12.5,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.primaryBlue,
   },
   inputRow: {
     flexDirection: "row",

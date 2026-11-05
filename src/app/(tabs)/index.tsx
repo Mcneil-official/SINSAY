@@ -668,8 +668,8 @@ export default function HomeScreen() {
                       location={item.location}
                       accreditation={item.accreditation}
                       accredited={item.accredited}
-                      isPcssdAccredited={!!item.is_pcssd_accredited}
-                      isDotAccredited={!!item.is_dot_accredited}
+                      isPcssdAccredited={Boolean(item.pcssd_url && item.pcssd_url.trim().length > 0)}
+                      isDotAccredited={Boolean(item.dot_url && item.dot_url.trim().length > 0)}
                       imageUrl={imageUrl}
                       index={idx}
                       onPress={() =>

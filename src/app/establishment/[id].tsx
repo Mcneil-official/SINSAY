@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Image,
     Linking,
     SafeAreaView,
     ScrollView,
@@ -12,7 +13,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { ContentContainer, ErrorState } from "../../components";
+import { ContentContainer, ErrorState, EstablishmentBookingSection } from "../../components";
 import { ResortProfileHero } from "../../components/ResortProfileHero";
 import { colors } from "../../constants/colors";
 import { safeBack } from "../../lib/navigation";
@@ -92,55 +93,99 @@ export default function EstablishmentDetailScreen() {
                 </View>
               )}
 
+              {/* Official PCSSD and DOT Accreditation Emblems */}
+              {(() => {
+                const hasPcssd = Boolean(est.pcssd_url && est.pcssd_url.trim().length > 0);
+                const hasDot = Boolean(est.dot_url && est.dot_url.trim().length > 0);
+                if (!hasPcssd && !hasDot) return null;
+                return (
+                  <View style={styles.accreditationRow}>
+                    {hasPcssd ? (
+                      <View style={styles.officialBadge} accessibilityLabel="PCSSD Accredited">
+                        <Image source={PCSSD_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
+                        <Text style={styles.officialBadgeText}>PCSSD Accredited</Text>
+                      </View>
+                    ) : null}
+                    {hasDot ? (
+                      <View style={styles.officialBadge} accessibilityLabel="DOT Accredited">
+                        <Image source={DOT_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
+                        <Text style={styles.officialBadgeText}>DOT Accredited</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })()}
+
               {est.description && (
                 <Text style={styles.description}>{est.description}</Text>
               )}
 
-              {(est.phone || est.email || est.website || est.facebook) && (
-                <>
-                  <Text style={styles.sectionTitle}>Contact Information</Text>
+              {/* Dedicated Booking / Book Here UI Section */}
+              <EstablishmentBookingSection
+                bookingLinks={est.booking_links}
+                bookingUrl={est.booking_url}
+                websiteUrl={est.website}
+                facebookUrl={est.facebook}
+                establishmentName={est.name}
+              />
+
+              {/* Segregated Contact Information Section (Phone & Email Only) */}
+              {(est.phone || est.email) && (
+                <View style={styles.contactSection}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.verticalPill} />
+                    <View style={styles.headerTextWrap}>
+                      <Text style={styles.sectionTitle}>Contact Information</Text>
+                      <Text style={styles.sectionSubtitle}>Direct lines and inquiries</Text>
+                    </View>
+                  </View>
+
                   <View style={styles.contactList}>
                     {est.phone && (
                       <TouchableOpacity
-                        style={styles.contactRow}
+                        style={styles.contactCard}
                         onPress={() => Linking.openURL(`tel:${est.phone}`)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Call ${est.phone}`}
                       >
-                        <Ionicons name="call-outline" size={18} color={colors.primaryBlue} />
-                        <Text style={styles.contactText}>{est.phone}</Text>
+                        <View style={styles.contactIconCircle}>
+                          <Ionicons name="call-outline" size={17} color={colors.primaryBlue} />
+                        </View>
+                        <View style={styles.contactTextWrap}>
+                          <Text style={styles.contactLabel}>Phone / Mobile</Text>
+                          <Text style={styles.contactValue}>{est.phone}</Text>
+                        </View>
+                        <View style={styles.contactActionBadge}>
+                          <Text style={styles.contactActionText}>Call</Text>
+                          <Ionicons name="chevron-forward" size={13} color={colors.primaryBlue} />
+                        </View>
                       </TouchableOpacity>
                     )}
 
                     {est.email && (
                       <TouchableOpacity
-                        style={styles.contactRow}
+                        style={styles.contactCard}
                         onPress={() => Linking.openURL(`mailto:${est.email}`)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Email ${est.email}`}
                       >
-                        <Ionicons name="mail-outline" size={18} color={colors.primaryBlue} />
-                        <Text style={styles.contactText}>{est.email}</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {est.website && (
-                      <TouchableOpacity
-                        style={styles.contactRow}
-                        onPress={() => Linking.openURL(est.website!)}
-                      >
-                        <Ionicons name="globe-outline" size={18} color={colors.primaryBlue} />
-                        <Text style={styles.contactText}>{est.website.replace(/^https?:\/\//, "")}</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {est.facebook && (
-                      <TouchableOpacity
-                        style={styles.contactRow}
-                        onPress={() => Linking.openURL(`https://facebook.com/${est.facebook}`)}
-                      >
-                        <Ionicons name="logo-facebook" size={18} color={colors.primaryBlue} />
-                        <Text style={styles.contactText}>{est.facebook}</Text>
+                        <View style={styles.contactIconCircle}>
+                          <Ionicons name="mail-outline" size={17} color={colors.primaryBlue} />
+                        </View>
+                        <View style={styles.contactTextWrap}>
+                          <Text style={styles.contactLabel}>Email Address</Text>
+                          <Text style={styles.contactValue}>{est.email}</Text>
+                        </View>
+                        <View style={styles.contactActionBadge}>
+                          <Text style={styles.contactActionText}>Email</Text>
+                          <Ionicons name="chevron-forward" size={13} color={colors.primaryBlue} />
+                        </View>
                       </TouchableOpacity>
                     )}
                   </View>
-                </>
+                </View>
               )}
             </View>
           </>
@@ -243,24 +288,87 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 16,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.darkText,
-    marginTop: 24,
+  contactSection: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
     marginBottom: 12,
   },
+  verticalPill: {
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+    backgroundColor: "#087BFF",
+    marginTop: 2,
+  },
+  headerTextWrap: {
+    flex: 1,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156C",
+    letterSpacing: -0.2,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
+    marginTop: 2,
+    lineHeight: 16,
+  },
   contactList: { gap: 10 },
-  contactRow: {
+  contactCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: colors.grayLight,
-    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 12,
   },
-  contactText: { fontSize: 13, color: colors.darkText, fontWeight: "500" },
+  contactIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#EBF3FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  contactTextWrap: {
+    flex: 1,
+  },
+  contactLabel: {
+    fontSize: 11,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#64748B",
+  },
+  contactValue: {
+    fontSize: 13,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F172A",
+    marginTop: 1,
+  },
+  contactActionBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: "#EBF3FF",
+  },
+  contactActionText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.primaryBlue,
+  },
   center: {
     flex: 1, justifyContent: "center", alignItems: "center",
     paddingHorizontal: 32, gap: 12, marginTop: 80,

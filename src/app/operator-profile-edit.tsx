@@ -3,22 +3,40 @@ import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { ContentContainer, TextInput } from "../components";
+import { ContentContainer, Dropdown, TextInput } from "../components";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { showAlert } from "../lib/confirm";
 import { safeBack } from "../lib/navigation";
 import { uploadFile } from "../lib/storage";
 import { supabase } from "../lib/supabase";
+import { toLocalPhDigits, toDbPhPhone } from "../lib/phone";
+import { BookingLinkItem, BookingPlatformType } from "../types/supabase";
+import { detectTravelPlatform, PLATFORM_NAMES, normalizeTravelUrl } from "../components/EstablishmentBookingSection";
 
 type Photo = { uri: string; path: string | null; file?: DocumentPicker.DocumentPickerAsset };
 type EditorTab = "resort" | "photos" | "account";
 const publicUrl = (path?: string | null) => path ? supabase.storage.from("operator_media").getPublicUrl(path).data.publicUrl : "";
 
+const PLATFORM_OPTIONS: { label: string; value: BookingPlatformType }[] = [
+  { label: "Messenger (Facebook)", value: "messenger" },
+  { label: "Agoda", value: "agoda" },
+  { label: "WhatsApp", value: "whatsapp" },
+  { label: "Booking.com", value: "booking" },
+  { label: "Viber", value: "viber" },
+  { label: "TripAdvisor", value: "tripadvisor" },
+  { label: "Klook", value: "klook" },
+  { label: "Airbnb", value: "airbnb" },
+  { label: "Instagram", value: "instagram" },
+  { label: "Official Website", value: "website" },
+  { label: "Other / Direct Link", value: "direct" },
+];
+
 export default function OperatorProfileEditScreen() {
   const router = useRouter();
   const { user, profile, operatorApplication: app, avatarUri, isLoading, isOperator, roleReady, refreshProfile } = useAuth();
-  const [values, setValues] = useState({ resortName: "", location: "", description: "", resortPhone: "", resortEmail: "", facebook: "", website: "", fullName: "", phone: "", email: "" });
+  const [values, setValues] = useState({ resortName: "", location: "", description: "", resortPhone: "", resortEmail: "", facebook: "", website: "", bookingUrl: "", fullName: "", phone: "", email: "" });
+  const [bookingLinks, setBookingLinks] = useState<BookingLinkItem[]>([]);
   const [covers, setCovers] = useState<Photo[]>([]);
   const [avatar, setAvatar] = useState<Photo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,11 +56,61 @@ export default function OperatorProfileEditScreen() {
   useEffect(() => {
     queueMicrotask(() => {
       if (!profile || !app) return;
-      setValues({ resortName: app.resort_name || "", location: app.resort_location || "", description: app.resort_description || "", resortPhone: app.contact_number || "", resortEmail: app.resort_email || "", facebook: app.facebook_url || "", website: app.website_url || "", fullName: profile.full_name || "", phone: profile.contact_number || "", email: user?.email || profile.email || "" });
+      setValues({ resortName: app.resort_name || "", location: app.resort_location || "", description: app.resort_description || "", resortPhone: toLocalPhDigits(app.contact_number || ""), resortEmail: app.resort_email || "", facebook: app.facebook_url || "", website: app.website_url || "", bookingUrl: app.booking_url || "", fullName: profile.full_name || "", phone: toLocalPhDigits(profile.contact_number || ""), email: user?.email || profile.email || "" });
       setCovers((app.cover_image_paths || []).map((path) => ({ path, uri: publicUrl(path) })));
       setAvatar(profile.avatar_path ? { path: profile.avatar_path, uri: publicUrl(profile.avatar_path) } : avatarUri ? { path: null, uri: avatarUri } : null);
+      const initialLinks: BookingLinkItem[] = Array.isArray(app.booking_links) && app.booking_links.length > 0
+        ? app.booking_links
+        : app.booking_url
+          ? [{ id: `link_${Date.now()}`, platform: "direct", label: "Book Online", url: app.booking_url }]
+          : [];
+      setBookingLinks(initialLinks);
     });
   }, [profile, app, user?.email, avatarUri]);
+
+      const addBookingLink = () => {
+    setBookingLinks((prev) => [
+      ...prev,
+      {
+        id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        platform: "agoda",
+        label: "Agoda",
+        url: "",
+      },
+    ]);
+  };
+
+  const updateBookingLink = (id: string, updates: Partial<BookingLinkItem>) => {
+    setBookingLinks((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const next = { ...item, ...updates };
+
+        // If user manually switched the platform dropdown:
+        if (updates.platform && updates.platform !== item.platform) {
+          if (!next.label || next.label === PLATFORM_NAMES[item.platform]) {
+            next.label = PLATFORM_NAMES[updates.platform];
+          }
+        }
+
+        // If user entered URL, auto-detect platform if still default/direct:
+        if (updates.url !== undefined) {
+          const auto = detectTravelPlatform(updates.url);
+          if (auto !== "direct") {
+            next.platform = auto;
+            if (!next.label || Object.values(PLATFORM_NAMES).includes(next.label)) {
+              next.label = PLATFORM_NAMES[auto];
+            }
+          }
+        }
+        return next;
+      })
+    );
+  };
+
+  const removeBookingLink = (id: string) => {
+    setBookingLinks((prev) => prev.filter((item) => item.id !== id));
+  };
 
   const pickPhoto = async (kind: "cover" | "avatar", index?: number) => {
     const result = await DocumentPicker.getDocumentAsync({ type: ["image/jpeg", "image/png", "image/webp"], copyToCacheDirectory: true, multiple: false });
@@ -91,10 +159,18 @@ export default function OperatorProfileEditScreen() {
       };
       const coverPaths = (await Promise.all(covers.map((photo) => savePhoto(photo, "profile-cover")))).filter((path): path is string => !!path);
       const avatarPath = avatar ? await savePhoto(avatar, "profile-avatar") : null;
+                  const cleanedLinks = bookingLinks
+        .filter((l) => l.url.trim().length > 0)
+        .map((l) => ({
+          ...l,
+          label: l.label.trim() || PLATFORM_NAMES[l.platform] || "Book Online",
+          url: normalizeTravelUrl(l.url, l.platform),
+        }));
       const { error: saveError } = await supabase.rpc("save_operator_profile", {
         p_application_id: app.id, p_resort_name: values.resortName.trim(), p_resort_location: values.location.trim(), p_resort_description: values.description.trim() || null,
-        p_resort_contact_number: values.resortPhone.trim(), p_resort_email: values.resortEmail.trim() || null, p_facebook_url: values.facebook.trim() || null, p_website_url: values.website.trim() || null,
-        p_cover_image_paths: coverPaths, p_full_name: values.fullName.trim(), p_personal_contact_number: values.phone.trim() || null, p_avatar_path: avatarPath,
+        p_resort_contact_number: toDbPhPhone(values.resortPhone) || "", p_resort_email: values.resortEmail.trim() || null, p_facebook_url: values.facebook.trim() || null, p_website_url: values.website.trim() || null, p_booking_url: cleanedLinks[0]?.url || values.bookingUrl.trim() || null,
+        p_cover_image_paths: coverPaths, p_full_name: values.fullName.trim(), p_personal_contact_number: toDbPhPhone(values.phone), p_avatar_path: avatarPath,
+        p_booking_links: cleanedLinks,
       });
       if (saveError) throw saveError;
       let emailNotice = "";
@@ -114,7 +190,7 @@ export default function OperatorProfileEditScreen() {
     } finally { setBusy(false); }
   };
 
-  const field = (label: string, key: keyof typeof values, opts: { multiline?: boolean; keyboardType?: "default" | "email-address" | "phone-pad"; autoCapitalize?: "none" | "sentences" } = {}) => <View style={styles.field} key={key}><TextInput label={label} value={values[key]} onChangeText={(v) => change(key, v)} multiline={opts.multiline} keyboardType={opts.keyboardType || "default"} autoCapitalize={opts.autoCapitalize || "sentences"} placeholder={label} error={fieldErrors[key]} /></View>;
+  const field = (label: string, key: keyof typeof values, opts: { multiline?: boolean; keyboardType?: "default" | "email-address" | "phone-pad"; autoCapitalize?: "none" | "sentences"; prefix?: string; maxLength?: number } = {}) => <View style={styles.field} key={key}><TextInput label={label} value={values[key]} onChangeText={(v) => change(key, opts.keyboardType === "phone-pad" ? toLocalPhDigits(v) : v)} multiline={opts.multiline} keyboardType={opts.keyboardType || "default"} autoCapitalize={opts.autoCapitalize || "sentences"} placeholder={opts.keyboardType === "phone-pad" ? "9XXXXXXXXX" : label} prefix={opts.prefix} maxLength={opts.maxLength} error={fieldErrors[key]} /></View>;
   if (isLoading || !roleReady || !app) return <SafeAreaView style={styles.safe}><ActivityIndicator color={colors.primaryBlue} style={{ marginTop: 48 }} /></SafeAreaView>;
   return <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
     <View style={styles.header}><TouchableOpacity style={styles.backButton} onPress={handleBack} accessibilityLabel="Go back"><Ionicons name="chevron-back" size={21} color="#07156c" /></TouchableOpacity><View style={styles.headerText}><Text style={styles.eyebrow}>PROFILE SETTINGS</Text><Text style={styles.title}>Edit resort profile</Text></View><View style={{ width: 42 }} /></View>
@@ -133,8 +209,100 @@ export default function OperatorProfileEditScreen() {
           {covers.length < 3 && <TouchableOpacity style={styles.addPhoto} accessibilityRole="button" onPress={() => pickPhoto("cover")}><Ionicons name="add-circle-outline" size={27} color={colors.primaryBlue} /><Text style={styles.addText}>Add cover photo</Text><Text style={styles.addHint}>{covers.length} of 3 added</Text></TouchableOpacity>}</View>
         <View style={styles.avatarSection}><Text style={styles.label}>Account avatar</Text><Text style={styles.helper}>Shown over your resort photos and on the public listing.</Text><View style={styles.avatarLine}><View style={styles.avatar}>{avatar?.uri ? <Image source={{ uri: avatar.uri }} style={styles.avatarImage} /> : <Ionicons name="person" size={25} color="#fff" />}</View><TouchableOpacity style={styles.secondaryAction} onPress={() => pickPhoto("avatar")}><Ionicons name="image-outline" size={16} color="#087BFF" /><Text style={styles.secondaryActionText}>{avatar ? "Change avatar" : "Add avatar"}</Text></TouchableOpacity>{avatar && <TouchableOpacity style={styles.removeAvatar} onPress={() => setAvatar(null)}><Ionicons name="trash-outline" size={17} color="#C84C55" /></TouchableOpacity>}</View></View>
       </View>}
-      {activeTab === "resort" && <View style={styles.card}><View style={styles.sectionHeader}><View style={styles.sectionIcon}><Ionicons name="business-outline" size={19} color="#087BFF" /></View><View><Text style={styles.section}>Resort details</Text><Text style={styles.helper}>Information shown to divers</Text></View></View>{field("Resort name", "resortName")}{field("Location", "location")}{field("Description", "description", { multiline: true })}{field("Resort phone", "resortPhone", { keyboardType: "phone-pad" })}{field("Resort email", "resortEmail", { keyboardType: "email-address", autoCapitalize: "none" })}{field("Website link", "website", { autoCapitalize: "none" })}{field("Facebook link", "facebook", { autoCapitalize: "none" })}</View>}
-      {activeTab === "account" && <View style={styles.card}><View style={styles.sectionHeader}><View style={styles.sectionIcon}><Ionicons name="person-outline" size={19} color="#087BFF" /></View><View><Text style={styles.section}>Your account</Text><Text style={styles.helper}>Personal contact details</Text></View></View>{field("Full name", "fullName")}{field("Personal phone", "phone", { keyboardType: "phone-pad" })}{field("Email address", "email", { keyboardType: "email-address", autoCapitalize: "none" })}<Text style={styles.emailHint}>Changing your email requires confirmation from your inbox.</Text></View>}
+      {activeTab === "resort" && (
+        <>
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIcon}><Ionicons name="business-outline" size={19} color="#087BFF" /></View>
+              <View><Text style={styles.section}>Resort details</Text><Text style={styles.helper}>Information shown to divers</Text></View>
+            </View>
+            {field("Resort name", "resortName")}
+            {field("Location", "location")}
+            {field("Description", "description", { multiline: true })}
+            {field("Resort phone", "resortPhone", { keyboardType: "phone-pad", prefix: "+63", maxLength: 10 })}
+            {field("Resort email", "resortEmail", { keyboardType: "email-address", autoCapitalize: "none" })}
+            {field("Website link", "website", { autoCapitalize: "none" })}
+            {field("Facebook link", "facebook", { autoCapitalize: "none" })}
+          </View>
+
+                    {/* Dynamic Booking Links Manager */}
+          <View style={[styles.card, { marginTop: 4 }]}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIcon}><Ionicons name="calendar-outline" size={19} color="#087BFF" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.section}>Booking & Channels</Text>
+                <Text style={styles.helper}>Add channels where divers can book (Agoda, Messenger, WhatsApp, etc.)</Text>
+              </View>
+            </View>
+
+            {bookingLinks.map((item) => (
+              <View key={item.id} style={styles.linkItemCard}>
+                <View style={styles.linkItemHeader}>
+                  <View style={styles.linkPlatformTag}>
+                    <Ionicons name="link-outline" size={13} color="#087BFF" />
+                    <Text style={styles.linkPlatformText}>
+                      {(PLATFORM_NAMES[item.platform] || item.platform).toUpperCase()}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => removeBookingLink(item.id)}
+                    style={styles.deleteLinkBtn}
+                    accessibilityLabel="Remove booking link"
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#C84C55" />
+                  </TouchableOpacity>
+                </View>
+
+                <Dropdown
+                  label="Platform Channel"
+                  options={PLATFORM_OPTIONS}
+                  value={item.platform}
+                  onSelect={(val) => updateBookingLink(item.id, { platform: val as BookingPlatformType })}
+                  placeholder="Select Platform"
+                />
+
+                <TextInput
+                  label="Button Display Label"
+                  value={item.label}
+                  onChangeText={(val) => updateBookingLink(item.id, { label: val })}
+                  placeholder={`e.g. ${PLATFORM_NAMES[item.platform] || "Agoda"}`}
+                />
+
+                <TextInput
+                  label="Booking / Profile Link URL"
+                  value={item.url}
+                  onChangeText={(val) => updateBookingLink(item.id, { url: val })}
+                  placeholder={
+                    item.platform === "agoda"
+                      ? "https://www.agoda.com/your-resort"
+                      : item.platform === "messenger"
+                      ? "https://m.me/your-resort"
+                      : item.platform === "whatsapp"
+                      ? "https://wa.me/639XXXXXXXXX"
+                      : item.platform === "booking"
+                      ? "https://www.booking.com/hotel/ph/..."
+                      : item.platform === "instagram"
+                      ? "https://instagram.com/your-resort"
+                      : "https://your-link.com"
+                  }
+                  autoCapitalize="none"
+                />
+              </View>
+            ))}
+
+            <TouchableOpacity
+              style={styles.addLinkButton}
+              onPress={addBookingLink}
+              accessibilityRole="button"
+              accessibilityLabel="Add another booking link"
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#087BFF" />
+              <Text style={styles.addLinkButtonText}>Add Booking Link</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+      {activeTab === "account" && <View style={styles.card}><View style={styles.sectionHeader}><View style={styles.sectionIcon}><Ionicons name="person-outline" size={19} color="#087BFF" /></View><View><Text style={styles.section}>Your account</Text><Text style={styles.helper}>Personal contact details</Text></View></View>{field("Full name", "fullName")}{field("Personal phone", "phone", { keyboardType: "phone-pad", prefix: "+63", maxLength: 10 })}{field("Email address", "email", { keyboardType: "email-address", autoCapitalize: "none" })}<Text style={styles.emailHint}>Changing your email requires confirmation from your inbox.</Text></View>}
       <View style={{ height: 18 }} />
     </ContentContainer></ScrollView>
     <View style={styles.footer}>{!!error && <Text style={styles.error}>{error}</Text>}<View style={styles.actions}><TouchableOpacity style={styles.cancel} onPress={handleBack}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity style={[styles.save, busy && { opacity: .65 }]} disabled={busy} onPress={save}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save changes</Text>}</TouchableOpacity></View></View>
@@ -142,6 +310,57 @@ export default function OperatorProfileEditScreen() {
 }
 
 const styles = StyleSheet.create({
+  linkItemCard: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 12,
+    marginTop: 10,
+    gap: 8,
+  },
+  linkItemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  linkPlatformTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EBF3FF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  linkPlatformText: {
+    fontSize: 10,
+    fontFamily: "Quicksand_700Bold",
+    color: "#087BFF",
+  },
+  deleteLinkBtn: {
+    padding: 4,
+  },
+  addLinkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#087BFF",
+    borderStyle: "dashed",
+    backgroundColor: "#F0F7FF",
+    marginTop: 12,
+  },
+  addLinkButtonText: {
+    fontSize: 13,
+    fontFamily: "Quicksand_700Bold",
+    color: "#087BFF",
+  },
+
   safe: { flex: 1, backgroundColor: "#f1f9ff" },
   header: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, backgroundColor: "#f1f9ff" },
   backButton: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2edf8" },
