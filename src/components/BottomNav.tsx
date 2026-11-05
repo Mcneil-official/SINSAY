@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors } from "../constants/colors";
 
-export const BOTTOM_NAV_HEIGHT = 70;
+export const BOTTOM_NAV_HEIGHT = 50;
 
 const INACTIVE_COLOR = "#657C9B";
 
@@ -156,11 +156,14 @@ export default function BottomNav({
     );
   };
 
+  const navBottomPadding =
+    insets.bottom > 0 ? Math.max(insets.bottom - 10, 10) : 10;
+
   return (
     <View
       style={[
         styles.barWrap,
-        { paddingBottom: Math.max(insets.bottom, 12) + 10 },
+        { paddingBottom: navBottomPadding },
       ]}
     >
       <View style={styles.bar}>
@@ -176,7 +179,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: "#DBE8F4",
-    paddingTop: 10,
+    paddingTop: 8,
     paddingHorizontal: 16,
     alignItems: "center",
   },

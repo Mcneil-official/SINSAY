@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import Svg, {
+  Circle,
   Defs,
   LinearGradient,
   Path,
@@ -27,8 +28,8 @@ import { supabase } from "../../../lib/supabase";
 
 type PassType = "one-day";
 
-const MAX_PER_ORDER = 50;
-const PRESET_QUANTITIES = [5, 10, 20, 50];
+const MAX_PER_ORDER = 100;
+const PRESET_QUANTITIES = [5, 10, 20, 50, 100];
 
 interface TransactionItem {
   id: string;
@@ -267,13 +268,53 @@ export default function BuyPassSelectionScreen() {
                 of {oneDayPurchased !== null ? oneDayPurchased : "—"} purchased
               </Text>
             </View>
-            <View style={styles.kpiMetricRow}>
-              <AnimatedKpiValue
-                value={oneDayLeft}
-                placeholder="—"
-                style={styles.balanceNumberLarge}
-              />
-              <Text style={styles.kpiMetricLabel}>credits left</Text>
+
+            <View style={styles.kpiBottomRow}>
+              <View style={styles.kpiMetricRow}>
+                <AnimatedKpiValue
+                  value={oneDayLeft}
+                  placeholder="—"
+                  style={styles.balanceNumberLarge}
+                />
+                <Text style={styles.kpiMetricLabel}>credits left</Text>
+              </View>
+
+              {/* Sparkline chart directly under "of X purchased" */}
+              <View style={styles.kpiChartWrap}>
+                <Svg
+                  width={72}
+                  height={32}
+                  viewBox="0 0 145 80"
+                  pointerEvents="none"
+                >
+                  <Defs>
+                    <LinearGradient id="kpiSparkFill" x1="0" y1="0" x2="0" y2="1">
+                      <Stop offset="0" stopColor="#38bdf8" stopOpacity={0.55} />
+                      <Stop offset="1" stopColor="#0065fa" stopOpacity={0.05} />
+                    </LinearGradient>
+                  </Defs>
+                  <Path
+                    d="M0 60 H20 L35 48 L50 52 L68 34 L92 42 L116 16 L138 8 V80 H0 Z"
+                    fill="url(#kpiSparkFill)"
+                  />
+                  <Path
+                    d="M0 60 H20 L35 48 L50 52 L68 34 L92 42 L116 16 L138 8"
+                    fill="none"
+                    stroke="#006bff"
+                    strokeWidth={3.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <Circle
+                    cx={138}
+                    cy={8}
+                    r={5}
+                    fill="#0065fa"
+                    stroke="#FFFFFF"
+                    strokeWidth={2}
+                  />
+                </Svg>
+              </View>
             </View>
           </View>
         </ContentContainer>
@@ -340,7 +381,7 @@ export default function BuyPassSelectionScreen() {
                   onBlur={handleQtyBlur}
                   keyboardType="phone-pad"
                   maxLength={3}
-                  accessibilityLabel="Quantity, type a number from 1 to 50"
+                  accessibilityLabel="Quantity, type a number from 1 to 100"
                 />
 
                 <TouchableOpacity
@@ -375,7 +416,7 @@ export default function BuyPassSelectionScreen() {
                           isSelected && styles.presetChipTextActive,
                         ]}
                       >
-                        {val === 50 ? "50 Max" : `+${val}`}
+                        {val === MAX_PER_ORDER ? `${MAX_PER_ORDER} Max` : `+${val}`}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -441,19 +482,6 @@ export default function BuyPassSelectionScreen() {
               accessibilityRole="button"
               accessibilityLabel="Proceed to pay"
             >
-              <Svg
-                style={StyleSheet.absoluteFill}
-                preserveAspectRatio="none"
-                pointerEvents="none"
-              >
-                <Defs>
-                  <LinearGradient id="payBtnGrad" x1="0" y1="0" x2="1" y2="1">
-                    <Stop offset="0" stopColor="#0065fa" />
-                    <Stop offset="1" stopColor="#53acff" />
-                  </LinearGradient>
-                </Defs>
-                <Rect width="100%" height="100%" rx={18} fill="url(#payBtnGrad)" />
-              </Svg>
               <Ionicons name="card" size={18} color="#FFFFFF" />
               <Text style={styles.primaryProceedBtnText}>Proceed to Pay</Text>
               <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
@@ -719,6 +747,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8f3ff",
     alignItems: "center",
     justifyContent: "center",
+  },
+  kpiBottomRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    marginTop: 2,
+  },
+  kpiChartWrap: {
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+    paddingBottom: 2,
   },
   kpiMetricRow: {
     flexDirection: "row",
@@ -992,10 +1031,10 @@ const styles = StyleSheet.create({
   presetsRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 6,
+    gap: 5,
   },
   presetChip: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
@@ -1096,6 +1135,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 52,
     borderRadius: 18,
+    backgroundColor: "#0065fa",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1108,7 +1148,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   primaryProceedBtnDisabled: {
-    opacity: 0.5,
+    opacity: 0.45,
+    backgroundColor: "#7baeff",
   },
   primaryProceedBtnText: {
     fontSize: 14.5,

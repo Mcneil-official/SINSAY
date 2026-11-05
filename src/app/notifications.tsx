@@ -11,6 +11,7 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { ContentContainer, EmptyState } from "../components";
@@ -49,6 +50,8 @@ function timeAgo(dateStr: string): string {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const safeTop = Math.max(insets.top, 38);
   const { notifications, fetchNotifications, markAllNotificationsRead, isLoading, isOperator } = useAuth();
 
   useEffect(() => {
@@ -77,7 +80,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: safeTop + 4 }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => safeBack(router, isOperator ? "/(operator-tabs)" : "/(tabs)")}

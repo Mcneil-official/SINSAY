@@ -91,18 +91,18 @@ export default function UploadReceiptScreen() {
   }, [pricingCode]);
 
   const rawQty = Number(quantity) || 0;
-  const qtyValid = Number.isInteger(rawQty) && rawQty >= 1 && rawQty <= 50;
+  const qtyValid = Number.isInteger(rawQty) && rawQty >= 1 && rawQty <= 100;
   const qty = qtyValid ? rawQty : 0;
   const rawCustomCount = Number(passCount) || 0;
   const customCountValid =
     Number.isInteger(rawCustomCount) &&
     rawCustomCount >= 1 &&
-    rawCustomCount <= 50;
+    rawCustomCount <= 100;
   const isUnitRow = passesPerPack === 1;
 
   const verifiedPasses =
     passesPerPack !== null
-      ? Math.min(50, isUnitRow ? rawCustomCount : passesPerPack * qty)
+      ? Math.min(100, isUnitRow ? rawCustomCount : passesPerPack * qty)
       : 0;
   const verifiedTotal =
     unitPrice !== null ? unitPrice * (isUnitRow ? rawCustomCount : qty) : 0;
@@ -579,19 +579,6 @@ export default function UploadReceiptScreen() {
               accessibilityRole="button"
               accessibilityLabel="Submit receipt"
             >
-              <Svg
-                style={StyleSheet.absoluteFill}
-                preserveAspectRatio="none"
-                pointerEvents="none"
-              >
-                <Defs>
-                  <LinearGradient id="submitGrad" x1="0" y1="0" x2="1" y2="1">
-                    <Stop offset="0" stopColor="#0065fa" />
-                    <Stop offset="1" stopColor="#53acff" />
-                  </LinearGradient>
-                </Defs>
-                <Rect width="100%" height="100%" rx={18} fill="url(#submitGrad)" />
-              </Svg>
               {saving ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
@@ -1059,6 +1046,7 @@ const styles = StyleSheet.create({
   primarySubmitBtn: {
     height: 48,
     borderRadius: 18,
+    backgroundColor: "#0065fa",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1071,7 +1059,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   primarySubmitBtnDisabled: {
-    opacity: 0.5,
+    opacity: 0.45,
+    backgroundColor: "#7baeff",
   },
   primarySubmitBtnText: {
     fontSize: 14,

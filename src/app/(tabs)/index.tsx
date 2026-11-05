@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 116,
   },
   topBar: {
     flexDirection: "row",

@@ -14,7 +14,7 @@ import {
   Path,
   Svg,
   Circle as SvgCircle,
-  Text as SvgText
+  Text as SvgText,
 } from "react-native-svg";
 import { BookingLinkItem, BookingPlatformType } from "../types/supabase";
 
@@ -331,9 +331,7 @@ export function EstablishmentBookingSection({
       <View style={styles.headerRow}>
         <View style={styles.headerTextWrap}>
           <Text style={styles.title}>Book Here</Text>
-          <Text style={styles.subtitle}>
-            Book your dive, tour, or experience with us.
-          </Text>
+          <Text style={styles.subtitle}>Book your dive in this links.</Text>
         </View>
       </View>
 

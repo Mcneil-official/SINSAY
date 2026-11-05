@@ -18,7 +18,6 @@ export default function Next3Page() {
         }
         index={2}
         wave="control"
-        titleGap={8}
         illustrationAspect={960 / 1280}
         onBack={() => safeBack(router, "/next2")}
         onFinish={() => router.replace("/(tabs)")}
