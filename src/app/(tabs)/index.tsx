@@ -27,6 +27,7 @@ import {
   Skeleton,
 } from "../../components";
 import { SearchResult } from "../../components/SearchBar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
@@ -106,6 +107,8 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
+  const safeTop = Math.max(insets.top, 40);
   const router = useRouter();
   const {
     profile,
@@ -385,7 +388,7 @@ export default function HomeScreen() {
         <ContentContainer maxWidth={900} paddingH={20}>
           {/* Top Bar: SINSAY blue logo on upper left, Notification + Profile on upper right */}
           {!isDesktop && (
-            <View style={styles.topBar}>
+            <View style={[styles.topBar, { paddingTop: safeTop + 4 }]}>
               <Image
                 source={require("../../../assets/sinsay-blue-home.webp")}
                 style={styles.logoImage}
@@ -812,8 +815,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 24,
-    paddingTop: 2,
+    marginTop: 0,
+    paddingTop: 0,
     zIndex: 120,
   },
   logoImage: {

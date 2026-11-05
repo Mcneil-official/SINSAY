@@ -68,13 +68,14 @@ export function AuthLayout({
     });
   };
 
-  const headerHeight = Math.min(Math.max(height * 0.3, 220), 400);
+  // Status bar safety: guarantee at least 42px clearance on mobile PWA edge-to-edge
+  const safeTop = Math.max(insets.top, 42);
+  const headerHeight = Math.min(Math.max(height * 0.32, 235), 360);
   const blueHeight = headerHeight * (0.28 / 0.3);
-  const logoWidth = Math.min(Math.max(width * 0.61, 200), 250);
+  const logoWidth = Math.min(Math.max(width * 0.61, 200), 240);
   const logoHeight = (logoWidth * 306) / 1012;
-  const backIconSize = Math.min(Math.max(width * 0.067, 22), 30);
-  const backButtonTop =
-    insets.top + Math.min(Math.max(headerHeight * 0.08, 20), 32);
+  const backIconSize = Math.min(Math.max(width * 0.067, 22), 28);
+  const backButtonTop = safeTop + 4;
   const backButtonLeft = Math.min(Math.max(width * 0.036, 12), 20);
   const backButtonPadding = Math.round(backIconSize * 0.23);
 
@@ -128,9 +129,13 @@ export function AuthLayout({
                 hitSlop={12}
                 style={styles.wideBackRow}
                 accessibilityRole="button"
-                accessibilityLabel="Go back"
+                accessibilityLabel="Back"
               >
-                <Ionicons name="chevron-back" size={18} color="#0F172A" />
+                <Ionicons
+                  name="chevron-back"
+                  size={backIconSize}
+                  color="#0F172A"
+                />
                 <Text style={styles.wideBackLabel}>Back</Text>
               </Pressable>
 
@@ -186,8 +191,8 @@ export function AuthLayout({
           style={[
             styles.headerContent,
             {
-              paddingTop: insets.top + 8,
-              paddingBottom: headerHeight * 0.16,
+              paddingTop: safeTop + 8,
+              paddingBottom: headerHeight * 0.12,
             },
           ]}
         >
@@ -242,7 +247,7 @@ export function AuthLayout({
         <Text
           style={[
             styles.copyright,
-            { paddingBottom: Math.max(insets.bottom, 10) },
+            { paddingBottom: Math.max(insets.bottom, 12) },
           ]}
         >
           ©2026 Mabini Tourism
@@ -303,11 +308,13 @@ const styles = StyleSheet.create({
   },
   formContent: {
     paddingHorizontal: 33,
-    paddingTop: 10,
-    paddingBottom: 8,
+    paddingTop: 16,
+    paddingBottom: 20,
     width: "100%",
     maxWidth: 400,
     alignSelf: "center",
+    flexGrow: 1,
+    justifyContent: "center",
   },
   copyright: {
     fontSize: 10,

@@ -88,57 +88,6 @@ export interface DiveTimelineActivity {
   photoUrl?: string | null;
 }
 
-const SAMPLE_DIVE_ACTIVITIES: DiveTimelineActivity[] = [
-  {
-    id: "dive-log-3",
-    diveNumber: 3,
-    siteName: "Cathedral Rock Sanctuary",
-    dateTime: "Oct 24, 2026 • 09:30 AM",
-    diveCategory: "Recreational Dive • Boat Dive",
-    resortOrCenter: "Anilao Awari Bay Dive Center",
-    barangay: "Bagalangit, Mabini",
-    coordinates: "13.7242° N, 120.8764° E",
-    depthRange: "15–28m",
-    duration: "46 mins",
-    visibility: "22m Crystal Clear",
-    waterTemp: "28°C",
-    buddyOrGuide: "DM Marco Reyes",
-    imageIndex: 0,
-  },
-  {
-    id: "dive-log-2",
-    diveNumber: 2,
-    siteName: "Twin Rocks Marine Sanctuary",
-    dateTime: "Oct 22, 2026 • 02:15 PM",
-    diveCategory: "Recreational Dive • Reef & Wall",
-    resortOrCenter: "Buceo Anilao Beach & Dive Resort",
-    barangay: "San Teodoro, Mabini",
-    coordinates: "13.6988° N, 120.8841° E",
-    depthRange: "12–24m",
-    duration: "52 mins",
-    visibility: "20m Clear",
-    waterTemp: "27°C",
-    buddyOrGuide: "DM Carlo Mendoza",
-    imageIndex: 1,
-  },
-  {
-    id: "dive-log-1",
-    diveNumber: 1,
-    siteName: "Sombrero Island Coral Garden",
-    dateTime: "Oct 19, 2026 • 10:00 AM",
-    diveCategory: "Recreational Dive • Sanctuary",
-    resortOrCenter: "Planet Dive Resort Anilao",
-    barangay: "Tingloy / Balayan Bay",
-    coordinates: "13.6995° N, 120.8279° E",
-    depthRange: "8–18m",
-    duration: "48 mins",
-    visibility: "25m Excellent",
-    waterTemp: "28°C",
-    buddyOrGuide: "DM Liza Santos",
-    imageIndex: 2,
-  },
-];
-
 function formatCardDate(raw?: string | null): string {
   if (!raw || !raw.trim()) return "—";
   const parsed = new Date(raw.trim());
@@ -191,12 +140,11 @@ function DefaultAvatarSilhouette() {
 export function EcoDivePassportView() {
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const { user, profile, avatarUri, setAvatarUri, isLoading, refreshProfile, updateProfile } =
+  const { user, profile, ecoId, avatarUri, setAvatarUri, clearAvatarOverride, isLoading, refreshProfile, updateProfile } =
     useAuth();
 
-  const [activities, setActivities] = useState<DiveTimelineActivity[]>(
-    SAMPLE_DIVE_ACTIVITIES,
-  );
+  const [activities, setActivities] = useState<DiveTimelineActivity[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [selectedRecap, setSelectedRecap] =
     useState<DiveTimelineActivity | null>(null);
   const [showIdCardModal, setShowIdCardModal] = useState(false);
@@ -216,62 +164,133 @@ export function EcoDivePassportView() {
   useEffect(() => {
     if (!user) return;
     let active = true;
-    // Promise.resolve: PostgrestBuilder is only PromiseLike (no .catch), and
-    // the callback below awaits a second query that must stay covered too.
-    Promise.resolve(
-      supabase
-        .from("manifest_divers")
-        .select("id, manifest_id, created_at")
-        .eq("tourist_id", user.id)
-        .order("created_at", { ascending: false })
-    )
-      .then(async ({ data: diverRows }) => {
-        if (!active || !diverRows || diverRows.length === 0) return;
-        const manifestIds = diverRows.map((d) => d.manifest_id);
-        const { data: manifestRows } = await supabase
+
+    setHistoryLoading(true);
+
+    const userEcoId = ecoId?.eco_id_number?.trim();
+    let diverQuery = supabase
+      .from("manifest_divers")
+      .select("id, manifest_id, created_at");
+
+    if (userEcoId) {
+      diverQuery = diverQuery.or(`tourist_id.eq.${user.id},eco_id.eq.${userEcoId}`);
+    } else {
+      diverQuery = diverQuery.eq("tourist_id", user.id);
+    }
+
+    Promise.resolve(diverQuery.order("created_at", { ascending: false }))
+      .then(async ({ data: diverRows, error: diverErr }) => {
+        if (!active) return;
+        if (diverErr || !diverRows || diverRows.length === 0) {
+          setActivities([]);
+          setHistoryLoading(false);
+          return;
+        }
+
+        const manifestIds = Array.from(new Set(diverRows.map((d) => d.manifest_id).filter(Boolean)));
+        if (manifestIds.length === 0) {
+          setActivities([]);
+          setHistoryLoading(false);
+          return;
+        }
+
+        const { data: manifestRows, error: manifestErr } = await supabase
           .from("dive_manifests")
           .select("*")
           .in("id", manifestIds);
 
-        if (!active || !manifestRows || manifestRows.length === 0) return;
-        const total = manifestRows.length;
-        const mapped: DiveTimelineActivity[] = manifestRows.map((m, idx) => {
+        if (!active) return;
+        if (manifestErr || !manifestRows || manifestRows.length === 0) {
+          setActivities([]);
+          setHistoryLoading(false);
+          return;
+        }
+
+        // Sort chronological ascending to assign permanent dive numbers 1..N
+        const sortedAsc = [...manifestRows].sort((a, b) => {
+          const dateA = new Date(a.dive_date || a.created_at).getTime();
+          const dateB = new Date(b.dive_date || b.created_at).getTime();
+          return dateA - dateB;
+        });
+
+        // Batch fetch establishment names for operators
+        const operatorIds = Array.from(new Set(sortedAsc.map((m) => m.operator_id).filter(Boolean)));
+        let estMap = new Map<string, { name: string }>();
+        if (operatorIds.length > 0) {
+          const { data: ests } = await supabase
+            .from("establishments")
+            .select("operator_id, name")
+            .in("operator_id", operatorIds);
+          if (ests) {
+            estMap = new Map(ests.map((e) => [e.operator_id, e]));
+          }
+        }
+
+        // Batch fetch dive sites for photos & coordinates
+        const siteNames = Array.from(new Set(sortedAsc.map((m) => m.location).filter(Boolean)));
+        let siteMap = new Map<string, any>();
+        if (siteNames.length > 0) {
+          const { data: sites } = await supabase
+            .from("dive_sites")
+            .select("name, barangay, depth_range, lat, lng, image_url, photo_url")
+            .in("name", siteNames);
+          if (sites) {
+            siteMap = new Map(sites.map((s) => [s.name.toLowerCase().trim(), s]));
+          }
+        }
+
+        // Assign chronological dive numbers (1..total)
+        const mappedAsc: DiveTimelineActivity[] = sortedAsc.map((m, idx) => {
           const dt = new Date(m.dive_date || m.created_at);
           const formattedDate = dt.toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
             year: "numeric",
           });
+          const est = estMap.get(m.operator_id);
+          const site = siteMap.get((m.location || "").toLowerCase().trim());
+
+          const guideName =
+            m.instructor_name ||
+            (m.dive_masters && m.dive_masters.length ? m.dive_masters[0] : null) ||
+            m.captain_name ||
+            "Accredited Dive Guide";
+
           return {
             id: m.id,
-            diveNumber: total - idx,
-            siteName: m.location || "Cathedral Rock Sanctuary",
+            diveNumber: idx + 1,
+            siteName: m.location || "Mabini Marine Sanctuary",
             dateTime: `${formattedDate} • 09:00 AM`,
             diveCategory: `${m.dive_type || "Recreational Dive"} • ${m.dive_mode || "Boat Dive"}`,
-            resortOrCenter: m.boat_name
-              ? `${m.boat_name} Dive Center`
-              : "Mabini Accredited Dive Center",
-            barangay: "Mabini Marine Sanctuary, Batangas",
-            coordinates: "13.7242° N, 120.8764° E",
-            depthRange: m.difficulty === "Advanced" ? "18–32m" : "12–24m",
+            resortOrCenter: est?.name || (m.boat_name ? `${m.boat_name} Dive Center` : "Mabini Accredited Dive Center"),
+            barangay: site?.barangay ? `${site.barangay}, Mabini` : "Mabini Marine Sanctuary, Batangas",
+            coordinates: site?.lat && site?.lng ? `${site.lat.toFixed(4)}° N, ${site.lng.toFixed(4)}° E` : "13.7242° N, 120.8764° E",
+            depthRange: site?.depth_range || (m.difficulty === "Advanced" ? "18–32m" : "12–24m"),
             duration: "45 mins",
             visibility: "20m Clear",
             waterTemp: "28°C",
-            buddyOrGuide:
-              m.instructor_name || m.captain_name || "Accredited Dive Guide",
-            imageIndex: idx,
+            buddyOrGuide: guideName,
+            imageIndex: idx % 3,
+            photoUrl: site?.photo_url || site?.image_url || null,
           };
         });
-        setActivities(mapped);
+
+        // Present newest dive first (Dive #N at the top)
+        const mappedDesc = mappedAsc.reverse();
+        setActivities(mappedDesc);
+        setHistoryLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!active) return;
+        console.warn("Failed to load dive history:", err);
         setActivities([]);
+        setHistoryLoading(false);
       });
+
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, ecoId?.eco_id_number]);
 
   const handlePickProfilePhoto = useCallback(async () => {
     const result = await pickAvatarImage();
@@ -293,7 +312,7 @@ export function EcoDivePassportView() {
       const uploadRes = await uploadFile("operator_media", "profile-avatar", fileInfo, user.id);
       if (uploadRes.path) {
         await updateProfile({ avatar_path: uploadRes.path });
-        setAvatarUri(null);
+        clearAvatarOverride(user.id);
         setToastMessage("Eco-Dive ID photo saved to your profile!");
         setCopiedBanner(true);
         setTimeout(() => setCopiedBanner(false), 2600);
@@ -971,8 +990,34 @@ export function EcoDivePassportView() {
             </View>
           </View>
 
-          <View style={styles.verticalTimelineContainer}>
-            {activities.map((item, idx) => {
+          {historyLoading ? (
+            <View style={styles.historyLoadingWrap}>
+              <ActivityIndicator size="small" color={colors.primaryBlue} />
+              <Text style={styles.historyLoadingText}>
+                Loading verified dive history...
+              </Text>
+            </View>
+          ) : activities.length === 0 ? (
+            <View style={styles.emptyTimelineCard}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons
+                  name="boat-outline"
+                  size={30}
+                  color={colors.primaryBlue}
+                />
+              </View>
+              <Text style={styles.emptyTimelineTitle}>
+                No Dive History Yet
+              </Text>
+              <Text style={styles.emptyTimelineSubtitle}>
+                Your official dive logs and digital recaps will appear here
+                automatically once an accredited dive center records you on a
+                verified dive manifest.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.verticalTimelineContainer}>
+              {activities.map((item, idx) => {
               const isLast = idx === activities.length - 1;
               return (
                 <View key={item.id} style={styles.timelineRow}>
@@ -1157,6 +1202,7 @@ export function EcoDivePassportView() {
               );
             })}
           </View>
+        )}
         </ContentContainer>
       </ScrollView>
 
@@ -2388,5 +2434,56 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontFamily: "Quicksand_700Bold",
     color: "#0D74E7",
+  },
+  historyLoadingWrap: {
+    paddingVertical: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  historyLoadingText: {
+    fontSize: 13,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#64748B",
+  },
+  emptyTimelineCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  emptyIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#F0F6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  emptyTimelineTitle: {
+    fontSize: 16,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156C",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  emptyTimelineSubtitle: {
+    fontSize: 13,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 18,
+    maxWidth: 320,
   },
 });

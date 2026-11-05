@@ -18,7 +18,6 @@ export default function NextPage() {
         index={0}
         wave="marine-life"
         titleGap={8}
-        illustrationOffsetY={52}
         onNext={() => router.push("/next2")}
         onSkip={() => router.replace("/(tabs)")}
       />

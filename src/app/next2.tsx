@@ -21,7 +21,6 @@ export default function Next2Page() {
         titleGap={8}
         headerOffsetY={-10}
         illustrationAspect={960 / 1280}
-        illustrationOffsetY={52}
         onNext={() => router.push("/next3")}
         onBack={() => safeBack(router, "/next")}
         onSkip={() => router.replace("/(tabs)")}
