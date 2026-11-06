@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { ContentContainer, ErrorState, resolveSiteImage } from "../../components";
 import { colors } from "../../constants/colors";
+import { useAuth } from "../../hooks/useAuth";
 import { safeBack } from "../../lib/navigation";
 import { supabase } from "../../lib/supabase";
 import { DiveSiteRow } from "../../types/supabase";
@@ -29,11 +30,67 @@ const difficultyColors: Record<string, string> = {
 };
 
 export default function DiveSiteDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+    const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const [site, setSite] = useState<DiveSiteRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
+  const [likeBusy, setLikeBusy] = useState(false);
+
+  useEffect(() => {
+    if (!id || !user) {
+      setLiked(false);
+      return;
+    }
+    let active = true;
+    supabase
+      .from("tourist_favorites")
+      .select("id")
+      .eq("tourist_id", user.id)
+      .eq("dive_site_id", id)
+      .maybeSingle()
+      .then(
+        ({ data }) => {
+          if (!active) return;
+          setLiked(!!data);
+        },
+        () => {
+          if (!active) return;
+          setLiked(false);
+        },
+      );
+    return () => {
+      active = false;
+    };
+  }, [id, user]);
+
+  const handleToggleLike = useCallback(async () => {
+    if (!id || !user || likeBusy) return;
+    const nextLiked = !liked;
+    setLiked(nextLiked);
+    setLikeBusy(true);
+
+    try {
+      if (nextLiked) {
+        const { error } = await supabase
+          .from("tourist_favorites")
+          .insert({ tourist_id: user.id, dive_site_id: id });
+        if (error) setLiked(!nextLiked);
+      } else {
+        const { error } = await supabase
+          .from("tourist_favorites")
+          .delete()
+          .eq("tourist_id", user.id)
+          .eq("dive_site_id", id);
+        if (error) setLiked(!nextLiked);
+      }
+    } catch {
+      setLiked(!nextLiked);
+    } finally {
+      setLikeBusy(false);
+    }
+  }, [id, user, liked, likeBusy]);
 
   useEffect(() => {
     if (!id) return;
@@ -93,7 +150,7 @@ export default function DiveSiteDetailScreen() {
                 />
                 <TouchableOpacity
                   style={styles.heartBtn}
-                  onPress={() => setLiked(!liked)}
+                  onPress={handleToggleLike}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons
