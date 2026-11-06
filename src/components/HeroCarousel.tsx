@@ -14,15 +14,17 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { colors } from "../constants/colors";
 
 export interface CarouselItem {
+  id?: string;
   image: any;
   announcement?: string;
   body?: string | null;
+  onPress?: () => void;
 }
 
 interface HeroCarouselProps {
   items: CarouselItem[];
   autoPlayInterval?: number;
-  onPress?: (index: number) => void;
+  onPress?: (index: number, item?: CarouselItem) => void;
   /** Optional CTA label (omitted by default to keep photo unobstructed). */
   ctaLabel?: string;
   onCtaPress?: () => void;
@@ -85,59 +87,77 @@ export function HeroCarousel({
           onMomentumScrollEnd={handleScroll}
           scrollEventThrottle={16}
         >
-          {items.map((item, i) => (
-            <TouchableOpacity
-              key={i}
-              activeOpacity={onPress ? 0.9 : 1}
-              onPress={onPress ? () => onPress(i) : undefined}
-              style={[styles.slide, { width: carouselWidth }]}
-            >
-              <Image
-                source={item.image}
-                style={styles.heroImage}
-                contentFit="cover"
-              />
+          {items.map((item, i) => {
+            const hasPress = Boolean(item.onPress || onPress);
+            return (
+              <TouchableOpacity
+                key={i}
+                activeOpacity={hasPress ? 0.88 : 1}
+                onPress={
+                  hasPress
+                    ? () => {
+                        if (item.onPress) item.onPress();
+                        else if (onPress) onPress(i, item);
+                      }
+                    : undefined
+                }
+                style={[styles.slide, { width: carouselWidth }]}
+                accessibilityRole={hasPress ? "button" : undefined}
+                accessibilityLabel={item.announcement || `Announcement ${i + 1}`}
+              >
+                <Image
+                  source={item.image}
+                  style={styles.heroImage}
+                  contentFit="cover"
+                />
 
-              {/* Smooth bottom gradient so the upper photo stays clear while multi-line text has rich depth */}
-              <View style={styles.gradientWrap} pointerEvents="none">
-                <Svg
-                  width="100%"
-                  height="100%"
-                  viewBox="0 0 100 100"
-                  preserveAspectRatio="none"
-                >
-                  <Defs>
-                    <LinearGradient
-                      id={`heroAnnouncementGrad-${i}`}
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <Stop offset="0" stopColor="#020817" stopOpacity="0" />
-                      <Stop offset="0.35" stopColor="#020817" stopOpacity="0.38" />
-                      <Stop offset="0.7" stopColor="#020817" stopOpacity="0.78" />
-                      <Stop offset="1" stopColor="#020817" stopOpacity="0.95" />
-                    </LinearGradient>
-                  </Defs>
-                  <Rect
-                    x="0"
-                    y="0"
-                    width="100"
-                    height="100"
-                    fill={`url(#heroAnnouncementGrad-${i})`}
-                  />
-                </Svg>
-              </View>
+                {/* Smooth bottom gradient so the upper photo stays clear while multi-line text has rich depth */}
+                <View style={styles.gradientWrap} pointerEvents="none">
+                  <Svg
+                    width="100%"
+                    height="100%"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    <Defs>
+                      <LinearGradient
+                        id={`heroAnnouncementGrad-${i}`}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <Stop offset="0" stopColor="#020817" stopOpacity="0" />
+                        <Stop offset="0.35" stopColor="#020817" stopOpacity="0.38" />
+                        <Stop offset="0.7" stopColor="#020817" stopOpacity="0.78" />
+                        <Stop offset="1" stopColor="#020817" stopOpacity="0.95" />
+                      </LinearGradient>
+                    </Defs>
+                    <Rect
+                      x="0"
+                      y="0"
+                      width="100"
+                      height="100"
+                      fill={`url(#heroAnnouncementGrad-${i})`}
+                    />
+                  </Svg>
+                </View>
 
-              {(item.announcement || item.body) && (
-                <View style={styles.contentWrap}>
-                  <View style={styles.badgePill}>
-                    <View style={styles.badgeDot} />
-                    <Text style={styles.badgeLabel}>MABINI TOURISM</Text>
-                  </View>
+                {(item.announcement || item.body) && (
+                  <View style={styles.contentWrap}>
+                    <View style={styles.badgeRow}>
+                      <View style={styles.badgePill}>
+                        <View style={styles.badgeDot} />
+                        <Text style={styles.badgeLabel}>MABINI TOURISM</Text>
+                      </View>
+                      {hasPress && (
+                        <View style={styles.readNoticePill}>
+                          <Text style={styles.readNoticePillText}>Read Notice &rarr;</Text>
+                        </View>
+                      )}
+                    </View>
 
-                  {item.announcement ? (
+                    {item.announcement ? (
                     <Text style={styles.headlineText} numberOfLines={2}>
                       {item.announcement.trim()}
                     </Text>
@@ -147,11 +167,12 @@ export function HeroCarousel({
                     <Text style={styles.bodyText} numberOfLines={2}>
                       {item.body.trim()}
                     </Text>
-                  ) : null}
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
+                  ): null}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -217,6 +238,26 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     paddingTop: 10,
     gap: 3,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  readNoticePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 999,
+  },
+  readNoticePillText: {
+    fontSize: 9.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
   },
   badgePill: {
     flexDirection: "row",

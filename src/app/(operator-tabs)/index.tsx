@@ -52,7 +52,7 @@ interface OperatorStats {
 
 export default function OperatorDashboardScreen() {
   const insets = useSafeAreaInsets();
-  const safeTop = Math.max(insets.top, 40);
+  const safeTop = insets.top > 0 ? Math.max(insets.top - 8, 14) : 14;
   const router = useRouter();
   const { user, profile, operatorApplication, avatarUri, isLoading: authLoading, unreadCount } = useAuth();
   const { isDesktop, isTablet } = useLayout();
@@ -308,7 +308,7 @@ export default function OperatorDashboardScreen() {
       <View style={styles.fixedDashboard}>
         <ContentContainer maxWidth={isWide ? 900 : 480} paddingH={18}>
           {/* Header Top Bar: SINSAY White Logo on left, Notification + Resort/Profile Avatar on right */}
-          <View style={[styles.topBar, { paddingTop: safeTop + 4 }]}>
+          <View style={[styles.topBar, { paddingTop: safeTop }]}>
             <Image
               source={require("../../../assets/sinsay-white-home.webp")}
               style={styles.logoImage}
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
   },
   fixedDashboard: {
     flexShrink: 0,
-    paddingTop: 8,
+    paddingTop: 0,
   },
   scrollContent: {
     paddingBottom: 116,
@@ -780,7 +780,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingTop: 6,
-    paddingBottom: 8,
+    paddingBottom: 4,
   },
   logoImage: {
     width: 116,
@@ -843,8 +843,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   greetingBlock: {
-    marginTop: 2,
-    marginBottom: 14,
+    marginTop: 0,
+    marginBottom: 10,
   },
   greetingTitle: {
     fontSize: 21,

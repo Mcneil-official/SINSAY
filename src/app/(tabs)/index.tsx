@@ -75,72 +75,25 @@ const categoryOptions: {
   },
 ];
 
-const notifIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
-  eco_dive_activated: "checkmark-circle",
-  dive_plan_ready: "map",
-  operator_application_approved: "checkmark-done",
-  operator_application_rejected: "close-circle",
-  pass_purchase_verified: "wallet",
-  manifest_submitted: "document-text",
-  announcement_published: "megaphone",
-};
 
-const notifColors: Record<string, string> = {
-  eco_dive_activated: colors.green,
-  dive_plan_ready: colors.primaryBlue,
-  operator_application_approved: colors.green,
-  operator_application_rejected: colors.red,
-  pass_purchase_verified: colors.amberDark,
-  manifest_submitted: colors.primaryBlue,
-  announcement_published: colors.amberDark,
-};
-
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = Math.floor((now - then) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const safeTop = Math.max(insets.top, 40);
+  const safeTop = insets.top > 0 ? Math.max(insets.top - 8, 14) : 14;
   const router = useRouter();
   const {
     profile,
     avatarUri,
     isLoading: authLoading,
     unreadCount,
-    notifications,
-    fetchNotifications,
-    markAllNotificationsRead,
     user,
   } = useAuth();
   const { isDesktop } = useLayout();
-  const { width: screenWidth } = useWindowDimensions();
-  const notifWidth = Math.min(Math.max(screenWidth - 32, 220), 300);
-
   const firstName =
     profile?.full_name?.trim().split(" ")[0] ||
     user?.user_metadata?.full_name?.trim().split(" ")[0] ||
     "Diver";
-
-  const [notifOpen, setNotifOpen] = useState(false);
-
-  const handleToggleNotifications = useCallback(() => {
-    setNotifOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        fetchNotifications();
-        markAllNotificationsRead();
-      }
-      return next;
-    });
-  }, [fetchNotifications, markAllNotificationsRead]);
+  
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -409,7 +362,7 @@ export default function HomeScreen() {
         <ContentContainer maxWidth={900} paddingH={20}>
           {/* Top Bar: SINSAY blue logo on upper left, Notification + Profile on upper right */}
           {!isDesktop && (
-            <View style={[styles.topBar, { paddingTop: safeTop + 4 }]}>
+            <View style={[styles.topBar, { paddingTop: safeTop }]}>
               <Image
                 source={require("../../../assets/sinsay-blue-home.webp")}
                 style={styles.logoImage}
@@ -421,21 +374,16 @@ export default function HomeScreen() {
 
               <View style={styles.topBarActions}>
                 <TouchableOpacity
-                  style={[
-                    styles.iconButton,
-                    notifOpen && styles.iconButtonActive,
-                  ]}
-                  onPress={handleToggleNotifications}
+                  style={styles.iconButton}
+                  onPress={() => router.push("/notifications")}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Notifications"
+                  accessibilityLabel={`Notifications, ${unreadCount} unread`}
                 >
                   <Ionicons
-                    name={
-                      notifOpen ? "notifications" : "notifications-outline"
-                    }
+                    name="notifications-outline"
                     size={20}
-                    color={notifOpen ? colors.primaryBlue : colors.darkText}
+                    color={colors.darkText}
                   />
                   {unreadCount > 0 && (
                     <View style={styles.badge}>
@@ -568,22 +516,51 @@ export default function HomeScreen() {
           ) : announcements.length > 0 ? (
             <HeroCarousel
               items={announcements.map((a) => ({
+                id: a.id,
                 image: a.image_url
                   ? { uri: a.image_url }
                   : require("../../../assets/hero-banner.jpg"),
                 announcement: a.title,
                 body: a.body,
+                onPress: () => {
+                  router.push({
+                    pathname: "/announcement/[id]",
+                    params: { id: a.id },
+                  });
+                },
               }))}
+              onPress={(index) => {
+                const a = announcements[index];
+                if (a) {
+                  router.push({
+                    pathname: "/announcement/[id]",
+                    params: { id: a.id },
+                  });
+                }
+              }}
             />
           ) : (
             <HeroCarousel
               items={[
                 {
+                  id: "default-conservation",
                   image: require("../../../assets/hero-banner.jpg"),
                   announcement: "Protect Mabini's Vibrant Coral Reefs",
                   body: "Keep your Eco-Dive ID active before every dive.",
+                  onPress: () => {
+                    router.push({
+                      pathname: "/announcement/[id]",
+                      params: { id: "default-conservation" },
+                    });
+                  },
                 },
               ]}
+              onPress={() => {
+                router.push({
+                  pathname: "/announcement/[id]",
+                  params: { id: "default-conservation" },
+                });
+              }}
             />
           )}
 
@@ -714,99 +691,7 @@ export default function HomeScreen() {
         </ContentContainer>
       </ScrollView>
 
-      {/* Floating Notifications Popover (rendered above ScrollView so it never clips) */}
-      {notifOpen && (
-        <>
-          <Pressable
-            style={styles.notifBackdrop}
-            onPress={() => setNotifOpen(false)}
-            accessibilityLabel="Close notifications"
-          />
-          <View style={[styles.notifPopover, { width: notifWidth }]}>
-            <View style={styles.notifHeaderRow}>
-              <Text style={styles.notifHeaderTitle}>Notifications</Text>
-              <TouchableOpacity
-                onPress={() => setNotifOpen(false)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Close notifications panel"
-              >
-                <Ionicons name="close" size={18} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            {notifications.length === 0 ? (
-              <View style={styles.notifEmptyWrap}>
-                <Ionicons
-                  name="notifications-off-outline"
-                  size={28}
-                  color="#94A3B8"
-                />
-                <Text style={styles.notifEmptyText}>
-                  No notifications yet
-                </Text>
-              </View>
-            ) : (
-              <ScrollView
-                style={styles.notifListScroll}
-                showsVerticalScrollIndicator={false}
-                nestedScrollEnabled
-              >
-                {notifications.map((notif) => {
-                  const icon = notifIcons[notif.type] || "ellipse";
-                  const iconColor = notifColors[notif.type] || colors.gray;
-                  return (
-                    <TouchableOpacity
-                      key={notif.id}
-                      style={[
-                        styles.notifItemRow,
-                        !notif.is_read && styles.notifItemUnread,
-                      ]}
-                      activeOpacity={0.75}
-                      onPress={() => {
-                        setNotifOpen(false);
-                        if (notif.deep_link) {
-                          router.push(notif.deep_link as any);
-                        }
-                      }}
-                    >
-                      <View
-                        style={[
-                          styles.notifItemIcon,
-                          { backgroundColor: iconColor + "18" },
-                        ]}
-                      >
-                        <Ionicons name={icon} size={16} color={iconColor} />
-                      </View>
-                      <View style={styles.notifItemBodyCol}>
-                        <Text
-                          style={styles.notifItemTitle}
-                          numberOfLines={1}
-                        >
-                          {notif.title}
-                        </Text>
-                        <Text
-                          style={styles.notifItemBody}
-                          numberOfLines={2}
-                        >
-                          {notif.body}
-                        </Text>
-                        <Text style={styles.notifItemTime}>
-                          {timeAgo(notif.created_at)}
-                        </Text>
-                      </View>
-                      {!notif.is_read && (
-                        <View style={styles.notifUnreadDot} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-          </View>
-        </>
-      )}
-    </SafeAreaView>
+      </SafeAreaView>
   );
 }
 
@@ -859,114 +744,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  iconButtonActive: {
-    backgroundColor: "#EBF3FF",
-    borderColor: colors.primaryBlue,
-  },
-  notifBackdrop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 200,
-  },
-  notifPopover: {
-    position: "absolute",
-    top: 72,
-    right: 16,
-    maxWidth: 300,
-    maxHeight: 370,
-    backgroundColor: colors.white,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#DBE8F4",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 16,
-    zIndex: 210,
-    overflow: "hidden",
-  },
-  notifHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EDF2F7",
-    backgroundColor: "#F8FBFF",
-  },
-  notifHeaderTitle: {
-    fontSize: 15,
-    fontFamily: "Quicksand_700Bold",
-    color: colors.darkText,
-  },
-  notifEmptyWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 32,
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  notifEmptyText: {
-    fontSize: 13,
-    fontFamily: "Quicksand_500Medium",
-    color: "#64748B",
-  },
-  notifListScroll: {
-    maxHeight: 310,
-  },
-  notifItemRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  notifItemUnread: {
-    backgroundColor: "#F0F7FF",
-  },
-  notifItemIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 1,
-  },
-  notifItemBodyCol: {
-    flex: 1,
-    gap: 2,
-  },
-  notifItemTitle: {
-    fontSize: 13,
-    fontFamily: "Quicksand_700Bold",
-    color: colors.darkText,
-  },
-  notifItemBody: {
-    fontSize: 12,
-    fontFamily: "Quicksand_500Medium",
-    color: "#475569",
-    lineHeight: 16,
-  },
-  notifItemTime: {
-    fontSize: 10.5,
-    fontFamily: "Quicksand_500Medium",
-    color: "#94A3B8",
-    marginTop: 2,
-  },
-  notifUnreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primaryBlue,
-    marginTop: 6,
-  },
+  
   badge: {
     position: "absolute",
     top: -2,
@@ -998,7 +776,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   greetingBlock: {
-    marginTop: 14,
+    marginTop: 8,
     paddingLeft: 10,
   },
   greetingTitle: {
