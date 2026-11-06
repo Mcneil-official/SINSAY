@@ -170,7 +170,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {
       // IndexedDB read failed — fall back to whatever the caller already has.
     });
+    const announcementsChannel = supabase
+      .channel("announcements-sync")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "announcements",
+        },
+        () => {
+          fetchNotifications();
+          fetchUnreadCount();
+        }
+      )
+      .subscribe();
+
     return () => {
+      supabase.removeChannel(announcementsChannel);
       cancelled = true;
     };
   }, [user, revokeAvatarObjectUrl]);
@@ -259,23 +276,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("tourist_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (data) setNotifications(data);
+    const [notifRes, announcementsRes] = await Promise.all([
+      supabase
+        .from("notifications")
+        .select("*")
+        .eq("tourist_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("announcements")
+        .select("id, title")
+        .eq("active", true),
+    ]);
+
+    const rawNotifs = notifRes.data ?? [];
+    const activeAnnouncements = announcementsRes.data ?? [];
+    const activeIds = new Set(activeAnnouncements.map((a) => a.id));
+    const activeTitles = new Set(activeAnnouncements.map((a) => a.title.trim()));
+
+    const orphanNotifIds: string[] = [];
+
+    const validNotifs = rawNotifs.filter((n) => {
+      if (n.type !== "announcement_published") {
+        return true;
+      }
+      const match = n.deep_link?.match(/^\/announcement\/(.+)$/);
+      if (match && match[1]) {
+        if (activeIds.has(match[1])) return true;
+      } else {
+        const found = activeAnnouncements.find(
+          (a) => a.title.trim().toLowerCase() === n.title.trim().toLowerCase()
+        );
+        if (found) {
+          n.deep_link = `/announcement/${found.id}`;
+          supabase
+            .from("notifications")
+            .update({ deep_link: `/announcement/${found.id}` })
+            .eq("id", n.id)
+            .then(() => {});
+          return true;
+        }
+      }
+      orphanNotifIds.push(n.id);
+      return false;
+    });
+
+    setNotifications(validNotifs);
+
+    if (orphanNotifIds.length > 0) {
+      supabase
+        .from("notifications")
+        .delete()
+        .in("id", orphanNotifIds)
+        .then(() => {});
+    }
   }, [user]);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!user) return;
-    const { count } = await supabase
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("tourist_id", user.id)
-      .eq("is_read", false);
-    setUnreadCount(count ?? 0);
+    const [unreadRes, announcementsRes] = await Promise.all([
+      supabase
+        .from("notifications")
+        .select("id, type, title, deep_link")
+        .eq("tourist_id", user.id)
+        .eq("is_read", false),
+      supabase
+        .from("announcements")
+        .select("id, title")
+        .eq("active", true),
+    ]);
+
+    const unreads = unreadRes.data ?? [];
+    const activeAnnouncements = announcementsRes.data ?? [];
+    const activeIds = new Set(activeAnnouncements.map((a) => a.id));
+    const activeTitles = new Set(activeAnnouncements.map((a) => a.title.trim()));
+
+    const validUnreads = unreads.filter((n) => {
+      if (n.type !== "announcement_published") return true;
+      const match = n.deep_link?.match(/^\/announcement\/(.+)$/);
+      if (match && match[1]) {
+        return activeIds.has(match[1]);
+      }
+      return activeTitles.has(n.title.trim());
+    });
+
+    setUnreadCount(validUnreads.length);
   }, [user]);
 
   const markAllNotificationsRead = useCallback(async () => {
@@ -426,11 +511,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .subscribe();
 
     const notifChannel = supabase
-      .channel("notification-inserts")
+      .channel("notification-changes")
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "notifications",
           filter: `tourist_id=eq.${user.id}`,

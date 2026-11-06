@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -16,6 +16,8 @@ import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { ContentContainer, EmptyState } from "../components";
 import { safeBack } from "../lib/navigation";
+import { supabase } from "../lib/supabase";
+import { resolveNotificationRoute } from "../lib/notifications";
 
 const notifIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   eco_dive_activated: "checkmark-circle",
@@ -53,6 +55,7 @@ export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const safeTop = Math.max(insets.top, 38);
   const { notifications, fetchNotifications, markAllNotificationsRead, isLoading, isOperator } = useAuth();
+  const [activeAnnouncements, setActiveAnnouncements] = useState<Array<{ id: string; title: string }>>([]);
 
   useEffect(() => {
     fetchNotifications();
@@ -60,12 +63,11 @@ export default function NotificationsScreen() {
   }, []);
 
   const handleNotificationPress = useCallback(
-    async (notif: typeof notifications[0]) => {
-      if (notif.deep_link) {
-        router.push(notif.deep_link as any);
-      }
+    (notif: typeof notifications[0]) => {
+      const dest = resolveNotificationRoute(notif, activeAnnouncements);
+      router.push(dest as any);
     },
-    [router]
+    [router, activeAnnouncements]
   );
 
   if (isLoading) {
@@ -122,6 +124,7 @@ export default function NotificationsScreen() {
                   <Text style={styles.notifTime}>{timeAgo(notif.created_at)}</Text>
                 </View>
                 {!notif.is_read && <View style={styles.unreadDot} />}
+                <Ionicons name="chevron-forward" size={16} color="#94A3B8" style={styles.chevron} />
               </TouchableOpacity>
             );
           })}
@@ -203,6 +206,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.gray,
     marginTop: 4,
+  },
+  chevron: {
+    alignSelf: "center",
+    marginLeft: 6,
   },
   unreadDot: {
     width: 8,
