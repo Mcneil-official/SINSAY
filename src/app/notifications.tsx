@@ -55,12 +55,19 @@ export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const safeTop = Math.max(insets.top, 38);
   const { notifications, fetchNotifications, markAllNotificationsRead, isLoading, isOperator } = useAuth();
-  const [activeAnnouncements, setActiveAnnouncements] = useState<Array<{ id: string; title: string }>>([]);
+  const [activeAnnouncements, setActiveAnnouncements] = useState<{ id: string; title: string }[]>([]);
 
   useEffect(() => {
     fetchNotifications();
     markAllNotificationsRead();
-  }, []);
+    supabase
+      .from("announcements")
+      .select("id, title")
+      .eq("status", "published")
+      .then(({ data }) => {
+        if (data) setActiveAnnouncements(data);
+      });
+  }, [fetchNotifications, markAllNotificationsRead]);
 
   const handleNotificationPress = useCallback(
     (notif: typeof notifications[0]) => {

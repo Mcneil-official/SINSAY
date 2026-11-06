@@ -120,7 +120,7 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingTop: safeTop + 6, paddingBottom: 116 }]}
         showsVerticalScrollIndicator={false}
       >
-        <ContentContainer maxWidth={560} paddingH={16}>
+        <ContentContainer maxWidth={560}>
           {/* Screen Header matching Eco-Dive ID */}
           <View style={styles.screenHeader}>
             <View style={styles.headerTextCol}>

@@ -7,7 +7,6 @@ import {
     SafeAreaView,
     StyleSheet,
     Text,
-    useWindowDimensions,
     View,
 } from "react-native";
 import {
@@ -55,7 +54,6 @@ const privacyLabel = "I consent to the collection and processing of my personal 
 
 export default function DiveDetailsStep1() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
   const { profile, isLoading, updateProfile, refreshProfile } = useAuth();
   const [fullName, setFullName] = useState("");
   const [nationality, setNationality] = useState("");

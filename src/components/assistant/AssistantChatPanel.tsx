@@ -39,12 +39,6 @@ const getTime = () => {
   return `${h % 12 || 12}:${m} ${ampm}`;
 };
 
-const QUICK_PROMPTS = [
-  "Best dive site for beginners?",
-  "Dive safety tips",
-  "What is an Eco-Dive ID?",
-];
-
 let nextMessageSeq = 1;
 const nextMessageId = () => `msg-${++nextMessageSeq}`;
 
@@ -125,10 +119,12 @@ export function AssistantChatPanel({
   }, [messages, loading]);
 
   const initialSentRef = useRef(false);
+  const sendMessageRef = useRef<(text: string) => Promise<void>>(null as any);
+
   useEffect(() => {
     if (initialMessage && initialMessage.trim() && !initialSentRef.current) {
       initialSentRef.current = true;
-      sendMessage(initialMessage.trim());
+      sendMessageRef.current?.(initialMessage.trim());
     }
   }, [initialMessage]);
 
@@ -170,6 +166,7 @@ export function AssistantChatPanel({
     }
     setLoading(false);
   };
+  sendMessageRef.current = sendMessage;
 
   const handleSend = async () => {
     const text = input.trim();

@@ -27,7 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
-import { deriveManifestStatus, deriveStatus, formatDiveDate } from "../../lib/diveDate";
+import { deriveManifestStatus, formatDiveDate } from "../../lib/diveDate";
 import { supabase } from "../../lib/supabase";
 
 interface ManifestItem {
@@ -54,8 +54,8 @@ export default function OperatorDashboardScreen() {
   const insets = useSafeAreaInsets();
   const safeTop = insets.top > 0 ? Math.max(insets.top - 8, 14) : 14;
   const router = useRouter();
-  const { user, profile, operatorApplication, avatarUri, isLoading: authLoading, unreadCount } = useAuth();
-  const { isDesktop, isTablet } = useLayout();
+  const { user, operatorApplication, avatarUri, isLoading: authLoading, unreadCount } = useAuth();
+  const { isDesktop, isTablet, isCompact } = useLayout();
   const isWide = isDesktop || isTablet;
 
   const establishmentName =
@@ -179,7 +179,7 @@ export default function OperatorDashboardScreen() {
       setStatError(true);
       setStatLoading(false);
     }
-  }, [user, loadStatsLegacy]);
+  }, [loadStatsLegacy]);
 
   const loadManifests = useCallback(async () => {
     setManifestLoading(true);
@@ -311,14 +311,14 @@ export default function OperatorDashboardScreen() {
           <View style={[styles.topBar, { paddingTop: safeTop }]}>
             <Image
               source={require("../../../assets/sinsay-white-home.webp")}
-              style={styles.logoImage}
+              style={[styles.logoImage, isCompact && styles.compactLogoImage]}
               contentFit="contain"
               priority="high"
               cachePolicy="memory-disk"
               accessibilityLabel="SINSAY"
             />
 
-            <View style={styles.topBarActions}>
+            <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
               <TouchableOpacity
                 style={styles.notificationBtn}
                 onPress={() => router.push("/notifications")}
@@ -393,9 +393,9 @@ export default function OperatorDashboardScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.statsRow}>
+            <View style={[styles.statsRow, isCompact && styles.compactStatsRow]}>
               {/* Card 1: Today's Divers */}
-              <View style={styles.statCard}>
+              <View style={[styles.statCard, isCompact && styles.compactStatCard]}>
                 <View style={styles.statHeadingRow}>
                   <View style={styles.statIconBubble}>
                     <Ionicons name="calendar" size={12} color="#006bff" />
@@ -454,7 +454,7 @@ export default function OperatorDashboardScreen() {
               </View>
 
               {/* Card 2: Remaining Passes */}
-              <View style={styles.statCard}>
+              <View style={[styles.statCard, isCompact && styles.compactStatCard]}>
                 <View style={styles.statHeadingRow}>
                   <View style={styles.statIconBubble}>
                     <Ionicons name="ticket" size={12} color="#006bff" />
@@ -510,7 +510,7 @@ export default function OperatorDashboardScreen() {
               </View>
 
               {/* Card 3: Manifesto Sent */}
-              <View style={styles.statCard}>
+              <View style={[styles.statCard, isCompact && styles.compactStatCard]}>
                 <View style={styles.statHeadingRow}>
                   <View style={styles.statIconBubble}>
                     <Ionicons name="paper-plane" size={11} color="#006bff" />
@@ -786,6 +786,10 @@ const styles = StyleSheet.create({
     width: 116,
     height: 36,
   },
+  compactLogoImage: {
+    width: 104,
+    height: 32,
+  },
   topBarActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -886,6 +890,9 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 12,
   },
+  compactStatsRow: {
+    gap: 4,
+  },
   statCard: {
     flex: 1,
     height: 94,
@@ -901,6 +908,10 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+  },
+  compactStatCard: {
+    padding: 5,
+    borderRadius: 8,
   },
   statHeadingRow: {
     flexDirection: "row",

@@ -4,6 +4,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors } from "../constants/colors";
+import { useLayout } from "../context/LayoutContext";
 
 export const BOTTOM_NAV_HEIGHT = 50;
 
@@ -89,6 +90,7 @@ export default function BottomNav({
   allowLabelWrap = false,
 }: BottomNavProps) {
   const insets = useSafeAreaInsets();
+  const { isCompact } = useLayout();
   const activeKey = state.routes[state.index]?.key;
   const visibleRoutes = hiddenRoutes?.length
     ? state.routes.filter((r) => !hiddenRoutes.includes(r.name))
@@ -100,7 +102,7 @@ export default function BottomNav({
     const icon = tabIcons[name];
     const label = tabLabels[name] || name;
     const iconColor = isFocused ? colors.white : INACTIVE_COLOR;
-    const iconSize = isFocused ? 18 : 20;
+    const iconSize = isFocused ? (isCompact ? 16 : 18) : (isCompact ? 18 : 20);
 
     const onPress = () => {
       const event = navigation.emit({
@@ -121,6 +123,7 @@ export default function BottomNav({
         onPress={onPress}
         style={[
           isFocused ? styles.activeTab : styles.inactiveTab,
+          isCompact && (isFocused ? styles.compactActiveTab : styles.compactInactiveTab),
           allowLabelWrap &&
             (isFocused ? styles.operatorActiveTab : styles.operatorInactiveTab),
         ]}
@@ -143,6 +146,7 @@ export default function BottomNav({
         <Text
           style={[
             isFocused ? styles.activeText : styles.inactiveText,
+            isCompact && (isFocused ? styles.compactActiveText : styles.compactInactiveText),
             allowLabelWrap &&
               (isFocused
                 ? styles.operatorActiveText
@@ -163,6 +167,7 @@ export default function BottomNav({
     <View
       style={[
         styles.barWrap,
+        isCompact && styles.compactBarWrap,
         { paddingBottom: navBottomPadding },
       ]}
     >
@@ -244,5 +249,22 @@ const styles = StyleSheet.create({
     width: "100%",
     fontSize: 9,
     lineHeight: 11,
+  },
+  compactBarWrap: {
+    paddingHorizontal: 8,
+  },
+  compactActiveTab: {
+    paddingHorizontal: 10,
+    gap: 3,
+  },
+  compactInactiveTab: {
+    minWidth: 44,
+    paddingHorizontal: 1,
+  },
+  compactActiveText: {
+    fontSize: 10,
+  },
+  compactInactiveText: {
+    fontSize: 9,
   },
 });

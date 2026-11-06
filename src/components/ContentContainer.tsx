@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View, ViewStyle } from "react-native";
+import { View, ViewStyle } from "react-native";
 import { useLayout } from "../context/LayoutContext";
 
 interface ContentContainerProps {
@@ -12,18 +12,19 @@ interface ContentContainerProps {
 export default function ContentContainer({
   children,
   maxWidth = 720,
-  paddingH = 20,
+  paddingH,
   style,
 }: ContentContainerProps) {
-  const { isDesktop, isTablet } = useLayout();
+  const { isDesktop, isTablet, isCompact } = useLayout();
   const isWide = isDesktop || isTablet;
+  const effectivePadding = paddingH !== undefined ? paddingH : isCompact ? 14 : 20;
 
   return (
     <View
       style={[
         isWide
-          ? { width: "100%", maxWidth, alignSelf: "center", paddingHorizontal: paddingH }
-          : { width: "100%", paddingHorizontal: paddingH },
+          ? { width: "100%", maxWidth, alignSelf: "center", paddingHorizontal: effectivePadding }
+          : { width: "100%", paddingHorizontal: effectivePadding },
         style,
       ]}
     >

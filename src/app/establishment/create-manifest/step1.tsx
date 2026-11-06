@@ -165,7 +165,6 @@ export default function CreateManifestStep1() {
   // Boat details
   const [boatName, setBoatName] = useState((initialDraft.boatName as string) ?? "");
   const [captainName, setCaptainName] = useState((initialDraft.captainName as string) ?? "");
-  const [crewCount, setCrewCount] = useState((initialDraft.crewCount as string) ?? "");
   const [crewMembers, setCrewMembers] = useState<string[]>(() => {
     if (Array.isArray(initialDraft.crewMembers) && initialDraft.crewMembers.length > 0) {
       return initialDraft.crewMembers as string[];
@@ -630,7 +629,8 @@ export default function CreateManifestStep1() {
   // Local draft autosave (never touches the DB): a draft with at least one
   // diver is worth keeping. Debounced 1.5s so typing doesn't spam storage.
   const collectDraftForm = () => ({
-    diveType, diveMode, location, difficulty, boatName, captainName, crewCount,
+    diveType, diveMode, location, difficulty, boatName, captainName,
+    crewCount: String(crewCountNum),
     maxDivers, boatContact, instructorName, dutyNotes, diveDate, divers,
     crewMembers, diveMasters,
   });
@@ -647,7 +647,7 @@ export default function CreateManifestStep1() {
     }, 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, divers, diveType, diveMode, location, difficulty, boatName, captainName, crewCount, maxDivers, boatContact, instructorName, dutyNotes, diveDate]);
+  }, [user, divers, diveType, diveMode, location, difficulty, boatName, captainName, crewMembers, maxDivers, boatContact, instructorName, dutyNotes, diveDate]);
 
   const handleSaveDraft = async () => {
     if (!user) return;

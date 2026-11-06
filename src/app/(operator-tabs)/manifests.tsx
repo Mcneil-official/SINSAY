@@ -20,7 +20,7 @@ import { ManifestSnapshotCard, ManifestSnapshotDiver } from "../../components/Ma
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
-import { deriveManifestStatus, deriveStatus, formatDiveDate, toLocalDateString } from "../../lib/diveDate";
+import { deriveManifestStatus, formatDiveDate, toLocalDateString } from "../../lib/diveDate";
 import {
   deleteDraft,
   draftSubtitle,
@@ -77,7 +77,8 @@ export default function ManifestsScreen() {
   const [snapshotMsg, setSnapshotMsg] = useState("");
   const cardRef = useRef<View>(null);
 
-  const loadManifests = async () => {
+  const loadManifests = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     setLoadError(false);
     try {
@@ -86,7 +87,7 @@ export default function ManifestsScreen() {
       const { data: mfData, error: mfErr } = await supabase
         .from("dive_manifests")
         .select("id, boat_name, dive_mode, dive_type, location, dive_date, max_divers, captain_name, crew_members, dive_masters, instructor_name, crew_count, manifest_divers(count)")
-        .eq("operator_id", user!.id)
+        .eq("operator_id", user.id)
         .order("dive_date", { ascending: false })
         .limit(50);
       if (mfErr) throw mfErr;
@@ -104,12 +105,12 @@ export default function ManifestsScreen() {
       setLoadError(true);
     }
     setLoading(false);
-  };
+  }, [user]);
 
-  const loadLocalDrafts = async () => {
+  const loadLocalDrafts = useCallback(async () => {
     if (!user) return;
     setDrafts(await listDrafts(user.id));
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -117,7 +118,7 @@ export default function ManifestsScreen() {
       loadManifests();
       loadLocalDrafts();
     });
-  }, [user]);
+  }, [user, loadManifests, loadLocalDrafts]);
 
   // Refetch on focus: returning from step1 → confirmed would otherwise show
   // a stale list (dashboard already uses useFocusEffect).
@@ -126,7 +127,7 @@ export default function ManifestsScreen() {
       if (!user) return;
       loadManifests();
       loadLocalDrafts();
-    }, [user])
+    }, [user, loadManifests, loadLocalDrafts])
   );
 
   const todayStr = toLocalDateString(new Date());

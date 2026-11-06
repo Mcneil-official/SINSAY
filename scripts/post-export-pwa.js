@@ -49,6 +49,16 @@ if (fs.existsSync(heroSrc)) {
   console.log('Ensured manifesto-hero-bg.png copied to all dist asset paths');
 }
 
+// 1c. Bump service worker cache name in dist/sw.js for instant deployment cache busting
+const swDistPath = path.join(distDir, 'sw.js');
+if (fs.existsSync(swDistPath)) {
+  let swContent = fs.readFileSync(swDistPath, 'utf8');
+  const buildVersion = `sinsay-v${Date.now()}`;
+  swContent = swContent.replace(/const CACHE_NAME = ["'][^"']+["'];/, `const CACHE_NAME = "${buildVersion}";`);
+  fs.writeFileSync(swDistPath, swContent, 'utf8');
+  console.log(`Updated dist/sw.js cache name to ${buildVersion}`);
+}
+
 // 2. Patch dist/index.html with PWA tags
 const indexPath = path.join(distDir, 'index.html');
 if (fs.existsSync(indexPath)) {

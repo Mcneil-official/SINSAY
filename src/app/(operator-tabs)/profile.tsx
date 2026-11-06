@@ -115,7 +115,7 @@ export default function OperatorProfileScreen() {
         </Svg>
       </View>
       <View style={[styles.fixedProfileHeader, { paddingTop: safeTop }]}>
-        <ContentContainer maxWidth={720} paddingH={16}>
+        <ContentContainer maxWidth={720}>
         <View style={styles.profileTopSection}>
         <View style={styles.pageHeading}><Text style={styles.eyebrow}>OPERATOR ACCOUNT</Text><Text style={styles.headerTitle}>Profile</Text></View>
         <View style={styles.identityCard}>
@@ -150,7 +150,7 @@ export default function OperatorProfileScreen() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <ContentContainer maxWidth={720} paddingH={16}>
+        <ContentContainer maxWidth={720}>
         <View style={styles.sectionCard}>
           <View style={styles.sectionCardHeader}><View style={styles.sectionIcon}><Ionicons name="information-circle-outline" size={19} color="#087BFF" /></View><View><Text style={styles.sectionCardTitle}>About the resort</Text><Text style={styles.sectionCardSubtitle}>A short introduction for divers</Text></View></View>
           <Text style={styles.resortDescription}>{operatorApplication?.resort_description || "Add a resort description so divers can learn more about your place."}</Text>

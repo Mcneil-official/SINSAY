@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // INITIAL_SESSION + signIn) race and last-writer-wins with stale nulls.
   // Only the latest request may apply operatorApplication / profile state.
   const fetchSeqRef = useRef(0);
+  const fetchNotifsRef = useRef<{ fetchNotifications?: () => Promise<void>; fetchUnreadCount?: () => Promise<void> }>({});
 
   const clearLocalAuthState = useCallback(() => {
     setProfile(null);
@@ -180,8 +181,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           table: "announcements",
         },
         () => {
-          fetchNotifications();
-          fetchUnreadCount();
+          fetchNotifsRef.current.fetchNotifications?.();
+          fetchNotifsRef.current.fetchUnreadCount?.();
         }
       )
       .subscribe();
@@ -292,7 +293,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const rawNotifs = notifRes.data ?? [];
     const activeAnnouncements = announcementsRes.data ?? [];
     const activeIds = new Set(activeAnnouncements.map((a) => a.id));
-    const activeTitles = new Set(activeAnnouncements.map((a) => a.title.trim()));
 
     const orphanNotifIds: string[] = [];
 
@@ -362,6 +362,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setUnreadCount(validUnreads.length);
   }, [user]);
+  fetchNotifsRef.current = { fetchNotifications, fetchUnreadCount };
 
   const markAllNotificationsRead = useCallback(async () => {
     if (!user) return;

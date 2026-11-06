@@ -321,7 +321,7 @@ export function EcoDivePassportView() {
         setTimeout(() => setCopiedBanner(false), 2600);
       }
     }
-  }, [setAvatarUri, user, updateProfile]);
+  }, [setAvatarUri, user, updateProfile, clearAvatarOverride]);
 
   const handleSaveIdCard = useCallback(() => {
     setToastMessage("Eco-Dive ID Card saved to device!");
@@ -543,7 +543,7 @@ export function EcoDivePassportView() {
         contentContainerStyle={[styles.scrollContent, { paddingTop: safeTop + 6, paddingBottom: 116 }]}
         showsVerticalScrollIndicator={false}
       >
-        <ContentContainer maxWidth={560} paddingH={16}>
+        <ContentContainer maxWidth={560}>
           {/* 1. SIMPLIFIED SCREEN HEADER */}
           <View style={styles.screenHeader}>
             <View style={styles.headerTextCol}>

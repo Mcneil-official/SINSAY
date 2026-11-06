@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -252,7 +251,7 @@ export default function DiveSitesScreen() {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.fallbackHeaderWrap}>
-          <ContentContainer maxWidth={900} paddingH={20}>
+          <ContentContainer maxWidth={900}>
             <View style={styles.fallbackHeaderRow}>
               <View style={styles.headerLeftGroup}>
                 <TouchableOpacity
@@ -542,7 +541,7 @@ export default function DiveSitesScreen() {
         )}
 
         {/* 2. DIVE SITE LISTING CARDS (HORIZONTAL CARDS ARRANGED VERTICALLY) */}
-        <ContentContainer maxWidth={900} paddingH={20}>
+        <ContentContainer maxWidth={900}>
           <View style={styles.listSectionHeader}>
             <Text style={styles.sectionTitle}>All Dive Destinations</Text>
             <View style={styles.countPill}>

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React from "react";
 import { TouchableOpacity, Text, View, StyleSheet, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
@@ -20,8 +20,6 @@ export function FileUpload({
   showCamera = false,
   accept = ".jpg,.jpeg,.png,.webp,.pdf",
 }: FileUploadProps) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFileInput = () => {
     if (onPress) {

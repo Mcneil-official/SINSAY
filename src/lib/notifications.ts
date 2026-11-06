@@ -4,7 +4,7 @@ export function resolveNotificationRoute(
     title?: string;
     deep_link?: string | null;
   },
-  activeAnnouncements?: Array<{ id: string; title: string }>
+  activeAnnouncements?: { id: string; title: string }[]
 ): string {
   if (notif.deep_link && notif.deep_link !== "/(tabs)") {
     return notif.deep_link;

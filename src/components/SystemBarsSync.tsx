@@ -13,7 +13,6 @@ export function SystemBarsSync() {
   // - ["(operator-tabs)"] -> Operator tab screens
   const isRootIndex = segments.length === 0;
   const isOperatorGroup = segments[0] === "(operator-tabs)";
-  const isTouristGroup = segments[0] === "(tabs)";
 
   // Auth pages with ocean wave top
   const isAuthPage =

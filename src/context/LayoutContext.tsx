@@ -11,6 +11,8 @@ interface LayoutState {
   isMobile: boolean;
   isTablet: boolean;
   isDesktop: boolean;
+  isCompact: boolean;
+  windowWidth: number;
   sidebarWidth: number;
   headerHeight: number;
 }
@@ -20,6 +22,8 @@ const defaultState: LayoutState = {
   isMobile: true,
   isTablet: false,
   isDesktop: false,
+  isCompact: false,
+  windowWidth: 390,
   sidebarWidth: 240,
   headerHeight: 64,
 };
@@ -40,16 +44,20 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
   }, [width]);
   const deferredMode = useDeferredValue(mode);
 
+  const isCompact = width > 0 && width <= 360;
+
   const state = useMemo<LayoutState>(() => {
     return {
       mode: deferredMode,
       isMobile: deferredMode === "mobile",
       isTablet: deferredMode === "tablet",
       isDesktop: deferredMode === "desktop",
+      isCompact,
+      windowWidth: width || 390,
       sidebarWidth: 240,
       headerHeight: 64,
     };
-  }, [deferredMode]);
+  }, [deferredMode, isCompact, width]);
 
   return (
     <LayoutContext.Provider value={state}>{children}</LayoutContext.Provider>

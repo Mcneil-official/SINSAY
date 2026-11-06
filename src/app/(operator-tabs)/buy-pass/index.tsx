@@ -26,8 +26,6 @@ import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
-type PassType = "one-day";
-
 const MAX_PER_ORDER = 100;
 const PRESET_QUANTITIES = [5, 10, 20, 50, 100];
 
@@ -59,9 +57,8 @@ function formatTxDate(dateStr: string): string {
 
 export default function BuyPassSelectionScreen() {
   const router = useRouter();
-  const { user, isLoading: authLoading, unreadCount } = useAuth();
+  const { user, unreadCount } = useAuth();
 
-  const passType: PassType = "one-day";
   const [quantity, setQuantity] = useState<number>(1);
   const [qtyText, setQtyText] = useState("1");
 
@@ -514,7 +511,6 @@ export default function BuyPassSelectionScreen() {
             <View style={styles.transactionsList}>
               {transactions.map((tx) => {
                 const isVerified = tx.status === "verified";
-                const isRejected = tx.status === "rejected";
                 const isUnderReview = tx.status === "pending";
 
                 return (
@@ -1030,12 +1026,14 @@ const styles = StyleSheet.create({
   },
   presetsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
-    gap: 5,
+    gap: 6,
+    rowGap: 6,
   },
   presetChip: {
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,

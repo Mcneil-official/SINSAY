@@ -30,7 +30,7 @@ import { supabase } from "../../../lib/supabase";
 export default function UploadReceiptScreen() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
-  const { passId, passLabel, passCount, quantity, total } =
+  const { passId, passLabel, passCount, quantity } =
     useLocalSearchParams<{
       passId?: string;
       passLabel?: string;

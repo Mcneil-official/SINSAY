@@ -23,16 +23,9 @@ const DESIGN_HEIGHT = 832;
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 const WIDE_BREAKPOINT = 480;
 const WAVE_HEIGHT = 170;
-const CONTENT_TOP = 154;
 const CONTENT_SIDE = 30;
 const FOOTER_SIDE = 24;
-const FOOTER_BOTTOM = 38;
 const BUTTON_HEIGHT = 52;
-
-const ILLUSTRATION_SCALE = 0.7;
-const ILLUSTRATION_WIDTH = 470 * ILLUSTRATION_SCALE;
-const ILLUSTRATION_HEIGHT = 705 * ILLUSTRATION_SCALE;
-const ILLUSTRATION_TOP = 181 + (705 - ILLUSTRATION_HEIGHT) / 2;
 
 type WaveVariant = "marine-life" | "protect" | "control";
 
@@ -85,14 +78,14 @@ export default function EcoOnboarding({
   wave,
   illustrationOffsetY = 0,
   illustrationAspect,
-  illustrationTopLimit,
+  illustrationTopLimit: _illustrationTopLimit,
   titleGap = 24,
   headerOffsetY = 0,
   onNext,
   onBack,
   onSkip,
   onFinish,
-  onReviewTips,
+  onReviewTips: _onReviewTips,
 }: EcoOnboardingProps) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -126,9 +119,7 @@ export default function EcoOnboarding({
   const textBottom = contentTop + textEstHeight;
 
   const aspect = illustrationAspect ?? 853 / 1280;
-  const imageWidth = frameWidth;
   const imageHeight = Math.round(frameWidth / aspect);
-  const imageLeft = 0;
   const imageTop = Math.round(
     Math.max(
       textBottom + (isCompact ? 10 : 16) * scale,

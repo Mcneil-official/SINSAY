@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { colors } from "../../../constants/colors";
-import { Button, Card, ContentContainer } from "../../../components";
+import { ContentContainer } from "../../../components";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
@@ -116,6 +116,24 @@ export default function ManifestConfirmedScreen() {
                 {diverCount || "…"} tourists activated
               </Text>
             </View>
+            {boatName ? (
+              <>
+                <View style={styles.cardDivider} />
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Boat Name</Text>
+                  <Text style={styles.detailValue}>{boatName}</Text>
+                </View>
+              </>
+            ) : null}
+            {captainName ? (
+              <>
+                <View style={styles.cardDivider} />
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Captain / Guide</Text>
+                  <Text style={styles.detailValue}>{captainName}</Text>
+                </View>
+              </>
+            ) : null}
             {diveMasters ? (
               <>
                 <View style={styles.cardDivider} />
@@ -134,6 +152,11 @@ export default function ManifestConfirmedScreen() {
                 </View>
               </>
             ) : null}
+            <View style={styles.cardDivider} />
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Submitted At</Text>
+              <Text style={styles.detailValue}>{formattedDate} • {formattedTime}</Text>
+            </View>
           </View>
 
           {/* Action Buttons from Design */}

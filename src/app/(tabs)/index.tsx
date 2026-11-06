@@ -4,14 +4,12 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -88,7 +86,7 @@ export default function HomeScreen() {
     unreadCount,
     user,
   } = useAuth();
-  const { isDesktop } = useLayout();
+  const { isDesktop, isCompact } = useLayout();
   const firstName =
     profile?.full_name?.trim().split(" ")[0] ||
     user?.user_metadata?.full_name?.trim().split(" ")[0] ||
@@ -359,22 +357,22 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <ContentContainer maxWidth={900} paddingH={20}>
+        <ContentContainer maxWidth={900} paddingH={isCompact ? 14 : 20}>
           {/* Top Bar: SINSAY blue logo on upper left, Notification + Profile on upper right */}
           {!isDesktop && (
             <View style={[styles.topBar, { paddingTop: safeTop }]}>
               <Image
                 source={require("../../../assets/sinsay-blue-home.webp")}
-                style={styles.logoImage}
+                style={[styles.logoImage, isCompact && styles.compactLogoImage]}
                 contentFit="contain"
                 priority="high"
                 cachePolicy="memory-disk"
                 accessibilityLabel="SINSAY"
               />
 
-              <View style={styles.topBarActions}>
+              <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
                 <TouchableOpacity
-                  style={styles.iconButton}
+                  style={[styles.iconButton, isCompact && styles.compactIconButton]}
                   onPress={() => router.push("/notifications")}
                   activeOpacity={0.8}
                   accessibilityRole="button"
@@ -729,6 +727,10 @@ const styles = StyleSheet.create({
     width: 152,
     height: 42,
   },
+  compactLogoImage: {
+    width: 122,
+    height: 34,
+  },
   topBarActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -743,6 +745,11 @@ const styles = StyleSheet.create({
     borderColor: "#DBE8F4",
     alignItems: "center",
     justifyContent: "center",
+  },
+  compactIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   
   badge: {
