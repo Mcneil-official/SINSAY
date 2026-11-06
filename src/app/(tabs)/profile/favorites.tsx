@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -80,12 +80,11 @@ export default function FavoritesScreen() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
+  useFocusEffect(
+    useCallback(() => {
       void loadFavorites();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [loadFavorites]);
+    }, [loadFavorites]),
+  );
 
   const visibleSites = useMemo(
     () => (filter === "all" || filter === "dive-sites" ? sites : []),
@@ -323,5 +322,5 @@ const styles = StyleSheet.create({
     fontFamily: "Quicksand_700Bold",
     color: colors.white,
   },
-  siteGrid: { gap: 14 },
+  siteGrid: { width: "100%", gap: 14 },
 });

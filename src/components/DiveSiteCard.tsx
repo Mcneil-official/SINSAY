@@ -202,7 +202,10 @@ export function DiveSiteCard({
       {/* Favorite button */}
       <Pressable
         style={styles.heartButton}
-        onPress={onLike}
+        onPress={(e) => {
+          e?.stopPropagation?.();
+          onLike?.();
+        }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         accessibilityRole="button"
         accessibilityLabel={liked ? `Unfavorite ${name}` : `Favorite ${name}`}
@@ -242,10 +245,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   cardFluid: {
-    flex: 1,
-    minWidth: 155,
-    maxWidth: 340,
-    height: 240,
+    width: "100%",
+    height: 220,
+    alignSelf: "stretch",
   },
   image: {
     position: "absolute",
@@ -279,7 +281,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    elevation: 5,
+    zIndex: 10,
   },
   overlayContent: {
     position: "absolute",

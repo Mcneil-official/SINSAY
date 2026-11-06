@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -128,35 +128,35 @@ export default function DiveSitesScreen() {
     };
   }, [reloadKey]);
 
-  useEffect(() => {
-    let active = true;
-    supabase.auth
-      .getUser()
-      .then(({ data: { user } }) => {
-        if (!active || !user) return;
-        return supabase
-          .from("tourist_favorites")
-          .select("dive_site_id")
-          .eq("tourist_id", user.id)
-          .then(({ data }) => {
-            if (!active) return;
-            setFavoriteIds(new Set((data ?? []).map((f) => f.dive_site_id)));
-          });
-      })
-      .catch(() => {
-        if (!active) return;
-        setFavoriteIds(new Set());
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const handleToggleFavorite = useCallback(
-    async (diveSiteId: string) => {
+    const loadFavorites = useCallback(async () => {
+    try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("tourist_favorites")
+        .select("dive_site_id")
+        .eq("tourist_id", user.id);
+      setFavoriteIds(new Set((data ?? []).map((f) => f.dive_site_id)));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadFavorites();
+    }, [loadFavorites]),
+  );
+
+  const handleToggleFavorite = useCallback(
+    async (diveSiteId: string, e?: any) => {
+      e?.stopPropagation?.();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
       const isFav = favoriteIds.has(diveSiteId);
       setFavoriteIds((prev) => {
         const next = new Set(prev);
@@ -164,17 +164,35 @@ export default function DiveSitesScreen() {
         else next.add(diveSiteId);
         return next;
       });
-      if (!user) return;
-      if (isFav) {
-        await supabase
-          .from("tourist_favorites")
-          .delete()
-          .eq("tourist_id", user.id)
-          .eq("dive_site_id", diveSiteId);
-      } else {
-        await supabase
-          .from("tourist_favorites")
-          .insert({ tourist_id: user.id, dive_site_id: diveSiteId });
+      try {
+        if (isFav) {
+          const { error } = await supabase
+            .from("tourist_favorites")
+            .delete()
+            .eq("tourist_id", user.id)
+            .eq("dive_site_id", diveSiteId);
+          if (error) {
+            setFavoriteIds((prev) => new Set(prev).add(diveSiteId));
+          }
+        } else {
+          const { error } = await supabase
+            .from("tourist_favorites")
+            .insert({ tourist_id: user.id, dive_site_id: diveSiteId });
+          if (error) {
+            setFavoriteIds((prev) => {
+              const next = new Set(prev);
+              next.delete(diveSiteId);
+              return next;
+            });
+          }
+        }
+      } catch {
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          if (isFav) next.add(diveSiteId);
+          else next.delete(diveSiteId);
+          return next;
+        });
       }
     },
     [favoriteIds],
@@ -697,7 +715,10 @@ export default function DiveSitesScreen() {
                         styles.cardFavBtn,
                         isLiked && styles.cardFavBtnActive,
                       ]}
-                      onPress={() => handleToggleFavorite(site.id)}
+                      onPress={(e) => {
+                        e?.stopPropagation?.();
+                        handleToggleFavorite(site.id, e);
+                      }}
                       hitSlop={8}
                       focusable
                       accessibilityLabel={
