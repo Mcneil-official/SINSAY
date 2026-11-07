@@ -1858,7 +1858,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 66,
-    bottom: BOTTOM_NAV_HEIGHT + 16,
+    bottom: 74,
     zIndex: 20,
   },
   legendBarCard: {
@@ -1925,7 +1925,7 @@ const styles = StyleSheet.create({
   mapControlsCol: {
     position: "absolute",
     right: 16,
-    bottom: BOTTOM_NAV_HEIGHT + 16,
+    bottom: 74,
     backgroundColor: "rgba(255, 255, 255, 0.95)",
     borderRadius: 14,
     borderWidth: 1,
@@ -1984,7 +1984,7 @@ const styles = StyleSheet.create({
   },
   drawerScrollContent: {
     paddingHorizontal: 18,
-    paddingBottom: BOTTOM_NAV_HEIGHT + 28,
+    paddingBottom: 100,
     gap: 14,
   },
   heroCard: {
