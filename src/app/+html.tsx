@@ -24,7 +24,12 @@ export default function Root({ children }: PropsWithChildren) {
 }
 
 const responsiveBackground = `
-body {
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
   background-color: #ffffff;
 }
 `;

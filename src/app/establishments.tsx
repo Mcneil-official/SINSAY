@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -17,7 +18,6 @@ import {
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import {
   ContentContainer,
-  DidYouKnowLoader,
   EmptyState,
   ErrorState,
   EstablishmentCard,
@@ -173,7 +173,8 @@ export default function EstablishmentsScreen() {
 
         {loading ? (
           <View style={styles.center}>
-            <DidYouKnowLoader compact />
+            <ActivityIndicator size="large" color={colors.primaryBlue} />
+            <Text style={styles.loadingText}>Loading dive resorts...</Text>
           </View>
         ) : error ? (
           <ErrorState
@@ -535,6 +536,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 24,
   },
+  loadingText: {
+
+    fontSize: 14,
+
+    fontFamily: "Quicksand_500Medium",
+
+    color: "#64748B",
+
+  },
+
   center: {
     flex: 1,
     justifyContent: "center",
