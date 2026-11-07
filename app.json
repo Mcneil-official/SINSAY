@@ -34,7 +34,7 @@
       "shortName": "SINSAY",
       "description": "Eco-Dive Tourism App for Mabini, Batangas",
       "themeColor": "#FFFFFF",
-      "backgroundColor": "#FFFFFF",
+      "backgroundColor": "#F8FAFC",
       "display": "standalone",
       "startUrl": "/",
       "scope": "/",

@@ -101,7 +101,7 @@ export default function EcoOnboarding({
 
   const safeTop = insets.top;
   const safeBottom =
-    insets.bottom > 0 ? Math.max(Math.round(insets.bottom * 0.58), 16) : 16;
+    insets.bottom > 0 ? Math.max(insets.bottom, 16) : 16;
   const isCompact = frameHeight < 740;
 
   const contentTop = Math.max(
