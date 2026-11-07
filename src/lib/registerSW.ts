@@ -58,11 +58,22 @@ export function registerServiceWorker() {
     return;
   }
 
+  // Listen for active worker change to reload page with fresh assets
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
       .then((reg) => {
         console.log("[SW] Registered successfully with scope:", reg.scope);
+        // Force an immediate check for updated sw.js
+        reg.update().catch(() => {});
       })
       .catch((err) => {
         console.warn("[SW] Registration failed:", err);

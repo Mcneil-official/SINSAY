@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   logo: {
-    width: 220,
-    height: 67,
+    width: 275,
+    height: 84,
   },
 });

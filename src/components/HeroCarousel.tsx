@@ -111,6 +111,13 @@ export function HeroCarousel({
                   contentFit="cover"
                 />
 
+                {/* Top-Right "Read Notice →" pill badge */}
+                {hasPress && (
+                  <View style={styles.topRightReadNoticePill}>
+                    <Text style={styles.topRightReadNoticeText}>Read Notice &rarr;</Text>
+                  </View>
+                )}
+
                 {/* Smooth bottom gradient so the upper photo stays clear while multi-line text has rich depth */}
                 <View style={styles.gradientWrap} pointerEvents="none">
                   <Svg
@@ -150,11 +157,6 @@ export function HeroCarousel({
                         <View style={styles.badgeDot} />
                         <Text style={styles.badgeLabel}>MABINI TOURISM</Text>
                       </View>
-                      {hasPress && (
-                        <View style={styles.readNoticePill}>
-                          <Text style={styles.readNoticePillText}>Read Notice &rarr;</Text>
-                        </View>
-                      )}
                     </View>
 
                     {item.announcement ? (
@@ -245,16 +247,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 2,
   },
-  readNoticePill: {
+  topRightReadNoticePill: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 10,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
+    backgroundColor: "rgba(4, 13, 31, 0.65)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.28)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
   },
-  readNoticePillText: {
-    fontSize: 9.5,
+  topRightReadNoticeText: {
+    fontSize: 10.5,
     fontFamily: "Quicksand_700Bold",
     color: "#FFFFFF",
     letterSpacing: 0.3,

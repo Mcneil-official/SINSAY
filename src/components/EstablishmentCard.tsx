@@ -33,6 +33,7 @@ export interface EstablishmentCardProps {
   imageUrl?: string | null;
   phone?: string | null;
   index?: number;
+  variant?: "row" | "grid";
   onPress?: () => void;
 }
 
@@ -45,6 +46,7 @@ export function EstablishmentCard({
   isDotAccredited = false,
   imageUrl,
   index = 0,
+  variant = "row",
   onPress,
 }: EstablishmentCardProps) {
   const badgeLabel =
@@ -52,6 +54,60 @@ export function EstablishmentCard({
   const photoSource = imageUrl
     ? { uri: imageUrl }
     : FALLBACK_RESORT_IMAGES[index % FALLBACK_RESORT_IMAGES.length];
+
+  if (variant === "grid") {
+    return (
+      <TouchableOpacity
+        style={styles.gridCard}
+        onPress={onPress}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`${name}${location ? `, ${location}` : ""}`}
+      >
+        <View style={styles.gridImageWrap}>
+          <Image source={photoSource} style={styles.gridImage} resizeMode="cover" />
+          {(isPcssdAccredited || isDotAccredited) && (
+            <View style={styles.gridEmblemsFloating}>
+              {isPcssdAccredited ? (
+                <View style={styles.emblemBadge} accessibilityLabel="PCSSD Accredited">
+                  <Image source={PCSSD_LOGO} style={styles.emblemImage} resizeMode="contain" />
+                </View>
+              ) : null}
+              {isDotAccredited ? (
+                <View style={styles.emblemBadge} accessibilityLabel="DOT Accredited">
+                  <Image source={DOT_LOGO} style={styles.emblemImage} resizeMode="contain" />
+                </View>
+              ) : null}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.gridBody}>
+          <View style={styles.gridMainCol}>
+            {badgeLabel ? (
+              <View style={styles.gridBadge}>
+                <Ionicons name="checkmark-circle" size={11} color={colors.green} />
+                <Text style={styles.gridBadgeText} numberOfLines={1}>
+                  {badgeLabel}
+                </Text>
+              </View>
+            ) : null}
+
+            <Text style={styles.gridName} numberOfLines={2}>
+              {name}
+            </Text>
+          </View>
+
+          <View style={styles.gridLocationRow}>
+            <Ionicons name="location-outline" size={12} color="#657C9B" />
+            <Text style={styles.gridLocation} numberOfLines={1}>
+              {location?.trim() || "Mabini, Batangas"}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <TouchableOpacity
@@ -228,5 +284,85 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+  },
+  gridCard: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#E4EEF8",
+    overflow: "hidden",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    flexDirection: "column",
+  },
+  gridImageWrap: {
+    width: "100%",
+    aspectRatio: 16 / 10,
+    backgroundColor: "#E2E8F0",
+    position: "relative",
+    overflow: "hidden",
+  },
+  gridImage: {
+    width: "100%",
+    height: "100%",
+  },
+  gridEmblemsFloating: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    flexDirection: "row",
+    gap: 4,
+  },
+  gridBody: {
+    padding: 10,
+    flex: 1,
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  gridMainCol: {
+    gap: 4,
+  },
+  gridBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 3,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  gridBadgeText: {
+    fontSize: 9.5,
+    fontFamily: "Quicksand_700Bold",
+    fontWeight: "700",
+    color: "#059669",
+  },
+  gridName: {
+    fontSize: 13.5,
+    fontFamily: "Quicksand_700Bold",
+    fontWeight: "700",
+    color: colors.darkText,
+    minHeight: 36,
+    lineHeight: 18,
+  },
+  gridLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  gridLocation: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+    color: "#657C9B",
   },
 });

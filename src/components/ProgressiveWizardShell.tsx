@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import ContentContainer from "./ContentContainer";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface WizardAction {
   label: string;
@@ -50,6 +51,7 @@ export function ProgressiveWizardShell({
   primaryLoading = false,
   children,
 }: ProgressiveWizardShellProps) {
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -127,7 +129,7 @@ export function ProgressiveWizardShell({
         <ScrollView
           ref={scrollRef}
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -135,7 +137,7 @@ export function ProgressiveWizardShell({
             {children}
           </ContentContainer>
         </ScrollView>
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <ContentContainer maxWidth={480} paddingH={14} style={styles.footerContent}>
             <View style={styles.footerActions}>
               {secondaryAction ? (

@@ -140,8 +140,6 @@ export default function PrivacyScreen() {
               SINSAY is committed to safeguarding personal data in full compliance with the National Privacy Commission and Philippine data protection standards.
             </Text>
           </View>
-
-          <View style={{ height: 40 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>

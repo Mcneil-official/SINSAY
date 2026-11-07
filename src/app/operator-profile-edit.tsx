@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ContentContainer, Dropdown, TextInput } from "../components";
 import { colors } from "../constants/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../hooks/useAuth";
 import { showAlert } from "../lib/confirm";
 import { safeBack } from "../lib/navigation";
@@ -33,6 +34,7 @@ const PLATFORM_OPTIONS: { label: string; value: BookingPlatformType }[] = [
 ];
 
 export default function OperatorProfileEditScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, profile, operatorApplication: app, avatarUri, isLoading, isOperator, roleReady, refreshProfile } = useAuth();
   const [values, setValues] = useState({ resortName: "", location: "", description: "", resortPhone: "", resortEmail: "", facebook: "", website: "", bookingUrl: "", fullName: "", phone: "", email: "" });
@@ -305,7 +307,7 @@ export default function OperatorProfileEditScreen() {
       {activeTab === "account" && <View style={styles.card}><View style={styles.sectionHeader}><View style={styles.sectionIcon}><Ionicons name="person-outline" size={19} color="#087BFF" /></View><View><Text style={styles.section}>Your account</Text><Text style={styles.helper}>Personal contact details</Text></View></View>{field("Full name", "fullName")}{field("Personal phone", "phone", { keyboardType: "phone-pad", prefix: "+63", maxLength: 10 })}{field("Email address", "email", { keyboardType: "email-address", autoCapitalize: "none" })}<Text style={styles.emailHint}>Changing your email requires confirmation from your inbox.</Text></View>}
       <View style={{ height: 18 }} />
     </ContentContainer></ScrollView>
-    <View style={styles.footer}>{!!error && <Text style={styles.error}>{error}</Text>}<View style={styles.actions}><TouchableOpacity style={styles.cancel} onPress={handleBack}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity style={[styles.save, busy && { opacity: .65 }]} disabled={busy} onPress={save}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save changes</Text>}</TouchableOpacity></View></View>
+    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>{!!error && <Text style={styles.error}>{error}</Text>}<View style={styles.actions}><TouchableOpacity style={styles.cancel} onPress={handleBack}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity style={[styles.save, busy && { opacity: .65 }]} disabled={busy} onPress={save}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save changes</Text>}</TouchableOpacity></View></View>
   </KeyboardAvoidingView></SafeAreaView>;
 }
 

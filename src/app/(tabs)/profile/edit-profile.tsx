@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Button, ContentContainer, Dropdown, TextInput } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../hooks/useAuth";
 import { showAlert } from "../../../lib/confirm";
 import { Locale, t } from "../../../lib/i18n";
@@ -29,6 +30,7 @@ const sexOptions = [
 ];
 
 export default function EditProfileScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, profile, avatarUri, setAvatarUri, clearAvatarOverride, updateProfile } = useAuth();
   const locale: Locale = (profile?.language_preference as Locale) || "en";
@@ -414,7 +416,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 14,
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
   headerRow: {
     flexDirection: "row",

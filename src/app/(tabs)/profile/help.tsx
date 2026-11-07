@@ -63,8 +63,6 @@ export default function HelpScreen() {
               <Text style={styles.cardBody}>{section.content}</Text>
             </View>
           ))}
-
-          <View style={{ height: 40 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -74,7 +72,7 @@ export default function HelpScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
   container: { flex: 1 },
-  scrollContent: { paddingTop: 12, paddingBottom: 20, gap: 16 },
+  scrollContent: { paddingTop: 12, paddingBottom: 24, gap: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   backButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 20, fontWeight: "700", color: colors.darkText },

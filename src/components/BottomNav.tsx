@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors } from "../constants/colors";
@@ -180,11 +180,16 @@ export default function BottomNav({
 
 const styles = StyleSheet.create({
   barWrap: {
+    position: Platform.OS === "web" ? ("fixed" as any) : "relative",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
     width: "100%",
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: "#DBE8F4",
-    paddingTop: 8,
+    paddingTop: 10,
     paddingHorizontal: 16,
     alignItems: "center",
   },

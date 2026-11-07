@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Image,
-    SafeAreaView,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -12,7 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import ConfirmModal from "../../../components/ConfirmModal";
 import ContentContainer from "../../../components/ContentContainer";
 import { colors } from "../../../constants/colors";
@@ -59,8 +58,6 @@ function ProfileRow({
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const safeTop = Math.max(insets.top, 38);
   const {
     user,
     profile,
@@ -102,7 +99,7 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <ActivityIndicator
           size="large"
           color={colors.primaryBlue}
@@ -113,11 +110,11 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: safeTop + 6, paddingBottom: 116 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: 12, paddingBottom: 20 }]}
         showsVerticalScrollIndicator={false}
       >
         <ContentContainer maxWidth={560}>
@@ -430,19 +427,20 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F6FAFF",
+    paddingBottom: 0,
   },
   container: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 14,
-    paddingBottom: 18,
+    paddingTop: 12,
+    paddingBottom: 20,
   },
   screenHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 16,
   },
   headerTextCol: {
     flex: 1,

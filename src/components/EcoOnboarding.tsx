@@ -100,14 +100,15 @@ export default function EcoOnboarding({
   const frameHeight = isWide ? Math.min(DESIGN_HEIGHT, height) : height;
 
   const safeTop = insets.top;
-  const safeBottom = Math.max(insets.bottom, 16);
+  const safeBottom =
+    insets.bottom > 0 ? Math.max(insets.bottom, 16) : 16;
   const isCompact = frameHeight < 740;
 
   const contentTop = Math.max(
     safeTop + (isCompact ? 104 : 116),
     (isCompact ? 154 : 168) * scale,
   );
-  const footerBottom = safeBottom + (isCompact ? 12 : 18);
+  const footerBottom = safeBottom + (isCompact ? 10 : 14);
   const resolvedTitleGap = titleGap ?? (isCompact ? 14 : 18);
   const titleHeight = (isCompact ? 38 * 2 : 42 * 2) * scale;
   const descHeight = (isCompact ? 20 * 3 : 22 * 3) * scale;
