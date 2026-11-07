@@ -100,7 +100,8 @@ export default function EcoOnboarding({
   const frameHeight = isWide ? Math.min(DESIGN_HEIGHT, height) : height;
 
   const safeTop = insets.top;
-  const safeBottom = Math.max(insets.bottom, 16);
+  const safeBottom =
+    insets.bottom > 0 ? Math.max(Math.round(insets.bottom * 0.58), 16) : 16;
   const isCompact = frameHeight < 740;
 
   const contentTop = Math.max(
@@ -279,7 +280,7 @@ export default function EcoOnboarding({
               position: "absolute",
               zIndex: 0,
               left: 0,
-              top: imageTop,
+              bottom: 0,
               width: frameWidth,
               height: imageHeight,
               opacity: slideOpacity,

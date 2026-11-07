@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { push } from "expo-router/build/global-state/router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -21,7 +22,6 @@ import {
   Button,
   Card,
   ContentContainer,
-  DidYouKnowLoader,
   Dropdown,
   TextInput,
   resolveSiteImage,
@@ -468,8 +468,11 @@ export default function PlannerScreen() {
                   icon={<Ionicons name="map" size={18} color={colors.white} />}
                 />
                 {loading && (
-                  <View style={{ marginTop: 20 }}>
-                    <DidYouKnowLoader />
+                  <View style={styles.generatingWrap}>
+                    <ActivityIndicator size="small" color={colors.primaryBlue} />
+                    <Text style={styles.generatingText}>
+                      Generating your personalized dive itinerary...
+                    </Text>
                   </View>
                 )}
                 {!loading && (
@@ -820,6 +823,32 @@ const styles = StyleSheet.create({
   generateWrap: {
     marginTop: 20,
   },
+  generatingWrap: {
+
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    justifyContent: "center",
+
+    gap: 8,
+
+    marginTop: 16,
+
+    paddingVertical: 12,
+
+  },
+
+  generatingText: {
+
+    fontSize: 13,
+
+    fontFamily: "Quicksand_600SemiBold",
+
+    color: colors.primaryBlue,
+
+  },
+
   privacyNoteRow: {
     flexDirection: "row",
     alignItems: "center",
