@@ -15,8 +15,10 @@ import AppShell from "../components/AppShell";
 import PWAInstallBanner from "../components/PWAInstallBanner";
 import PWAInstallModal from "../components/PWAInstallModal";
 import { SystemBarsSync } from "../components/SystemBarsSync";
+import { AnnouncementDetailModal, NotificationsModal } from "../components";
 import { AuthProvider } from "../context/AuthContext";
 import { LayoutProvider, useLayout } from "../context/LayoutContext";
+import { NotificationModalProvider, useNotificationModal } from "../context/NotificationModalContext";
 import { PWAProvider } from "../context/PWAContext";
 import { ScreenTransitionProvider } from "../context/ScreenTransitionContext";
 import { ToastProvider } from "../context/ToastContext";
@@ -27,6 +29,7 @@ import { registerServiceWorker } from "../lib/registerSW";
 function RootLayoutInner() {
   const { isDesktop } = useLayout();
   const pathname = usePathname();
+  const { selectedAnnouncement, closeAnnouncementModal } = useNotificationModal();
 
   // OAuth must be allowed to settle its session before the device fallback
   // takes over the authenticated app route.
@@ -48,6 +51,12 @@ function RootLayoutInner() {
           }}
         />
         <PWAInstallModal />
+        <NotificationsModal />
+        <AnnouncementDetailModal
+          visible={Boolean(selectedAnnouncement)}
+          announcement={selectedAnnouncement}
+          onClose={closeAnnouncementModal}
+        />
       </AppShell>
     </View>
   );
@@ -79,7 +88,9 @@ export default function RootLayout() {
           <PWAProvider>
             <ScreenTransitionProvider>
               <ToastProvider>
-                <RootLayoutInner />
+                <NotificationModalProvider>
+                  <RootLayoutInner />
+                </NotificationModalProvider>
               </ToastProvider>
             </ScreenTransitionProvider>
           </PWAProvider>

@@ -72,6 +72,7 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
+          sceneStyle: { backgroundColor: "transparent" },
         }}
         tabBar={(props) =>
           isDesktop && ENABLE_DESKTOP_LAYOUT ? null : (

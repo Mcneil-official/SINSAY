@@ -9,12 +9,14 @@ import {
   View,
 } from "react-native";
 import { colors } from "../constants/colors";
+import { useNotificationModal } from "../context/NotificationModalContext";
 import { useAuth } from "../hooks/useAuth";
 
 export default function OperatorWiderScreenNavbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { unreadCount } = useAuth();
+  const { openNotifications } = useNotificationModal();
 
   // Active state determination for operator links
   const isHomeActive =
@@ -137,7 +139,7 @@ export default function OperatorWiderScreenNavbar() {
           {/* Far Right: Notification Bell */}
           <TouchableOpacity
             style={styles.iconCircle}
-            onPress={() => router.push("/notifications")}
+            onPress={openNotifications}
             accessibilityRole="button"
             accessibilityLabel="Notifications"
             activeOpacity={0.7}

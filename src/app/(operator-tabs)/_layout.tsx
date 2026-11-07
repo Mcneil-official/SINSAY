@@ -66,7 +66,10 @@ export default function OperatorTabLayout() {
       <OperatorGate />
       {isDesktop && ENABLE_DESKTOP_LAYOUT && <OperatorWiderScreenNavbar />}
       <Tabs
-        screenOptions={{ headerShown: false }}
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: "transparent" },
+        }}
         tabBar={(props) =>
           isDesktop && ENABLE_DESKTOP_LAYOUT ? null : (
             <BottomNav

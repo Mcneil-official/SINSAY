@@ -745,8 +745,6 @@ export default function DiveSitesScreen() {
               );
             })}
           </View>
-
-          <View style={{ height: 32 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -810,7 +808,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 0,
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
   featuredSection: {
     marginTop: 0,

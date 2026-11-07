@@ -321,14 +321,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 16,
-    paddingBottom: 76,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   topHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 8,
+    paddingTop: 0,
     marginBottom: 16,
   },
   headerCircleBtn: {
