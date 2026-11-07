@@ -65,11 +65,11 @@
         {
           "backgroundColor": "#005AF1",
           "image": "./assets/images/sinsay-white-logo.png",
-          "imageWidth": 220,
+          "imageWidth": 275,
           "resizeMode": "contain",
           "android": {
             "image": "./assets/images/sinsay-white-logo.png",
-            "imageWidth": 220
+            "imageWidth": 275
           }
         }
       ],
