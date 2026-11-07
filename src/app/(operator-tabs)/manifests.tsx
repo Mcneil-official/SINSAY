@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -14,10 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { ContentContainer, ManifestSkeleton } from "../../components";
 import { ManifestSnapshotCard, ManifestSnapshotDiver } from "../../components/ManifestSnapshotCard";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
 import { deriveManifestStatus, formatDiveDate, toLocalDateString } from "../../lib/diveDate";
@@ -58,8 +57,6 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function ManifestsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const safeTop = Math.max(insets.top, 38);
   const { user, operatorApplication } = useAuth();
   const [tab, setTab] = useState<Tab>("upcoming");
   const [manifests, setManifests] = useState<ManifestItem[]>([]);
@@ -297,7 +294,7 @@ export default function ManifestsScreen() {
     router.push("/establishment/create-manifest/step1");
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" />
       <View style={styles.headerBackground} pointerEvents="none">
         <Svg
@@ -330,7 +327,7 @@ export default function ManifestsScreen() {
         </Svg>
       </View>
 
-      <View style={[styles.fixedHeader, { paddingTop: safeTop }]}>
+      <View style={styles.fixedHeader}>
         <ContentContainer maxWidth={480} paddingH={14}>
           <View style={styles.heroHeader}>
             <View style={styles.heroCopy}>
@@ -597,7 +594,6 @@ export default function ManifestsScreen() {
             })()
           )}
         </ContentContainer>
-        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Snapshot sheet */}
@@ -802,7 +798,7 @@ export default function ManifestsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#f1f9ff" },
+  safeArea: { flex: 1, backgroundColor: "#f1f9ff", paddingBottom: 0 },
   headerBackground: {
     position: "absolute",
     top: 0,
@@ -819,8 +815,8 @@ const styles = StyleSheet.create({
     height: 190,
   },
   container: { flex: 1, minHeight: 0 },
-  fixedHeader: { flexShrink: 0, paddingTop: 20 },
-  scrollContent: { paddingBottom: 116 },
+  fixedHeader: { flexShrink: 0, paddingTop: 12 },
+  scrollContent: { paddingBottom: 96 },
   heroHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1241,6 +1237,7 @@ const styles = StyleSheet.create({
   },
   sheetPreviewScroll: {
     flexShrink: 1,
+    marginBottom: 8
   },
   viewportScrollVertical: {
     flexGrow: 1,
@@ -1272,6 +1269,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
   },
+  cardWrap: { alignItems: "flex-start", justifyContent: "center", paddingBottom: 20 },
   sheetMsg: { flexShrink: 1, fontSize: 11, fontFamily: "Quicksand_600SemiBold", color: "#16835e", textAlign: "center" },
   sheetBtns: { flexDirection: "row", gap: 10, marginTop: 4 },
   sheetBtn: {

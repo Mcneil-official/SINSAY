@@ -193,7 +193,6 @@ export default function EstablishmentDetailScreen() {
             </View>
           </>
           </ContentContainer>
-          <View style={{ height: 60 }} />
         </ScrollView>
       )}
     </SafeAreaView>
@@ -203,7 +202,7 @@ export default function EstablishmentDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 20 },
+  scrollContent: { paddingBottom: 24 },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingVertical: 12,

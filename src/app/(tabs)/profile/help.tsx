@@ -63,8 +63,6 @@ export default function HelpScreen() {
               <Text style={styles.cardBody}>{section.content}</Text>
             </View>
           ))}
-
-          <View style={{ height: 40 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>

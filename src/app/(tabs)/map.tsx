@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Image,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -26,6 +25,7 @@ import Svg, {
 } from "react-native-svg";
 import { DidYouKnowCard, ErrorState, resolveSiteImage } from "../../components";
 import { BOTTOM_NAV_HEIGHT } from "../../components/BottomNav";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
@@ -353,6 +353,9 @@ function getEnrichment(site: DiveSiteRow, index: number): SiteEnrichment {
 }
 
 export default function MapScreen() {
+  const insets = useSafeAreaInsets();
+  const mapBottomOffset = 16;
+  const drawerScrollBottom = 28;
   const router = useRouter();
   const { site: requestedSite } = useLocalSearchParams<{ site?: string }>();
   const { user } = useAuth();
@@ -626,7 +629,7 @@ export default function MapScreen() {
   }, [effectiveZoom, panOffset.x, panOffset.y, selectedEnrichment]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" />
 
       {loading ? (
@@ -1334,7 +1337,7 @@ export default function MapScreen() {
 
           {/* 3. BOTTOM MAP LEGEND (DOCKED BELOW PINS SO NOTHING OVERLAPS) */}
           {!selectedSite && (
-            <View style={styles.bottomLegendWrap} pointerEvents="box-none">
+            <View style={[styles.bottomLegendWrap, { bottom: mapBottomOffset }]} pointerEvents="box-none">
               <View style={styles.legendBarCard}>
                 <View style={styles.legendBarHeader}>
                   <Ionicons
@@ -1389,6 +1392,7 @@ export default function MapScreen() {
           <View
             style={[
               styles.mapControlsCol,
+              { bottom: mapBottomOffset },
               selectedSite ? styles.mapControlsColFocused : null,
             ]}
           >
@@ -1436,7 +1440,7 @@ export default function MapScreen() {
 
               <ScrollView
                 style={styles.drawerScroll}
-                contentContainerStyle={styles.drawerScrollContent}
+                contentContainerStyle={[styles.drawerScrollContent, { paddingBottom: drawerScrollBottom }]}
                 showsVerticalScrollIndicator={false}
               >
                 {/* Hero Image Card */}
@@ -1719,6 +1723,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#E3F2FD",
+    paddingBottom: 0,
   },
   center: {
     flex: 1,

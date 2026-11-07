@@ -4,7 +4,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
   Circle,
   Defs,
@@ -23,9 +23,9 @@ import Svg, {
 } from "react-native-svg";
 import { ContentContainer, ManifestSkeleton, Skeleton } from "../../components";
 import AnimatedKpiValue from "../../components/AnimatedKpiValue";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
+import { useNotificationModal } from "../../context/NotificationModalContext";
 import { useAuth } from "../../hooks/useAuth";
 import { deriveManifestStatus, formatDiveDate } from "../../lib/diveDate";
 import { supabase } from "../../lib/supabase";
@@ -52,8 +52,8 @@ interface OperatorStats {
 
 export default function OperatorDashboardScreen() {
   const insets = useSafeAreaInsets();
-  const safeTop = insets.top > 0 ? Math.max(insets.top - 8, 14) : 14;
   const router = useRouter();
+  const { openNotifications } = useNotificationModal();
   const { user, operatorApplication, avatarUri, isLoading: authLoading, unreadCount } = useAuth();
   const { isDesktop, isTablet, isCompact } = useLayout();
   const isWide = isDesktop || isTablet;
@@ -235,10 +235,10 @@ export default function OperatorDashboardScreen() {
 
   if (authLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.authLoading}>
           <View style={styles.authLoadingHeader}>
-            <Skeleton width={160} height={28} radius={8} />
+            <Skeleton width={152} height={42} radius={10} />
             <Skeleton width={40} height={40} radius={20} />
           </View>
           <View style={styles.authLoadingStats}>
@@ -269,14 +269,20 @@ export default function OperatorDashboardScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" />
 
       {/* Top Ocean Gradient and Wave Background Header */}
-      <View style={styles.headerBackgroundWrap} pointerEvents="none">
+      <View
+        style={[
+          styles.headerBackgroundWrap,
+          { top: -insets.top, height: 275 + insets.top },
+        ]}
+        pointerEvents="none"
+      >
         <Svg
           width="100%"
-          height={240 + safeTop}
+          height={275 + insets.top}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -289,13 +295,19 @@ export default function OperatorDashboardScreen() {
               <Stop offset="1" stopColor="#f1f9ff" />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height={240 + safeTop} fill="url(#screenTopGrad)" />
+          <Rect
+            x="0"
+            y="0"
+            width="100%"
+            height={275 + insets.top}
+            fill="url(#screenTopGrad)"
+          />
         </Svg>
 
         <Svg
           viewBox="0 0 1024 496"
           preserveAspectRatio="none"
-          style={styles.headerWaveSvg}
+          style={[styles.headerWaveSvg, { height: 220 + insets.top }]}
         >
           <Path
             d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z"
@@ -308,7 +320,7 @@ export default function OperatorDashboardScreen() {
       <View style={styles.fixedDashboard}>
         <ContentContainer maxWidth={isWide ? 900 : 480} paddingH={18}>
           {/* Header Top Bar: SINSAY White Logo on left, Notification + Resort/Profile Avatar on right */}
-          <View style={[styles.topBar, { paddingTop: safeTop }]}>
+          <View style={styles.topBar}>
             <Image
               source={require("../../../assets/sinsay-white-home.webp")}
               style={[styles.logoImage, isCompact && styles.compactLogoImage]}
@@ -321,12 +333,12 @@ export default function OperatorDashboardScreen() {
             <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
               <TouchableOpacity
                 style={styles.notificationBtn}
-                onPress={() => router.push("/notifications")}
+                onPress={openNotifications}
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel={`Notifications, ${unreadCount} unread`}
               >
-                <Ionicons name="notifications" size={17} color="#0b206b" />
+                <Ionicons name="notifications" size={20} color="#0b206b" />
                 {unreadCount > 0 && (
                   <View style={styles.notificationBadge}>
                     <Text style={styles.notificationBadgeText}>
@@ -350,7 +362,7 @@ export default function OperatorDashboardScreen() {
                     contentFit="cover"
                   />
                 ) : (
-                  <Ionicons name="business" size={17} color="#006bff" />
+                  <Ionicons name="business" size={20} color="#006bff" />
                 )}
               </TouchableOpacity>
             </View>
@@ -721,8 +733,6 @@ export default function OperatorDashboardScreen() {
               </Text>
             </View>
           )}
-
-          <View style={{ height: 110 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -733,7 +743,7 @@ const styles = StyleSheet.create({
   authLoading: {
     gap: 16,
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 12,
   },
   authLoadingHeader: {
     flexDirection: "row",
@@ -747,6 +757,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#f1f9ff",
+    paddingBottom: 0,
   },
   container: {
     flex: 1,
@@ -757,14 +768,14 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   scrollContent: {
-    paddingBottom: 116,
+    paddingBottom: 96,
   },
   headerBackgroundWrap: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 220,
+    height: 275,
     overflow: "hidden",
     zIndex: -1,
   },
@@ -773,32 +784,32 @@ const styles = StyleSheet.create({
     top: 10,
     left: 0,
     width: "100%",
-    height: 180,
+    height: 220,
   },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 6,
+    paddingTop: 12,
     paddingBottom: 4,
   },
   logoImage: {
-    width: 116,
-    height: 36,
+    width: 152,
+    height: 42,
   },
   compactLogoImage: {
-    width: 104,
-    height: 32,
+    width: 122,
+    height: 34,
   },
   topBarActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
   notificationBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
@@ -810,27 +821,27 @@ const styles = StyleSheet.create({
   },
   notificationBadge: {
     position: "absolute",
-    top: -3,
+    top: -2,
     right: -2,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: "#006bff",
-    borderWidth: 1.2,
+    borderWidth: 1.5,
     borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 2,
+    paddingHorizontal: 3,
   },
   notificationBadgeText: {
-    fontSize: 7.5,
+    fontSize: 8.5,
     fontFamily: "Quicksand_700Bold",
     color: "#FFFFFF",
   },
   avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
@@ -844,23 +855,24 @@ const styles = StyleSheet.create({
   avatarImg: {
     width: "100%",
     height: "100%",
-    borderRadius: 18,
+    borderRadius: 20,
   },
   greetingBlock: {
-    marginTop: 0,
-    marginBottom: 10,
+    marginTop: 4,
+    marginBottom: 12,
   },
   greetingTitle: {
-    fontSize: 21,
+    fontSize: 25,
     fontFamily: "Quicksand_700Bold",
     color: "#FFFFFF",
     letterSpacing: -0.3,
+    lineHeight: 30,
   },
   greetingSubtitle: {
-    fontSize: 12,
-    fontFamily: "Quicksand_500Medium",
+    fontSize: 14,
+    fontFamily: "Quicksand_600SemiBold",
     color: "rgba(255, 255, 255, 0.9)",
-    marginTop: 2,
+    marginTop: 3,
   },
   warningBanner: {
     flexDirection: "row",

@@ -3,6 +3,7 @@ import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -21,7 +22,6 @@ import { resolvePlannerSites, PlannerSite } from "../../lib/plannerSites";
 import { supabase } from "../../lib/supabase";
 import { Button } from "../Button";
 import { Card } from "../Card";
-import { DidYouKnowLoader } from "../DidYouKnowLoader";
 import { Dropdown } from "../Dropdown";
 import { TextInput } from "../TextInput";
 import { resolveSiteImage } from "../DiveSiteCard";
@@ -366,8 +366,11 @@ export function AssistantPlannerPanel() {
             icon={<Ionicons name="map" size={18} color={colors.white} />}
           />
           {loading && (
-            <View style={{ marginTop: 14 }}>
-              <DidYouKnowLoader compact />
+            <View style={styles.generatingWrap}>
+              <ActivityIndicator size="small" color={colors.primaryBlue} />
+              <Text style={styles.generatingText}>
+                Generating your personalized dive itinerary...
+              </Text>
             </View>
           )}
         </View>
@@ -646,6 +649,32 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
   },
+  generatingWrap: {
+
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    justifyContent: "center",
+
+    gap: 8,
+
+    marginTop: 14,
+
+    paddingVertical: 10,
+
+  },
+
+  generatingText: {
+
+    fontSize: 13,
+
+    fontFamily: "Quicksand_600SemiBold",
+
+    color: colors.primaryBlue,
+
+  },
+
   errorCard: {
     marginTop: 16,
     backgroundColor: "#FEF2F2",

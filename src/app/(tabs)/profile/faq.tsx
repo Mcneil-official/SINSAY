@@ -86,8 +86,6 @@ export default function FaqScreen() {
           {faqs.map((item, index) => (
             <FaqRow key={index} item={item} />
           ))}
-
-          <View style={{ height: 40 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>

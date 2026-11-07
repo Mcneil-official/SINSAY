@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -17,7 +18,6 @@ import {
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import {
   ContentContainer,
-  DidYouKnowLoader,
   EmptyState,
   ErrorState,
   resolveSiteImage,
@@ -290,7 +290,8 @@ export default function DiveSitesScreen() {
 
         {loading ? (
           <View style={styles.center}>
-            <DidYouKnowLoader compact />
+            <ActivityIndicator size="large" color={colors.primaryBlue} />
+            <Text style={styles.loadingText}>Loading dive sites...</Text>
           </View>
         ) : error ? (
           <ErrorState
@@ -745,8 +746,6 @@ export default function DiveSitesScreen() {
               );
             })}
           </View>
-
-          <View style={{ height: 32 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -810,7 +809,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 0,
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
   featuredSection: {
     marginTop: 0,
@@ -1179,6 +1178,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  loadingText: {
+
+    fontSize: 14,
+
+    fontFamily: "Quicksand_500Medium",
+
+    color: "#64748B",
+
+  },
+
   center: {
     flex: 1,
     justifyContent: "center",

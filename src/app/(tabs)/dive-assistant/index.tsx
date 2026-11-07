@@ -111,8 +111,6 @@ export default function DiveAssistantScreen() {
               ))}
             </View>
           </View>
-
-          <View style={{ height: 32 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
@@ -128,7 +126,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 48,
+    paddingTop: 16,
     paddingBottom: 100,
     alignItems: "center",
   },
