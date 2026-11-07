@@ -236,7 +236,12 @@ export default function EcoOnboarding({
         ]}
       >
         <View
-          style={[styles.frame, { width: frameWidth, height: frameHeight }]}
+          style={[
+            styles.frame,
+            isWide
+              ? { width: frameWidth, height: frameHeight }
+              : styles.mobileFrameFill,
+          ]}
           {...panResponder.panHandlers}
         >
           <Animated.View
@@ -280,7 +285,8 @@ export default function EcoOnboarding({
               position: "absolute",
               zIndex: 0,
               left: 0,
-              bottom: 0,
+              bottom: isWide ? undefined : 0,
+              top: isWide ? imageTop : undefined,
               width: frameWidth,
               height: imageHeight,
               opacity: slideOpacity,
@@ -453,6 +459,11 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     backgroundColor: "#f8f7f5",
+  },
+  mobileFrameFill: {
+    width: "100%",
+    height: "100%",
+    flex: 1,
   },
   wave: {
     position: "absolute",

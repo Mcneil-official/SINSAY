@@ -98,7 +98,7 @@ export function FloatingAssistant() {
 
   const hideFloatingTrigger = pathname?.includes("/dive-assistant") ?? false;
   const navBottomPadding =
-    insets.bottom > 0 ? Math.max(insets.bottom, 12) : 12;
+    insets.bottom > 0 ? Math.max(insets.bottom - 18, 10) : 10;
   const fabBottom = navBottomPadding + BOTTOM_NAV_HEIGHT + 12;
 
   const handleFabPress = () => {
