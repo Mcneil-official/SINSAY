@@ -41,4 +41,5 @@ export { DidYouKnowCard } from "./DidYouKnowCard";
 export { AnnouncementDetailModal, DEFAULT_CONSERVATION_ADVISORY } from "./AnnouncementDetailModal";
 export { NotificationsModal } from "./notifications/NotificationsModal";
 export { NotificationsPanel } from "./notifications/NotificationsPanel";
+export { WebSafeInsetsNormalizer } from "./WebSafeInsetsNormalizer";
 

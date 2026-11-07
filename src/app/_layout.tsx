@@ -10,26 +10,36 @@ import { Image } from "expo-image";
 import { Stack, usePathname } from "expo-router";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider
+} from "react-native-safe-area-context";
+import {
+  AnnouncementDetailModal,
+  NotificationsModal,
+  WebSafeInsetsNormalizer,
+} from "../components";
 import AppShell from "../components/AppShell";
 import PWAInstallBanner from "../components/PWAInstallBanner";
 import PWAInstallModal from "../components/PWAInstallModal";
 import { SystemBarsSync } from "../components/SystemBarsSync";
-import { AnnouncementDetailModal, NotificationsModal } from "../components";
+import UnsupportedDeviceScreen from "../components/UnsupportedDeviceScreen";
+import { ENABLE_DESKTOP_LAYOUT } from "../constants/layout";
 import { AuthProvider } from "../context/AuthContext";
 import { LayoutProvider, useLayout } from "../context/LayoutContext";
-import { NotificationModalProvider, useNotificationModal } from "../context/NotificationModalContext";
+import {
+  NotificationModalProvider,
+  useNotificationModal,
+} from "../context/NotificationModalContext";
 import { PWAProvider } from "../context/PWAContext";
 import { ScreenTransitionProvider } from "../context/ScreenTransitionContext";
 import { ToastProvider } from "../context/ToastContext";
-import { ENABLE_DESKTOP_LAYOUT } from "../constants/layout";
-import UnsupportedDeviceScreen from "../components/UnsupportedDeviceScreen";
 import { registerServiceWorker } from "../lib/registerSW";
 
 function RootLayoutInner() {
   const { isDesktop } = useLayout();
   const pathname = usePathname();
-  const { selectedAnnouncement, closeAnnouncementModal } = useNotificationModal();
+  const { selectedAnnouncement, closeAnnouncementModal } =
+    useNotificationModal();
 
   // OAuth must be allowed to settle its session before the device fallback
   // takes over the authenticated app route.
@@ -83,19 +93,21 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <LayoutProvider>
-          <PWAProvider>
-            <ScreenTransitionProvider>
-              <ToastProvider>
-                <NotificationModalProvider>
-                  <RootLayoutInner />
-                </NotificationModalProvider>
-              </ToastProvider>
-            </ScreenTransitionProvider>
-          </PWAProvider>
-        </LayoutProvider>
-      </AuthProvider>
+      <WebSafeInsetsNormalizer>
+        <AuthProvider>
+          <LayoutProvider>
+            <PWAProvider>
+              <ScreenTransitionProvider>
+                <ToastProvider>
+                  <NotificationModalProvider>
+                    <RootLayoutInner />
+                  </NotificationModalProvider>
+                </ToastProvider>
+              </ScreenTransitionProvider>
+            </PWAProvider>
+          </LayoutProvider>
+        </AuthProvider>
+      </WebSafeInsetsNormalizer>
     </SafeAreaProvider>
   );
 }
