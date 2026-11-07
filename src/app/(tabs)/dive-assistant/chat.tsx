@@ -14,8 +14,10 @@ import {
 } from "react-native";
 import { AssistantChatPanel, ContentContainer } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ChatScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ initialQuery?: string }>();
 
@@ -46,7 +48,7 @@ export default function ChatScreen() {
       <Text style={styles.livechatLabel}>Livechat</Text>
 
       {Platform.OS === "ios" ? (
-        <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        <KeyboardAvoidingView style={[styles.flex, { paddingBottom: Math.max(insets.bottom, 8) }]} behavior="padding">
           <ContentContainer
             maxWidth={720}
             paddingH={0}
@@ -59,7 +61,7 @@ export default function ChatScreen() {
           </ContentContainer>
         </KeyboardAvoidingView>
       ) : (
-        <View style={styles.flex}>
+        <View style={[styles.flex, { paddingBottom: Math.max(insets.bottom, 8) }]}>
           <ContentContainer
             maxWidth={720}
             paddingH={0}

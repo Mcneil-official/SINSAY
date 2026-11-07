@@ -7,7 +7,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Share,
   StatusBar,
@@ -17,6 +16,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, {
   Circle,
   Defs,
@@ -25,7 +25,6 @@ import Svg, {
   Rect,
   Stop,
 } from "react-native-svg";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
@@ -141,8 +140,6 @@ function DefaultAvatarSilhouette() {
 export function EcoDivePassportView() {
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const safeTop = Math.max(insets.top, 38);
   const { user, profile, ecoId, avatarUri, setAvatarUri, clearAvatarOverride, isLoading, refreshProfile, updateProfile } =
     useAuth();
 
@@ -486,7 +483,7 @@ export function EcoDivePassportView() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.centerLoader}>
           <ActivityIndicator size="large" color={colors.primaryBlue} />
         </View>
@@ -496,7 +493,7 @@ export function EcoDivePassportView() {
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <ErrorState
           message="Unable to load profile data."
           description="Your account may not be fully set up. Please contact support or try again."
@@ -535,12 +532,12 @@ export function EcoDivePassportView() {
   const storyCardWidth = Math.round(storyCardHeight * 0.6);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: safeTop + 6, paddingBottom: 116 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: 12, paddingBottom: 20 }]}
         showsVerticalScrollIndicator={false}
       >
         <ContentContainer maxWidth={560}>
@@ -1626,6 +1623,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F6FAFF",
+    paddingBottom: 0,
   },
   centerLoader: {
     flex: 1,
@@ -1636,8 +1634,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 14,
-    paddingBottom: 18,
+    paddingTop: 12,
+    paddingBottom: 20,
   },
 
   /* 1. SIMPLIFIED SCREEN HEADER */

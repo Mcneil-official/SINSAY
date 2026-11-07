@@ -4,7 +4,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ContentContainer,
   CardRailSkeleton,
@@ -21,13 +21,15 @@ import {
   EstablishmentCard,
   resolveEstablishmentMedia,
   HeroCarousel,
+  AnnouncementDetailModal,
+  DEFAULT_CONSERVATION_ADVISORY,
   SearchBar,
   Skeleton,
 } from "../../components";
 import { SearchResult } from "../../components/SearchBar";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
+import { useNotificationModal } from "../../context/NotificationModalContext";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 import {
@@ -76,9 +78,8 @@ const categoryOptions: {
 
 
 export default function HomeScreen() {
-  const insets = useSafeAreaInsets();
-  const safeTop = insets.top > 0 ? Math.max(insets.top - 8, 14) : 14;
   const router = useRouter();
+  const { openNotifications } = useNotificationModal();
   const {
     profile,
     avatarUri,
@@ -109,6 +110,7 @@ export default function HomeScreen() {
 
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(true);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementRow | null>(null);
 
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
@@ -334,7 +336,7 @@ export default function HomeScreen() {
 
   if (authLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.authLoading}>
           <View style={styles.authLoadingHeader}>
             <Skeleton width={132} height={28} radius={8} />
@@ -349,7 +351,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" />
       <ScrollView
         style={styles.container}
@@ -360,7 +362,7 @@ export default function HomeScreen() {
         <ContentContainer maxWidth={900} paddingH={isCompact ? 14 : 20}>
           {/* Top Bar: SINSAY blue logo on upper left, Notification + Profile on upper right */}
           {!isDesktop && (
-            <View style={[styles.topBar, { paddingTop: safeTop }]}>
+            <View style={styles.topBar}>
               <Image
                 source={require("../../../assets/sinsay-blue-home.webp")}
                 style={[styles.logoImage, isCompact && styles.compactLogoImage]}
@@ -373,7 +375,7 @@ export default function HomeScreen() {
               <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
                 <TouchableOpacity
                   style={[styles.iconButton, isCompact && styles.compactIconButton]}
-                  onPress={() => router.push("/notifications")}
+                  onPress={openNotifications}
                   activeOpacity={0.8}
                   accessibilityRole="button"
                   accessibilityLabel={`Notifications, ${unreadCount} unread`}
@@ -521,19 +523,13 @@ export default function HomeScreen() {
                 announcement: a.title,
                 body: a.body,
                 onPress: () => {
-                  router.push({
-                    pathname: "/announcement/[id]",
-                    params: { id: a.id },
-                  });
+                  setSelectedAnnouncement(a);
                 },
               }))}
               onPress={(index) => {
                 const a = announcements[index];
                 if (a) {
-                  router.push({
-                    pathname: "/announcement/[id]",
-                    params: { id: a.id },
-                  });
+                  setSelectedAnnouncement(a);
                 }
               }}
             />
@@ -543,21 +539,15 @@ export default function HomeScreen() {
                 {
                   id: "default-conservation",
                   image: require("../../../assets/hero-banner.jpg"),
-                  announcement: "Protect Mabini's Vibrant Coral Reefs",
+                  announcement: DEFAULT_CONSERVATION_ADVISORY.title,
                   body: "Keep your Eco-Dive ID active before every dive.",
                   onPress: () => {
-                    router.push({
-                      pathname: "/announcement/[id]",
-                      params: { id: "default-conservation" },
-                    });
+                    setSelectedAnnouncement(DEFAULT_CONSERVATION_ADVISORY);
                   },
                 },
               ]}
               onPress={() => {
-                router.push({
-                  pathname: "/announcement/[id]",
-                  params: { id: "default-conservation" },
-                });
+                setSelectedAnnouncement(DEFAULT_CONSERVATION_ADVISORY);
               }}
             />
           )}
@@ -657,39 +647,44 @@ export default function HomeScreen() {
                   message="No accredited dive resorts yet."
                 />
               ) : (
-                <View style={styles.resortsList}>
+                <View style={styles.resortsGrid}>
                   {establishments.slice(0, 6).map((item, idx) => {
                     const { imageUrl } = resolveEstablishmentMedia(item);
                     return (
-                    <EstablishmentCard
-                      key={item.id}
-                      name={item.name}
-                      location={item.location}
-                      accreditation={item.accreditation}
-                      accredited={item.accredited}
-                      isPcssdAccredited={Boolean(item.pcssd_url && item.pcssd_url.trim().length > 0)}
-                      isDotAccredited={Boolean(item.dot_url && item.dot_url.trim().length > 0)}
-                      imageUrl={imageUrl}
-                      index={idx}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/establishment/[id]",
-                          params: { id: item.id },
-                        })
-                      }
-                    />
+                      <View key={item.id} style={styles.resortsGridCol}>
+                        <EstablishmentCard
+                          variant="grid"
+                          name={item.name}
+                          location={item.location}
+                          accreditation={item.accreditation}
+                          accredited={item.accredited}
+                          isPcssdAccredited={Boolean(item.pcssd_url && item.pcssd_url.trim().length > 0)}
+                          isDotAccredited={Boolean(item.dot_url && item.dot_url.trim().length > 0)}
+                          imageUrl={imageUrl}
+                          index={idx}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/establishment/[id]",
+                              params: { id: item.id },
+                            })
+                          }
+                        />
+                      </View>
                     );
                   })}
                 </View>
               )}
             </>
           )}
-
-          <View style={{ height: 24 }} />
         </ContentContainer>
       </ScrollView>
 
-      </SafeAreaView>
+      <AnnouncementDetailModal
+        visible={Boolean(selectedAnnouncement)}
+        announcement={selectedAnnouncement}
+        onClose={() => setSelectedAnnouncement(null)}
+      />
+    </SafeAreaView>
   );
 }
 
@@ -697,7 +692,7 @@ const styles = StyleSheet.create({
   authLoading: {
     gap: 18,
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 12,
   },
   authLoadingHeader: {
     flexDirection: "row",
@@ -708,19 +703,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
     position: "relative",
+    paddingBottom: 0,
   },
   container: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 116,
+    paddingBottom: 20,
   },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 0,
-    paddingTop: 0,
+    paddingTop: 12,
     zIndex: 120,
   },
   logoImage: {
@@ -783,7 +779,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   greetingBlock: {
-    marginTop: 8,
+    marginTop: 6,
     paddingLeft: 10,
   },
   greetingTitle: {
@@ -893,9 +889,16 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     gap: 12,
   },
-  resortsList: {
+  resortsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: -5,
     marginTop: 12,
-    gap: 12,
+  },
+  resortsGridCol: {
+    width: "50%",
+    paddingHorizontal: 5,
+    marginBottom: 10,
   },
   railPlaceholder: {
     marginTop: 16,

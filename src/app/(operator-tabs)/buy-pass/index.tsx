@@ -3,7 +3,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, {
   Circle,
   Defs,
@@ -23,6 +23,7 @@ import Svg, {
 import AnimatedKpiValue from "../../../components/AnimatedKpiValue";
 import { BuyPassProgress, ContentContainer } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { useNotificationModal } from "../../../context/NotificationModalContext";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 
@@ -57,6 +58,7 @@ function formatTxDate(dateStr: string): string {
 
 export default function BuyPassSelectionScreen() {
   const router = useRouter();
+  const { openNotifications } = useNotificationModal();
   const { user, unreadCount } = useAuth();
 
   const [quantity, setQuantity] = useState<number>(1);
@@ -180,7 +182,7 @@ export default function BuyPassSelectionScreen() {
   const peso = "\u20B1";
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" />
 
       {/* Top Ocean Gradient and Wave Background Header */}
@@ -233,7 +235,7 @@ export default function BuyPassSelectionScreen() {
             <Text style={styles.headerTitleText}>Dive Pass</Text>
 
             <TouchableOpacity
-              onPress={() => router.push("/notifications")}
+              onPress={openNotifications}
               hitSlop={10}
               style={styles.headerCircleBtn}
               accessibilityRole="button"
@@ -488,7 +490,7 @@ export default function BuyPassSelectionScreen() {
           {/* Recent Transactions Section */}
           <View style={styles.transactionsHeaderRow}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Ionicons name="time" size={16} color="#006bff" />
+              <Ionicons name="time" size={18} color="#006bff" />
               <Text style={styles.transactionsTitle}>Recent Transactions</Text>
             </View>
             <TouchableOpacity
@@ -516,7 +518,7 @@ export default function BuyPassSelectionScreen() {
                 return (
                   <View key={tx.id} style={styles.txCard}>
                     <View style={styles.txIconBubble}>
-                      <Ionicons name="ticket" size={17} color="#006bff" />
+                      <Ionicons name="ticket" size={20} color="#006bff" />
                     </View>
 
                     <View style={styles.txInfo}>
@@ -585,6 +587,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#f1f9ff",
+    paddingBottom: 0,
   },
   headerBackgroundWrap: {
     position: "absolute",
@@ -608,16 +611,16 @@ const styles = StyleSheet.create({
   },
   fixedPassSummary: {
     flexShrink: 0,
-    paddingTop: 16,
+    paddingTop: 12,
   },
   scrollContent: {
-    paddingBottom: 76,
+    paddingBottom: 20,
   },
   topHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 6,
+    paddingTop: 0,
     marginBottom: 14,
   },
   headerCircleBtn: {
@@ -1158,104 +1161,112 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 4,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 10,
     paddingHorizontal: 4,
   },
   transactionsTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: "Quicksand_700Bold",
-    color: "#07156c",
+    color: "#0F172A",
   },
   seeAllText: {
-    fontSize: 11,
+    fontSize: 13,
     fontFamily: "Quicksand_600SemiBold",
     color: "#006bff",
   },
   transactionsList: {
-    gap: 6,
+    gap: 8,
   },
   txCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
-    borderRadius: 14,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 16,
+    minHeight: 56,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(111, 185, 237, 0.22)",
-    gap: 10,
+    borderColor: "rgba(111, 185, 237, 0.24)",
+    gap: 12,
     shadowColor: "#4089dc",
     shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    elevation: 2,
   },
   txIconBubble: {
-    width: 36,
-    height: 32,
-    borderRadius: 9,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: "#e7f3ff",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
   txInfo: {
     flex: 1,
     minWidth: 0,
+    justifyContent: "center",
   },
   txPlanName: {
-    fontSize: 11.5,
+    fontSize: 15,
     fontFamily: "Quicksand_700Bold",
-    color: "#07156c",
-    marginBottom: 1,
+    color: "#0F172A",
+    marginBottom: 2,
   },
   txDate: {
-    fontSize: 9,
+    fontSize: 12,
     fontFamily: "Quicksand_500Medium",
-    color: "#5368b1",
+    color: "#64748B",
   },
   txRefText: {
-    fontSize: 8.5,
+    fontSize: 11,
     fontFamily: "Quicksand_500Medium",
     color: "#94A3B8",
-    marginTop: 1,
+    marginTop: 2,
   },
   txEndCol: {
     alignItems: "flex-end",
+    justifyContent: "center",
     flexShrink: 0,
+    gap: 4,
   },
   statusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 3.5,
     borderRadius: 8,
-    marginBottom: 2,
+    minHeight: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
   statusPillApproved: {
-    backgroundColor: "#cdf3e0",
+    backgroundColor: "#DCFCE7",
   },
   statusPillReview: {
-    backgroundColor: "#d2e8ff",
+    backgroundColor: "#DBEAFE",
   },
   statusPillRejected: {
-    backgroundColor: "#fee2e2",
+    backgroundColor: "#FEE2E2",
   },
   statusPillText: {
-    fontSize: 8,
+    fontSize: 11,
     fontFamily: "Quicksand_700Bold",
+    letterSpacing: 0.1,
   },
   statusTextApproved: {
-    color: "#007c6e",
+    color: "#15803D",
   },
   statusTextReview: {
-    color: "#0058f5",
+    color: "#1D4ED8",
   },
   statusTextRejected: {
-    color: "#dc2626",
+    color: "#DC2626",
   },
   txAmount: {
-    fontSize: 11.5,
+    fontSize: 14,
     fontFamily: "Quicksand_700Bold",
-    color: "#07156c",
+    color: "#0F172A",
+    letterSpacing: -0.2,
   },
   emptyCard: {
     alignItems: "center",

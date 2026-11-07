@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { ContentContainer, DateField as SharedDateField, Dropdown as SharedDropdown, TextInput as SharedTextInput } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../hooks/useAuth";
 import { toLocalPhDigits, toDbPhPhone } from "../../../lib/phone";
 import { deleteDraft, saveDraft } from "../../../lib/manifestDrafts";
@@ -134,6 +135,7 @@ function createNextDiverId(): string {
 }
 
 export default function CreateManifestStep1() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
   const params = useLocalSearchParams<{ draft?: string; draftId?: string }>();
@@ -184,7 +186,7 @@ export default function CreateManifestStep1() {
     return legacy ? [legacy] : [""];
   });
   const [dutyNotes, setDutyNotes] = useState((initialDraft.dutyNotes as string) ?? "");
-  const [diveDate, setDiveDate] = useState((initialDraft.diveDate as string) ?? todayLocal());
+  const [diveDate, setDiveDate] = useState((initialDraft.diveDate as string) ?? "");
 
   // Divers list — starts empty. (Demo prefills were removed: they shipped
   // as real manifest rows with fabricated eco-IDs.)
@@ -683,6 +685,11 @@ export default function CreateManifestStep1() {
         );
         return;
       }
+      if (!diveDate.trim()) {
+        setDateError("Please select a dive date.");
+        setError("Please select a dive date before continuing.");
+        return;
+      }
       if (!isValidCalendarDate(diveDate)) {
         setDateError("Enter a valid dive date (YYYY-MM-DD).");
         setError("Check the dive date before continuing.");
@@ -721,6 +728,10 @@ export default function CreateManifestStep1() {
 
   const handleSubmit = async () => {
     if (!user) return;
+    if (!diveDate.trim()) {
+      setDateError("Please select a dive date.");
+      return;
+    }
     if (!isValidCalendarDate(diveDate)) {
       setDateError("Enter a valid dive date (YYYY-MM-DD).");
       return;
@@ -853,7 +864,7 @@ export default function CreateManifestStep1() {
       <ScrollView
         ref={scrollRef}
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 30 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -897,6 +908,7 @@ export default function CreateManifestStep1() {
             </View>
             <DateField
               label="Dive Date"
+              placeholder="Select Dive Date"
               value={diveDate}
               onChangeText={(v) => {
                 setDiveDate(v);
@@ -1365,7 +1377,7 @@ export default function CreateManifestStep1() {
         </ContentContainer>
       </ScrollView>
 
-      <View style={styles.wizardFooter}>
+      <View style={[styles.wizardFooter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         {error ? (
           <View style={styles.wizardErrorBox}>
             <Ionicons name="alert-circle" size={16} color="#b6223a" />
@@ -1673,7 +1685,7 @@ export default function CreateManifestStep1() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#f4f8fd" },
   container: { flex: 1 },
-  scrollContent: { paddingTop: 18, paddingBottom: 30 },
+  scrollContent: { paddingTop: 18, paddingBottom: 24 },
   topBar: {
     minHeight: 88,
     flexDirection: "row",
@@ -1722,6 +1734,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 1,
+    width: "100%",
+    overflow: "hidden",
   },
   progressCard: {
     backgroundColor: "#FFFFFF",

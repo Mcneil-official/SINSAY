@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { colors } from "../constants/colors";
+import { useNotificationModal } from "../context/NotificationModalContext";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 
@@ -46,6 +47,7 @@ export default function WiderScreenNavbar({
   const router = useRouter();
   const pathname = usePathname();
   const { unreadCount } = useAuth();
+  const { openNotifications } = useNotificationModal();
 
   // Search state
   const [localQuery, setLocalQuery] = useState(searchQuery || "");
@@ -357,7 +359,7 @@ export default function WiderScreenNavbar({
           {/* Far Right: Notification Bell */}
           <TouchableOpacity
             style={styles.iconCircle}
-            onPress={() => router.push("/notifications")}
+            onPress={openNotifications}
             accessibilityRole="button"
             accessibilityLabel="Notifications"
             activeOpacity={0.7}
