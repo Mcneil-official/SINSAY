@@ -134,7 +134,7 @@ export default function AuthWelcome({ active }: AuthWelcomeProps) {
         style={[
           styles.actions,
           {
-            bottom: Math.max(insets.bottom, 20) + 20,
+            bottom: Math.max(insets.bottom, 0) + 16,
             opacity: actionsOpacity,
             transform: [{ translateY: actionsTranslate }],
           },
@@ -198,19 +198,19 @@ const styles = StyleSheet.create({
     top: "40%",
     left: 0,
     right: 0,
-    marginTop: -33.5,
+    marginTop: -42,
     alignItems: "center",
   },
   logo: {
-    width: 220,
-    height: 67,
+    width: 275,
+    height: 84,
   },
   tagline: {
     position: "absolute",
     top: "40%",
     left: 0,
     right: 0,
-    marginTop: 36,
+    marginTop: 50,
     paddingHorizontal: 48,
     color: colors.white,
     fontSize: 15,

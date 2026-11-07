@@ -160,7 +160,8 @@ export default function BottomNav({
     );
   };
 
-  const navBottomPadding = insets.bottom > 0 ? insets.bottom : 12;
+  const navBottomPadding =
+    insets.bottom > 0 ? Math.max(Math.round(insets.bottom * 0.58), 16) : 12;
 
   return (
     <View
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: "#DBE8F4",
-    paddingTop: 8,
+    paddingTop: 10,
     paddingHorizontal: 16,
     alignItems: "center",
   },
