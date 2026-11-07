@@ -533,6 +533,7 @@ export function EcoDivePassportView() {
     Math.min(Math.round(screenHeight * 0.5), 350),
   );
   const storyCardWidth = Math.round(storyCardHeight * 0.6);
+  const isIdActive = ecoId?.status === "active";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -600,30 +601,97 @@ export function EcoDivePassportView() {
                   },
                 ]}
               >
-                {/* PART 1: Left Portrait Box */}
-                <TouchableOpacity
+                {/* PART 1: Left Column (Portrait Photo + Eco-Dive ID Number + Status Pill below) */}
+                <View
                   style={[
-                    styles.portraitBox,
+                    styles.portraitCol,
                     {
-                      width: Math.round(cardWidth * 0.25),
-                      borderRadius: Math.max(6, Math.round(u * 6.0)),
+                      width: Math.round(cardWidth * 0.26),
+                      paddingTop: Math.max(4, Math.round(u * 3.2)),
                     },
                   ]}
-                  onPress={handlePickProfilePhoto}
-                  activeOpacity={0.85}
-                  focusable
-                  accessibilityLabel="Upload or change diver profile photo"
                 >
-                  {profilePhotoUri ? (
-                    <Image
-                      source={{ uri: profilePhotoUri }}
-                      style={styles.portraitImage}
-                      resizeMode="cover"
+                  <TouchableOpacity
+                    style={[
+                      styles.portraitBox,
+                      {
+                        height: Math.round(centerHeight * 0.75),
+                        borderRadius: Math.max(4, Math.round(u * 4.8)),
+                      },
+                    ]}
+                    onPress={handlePickProfilePhoto}
+                    activeOpacity={0.85}
+                    focusable
+                    accessibilityLabel="Upload or change diver profile photo"
+                  >
+                    {profilePhotoUri ? (
+                      <Image
+                        source={{ uri: profilePhotoUri }}
+                        style={styles.portraitImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <DefaultAvatarSilhouette />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Clean Eco-Dive ID Number below photo (unclipped with proper line height) */}
+                  <Text
+                    style={[
+                      styles.portraitIdText,
+                      {
+                        fontSize: Math.max(5.8, Math.round(u * 4.4 * 10) / 10),
+                        lineHeight: Math.max(8.5, Math.round(u * 6.2 * 10) / 10),
+                        marginTop: Math.max(2.5, Math.round(u * 2.0)),
+                        width: "115%",
+                        flexShrink: 0,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {ecoId?.eco_id_number || "PENDING"}
+                  </Text>
+
+                  {/* Active / Inactive Status Pill (positioned lower with clear separation) */}
+                  <View
+                    style={[
+                      styles.portraitBottomStatusPill,
+                      isIdActive
+                        ? styles.portraitBottomStatusPillActive
+                        : styles.portraitBottomStatusPillInactive,
+                      {
+                        marginTop: Math.max(2.5, Math.round(u * 2.2)),
+                        paddingHorizontal: Math.max(5, Math.round(u * 3.8)),
+                        paddingVertical: Math.max(1.0, Math.round(u * 0.9)),
+                        flexShrink: 0,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={isIdActive ? "checkmark-circle" : "ellipse"}
+                      size={
+                        isIdActive
+                          ? Math.max(6.5, Math.round(u * 6.2))
+                          : Math.max(4.5, Math.round(u * 4.5))
+                      }
+                      color={isIdActive ? "#059669" : "#64748B"}
                     />
-                  ) : (
-                    <DefaultAvatarSilhouette />
-                  )}
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.portraitBottomStatusText,
+                        isIdActive
+                          ? styles.portraitBottomStatusTextActive
+                          : styles.portraitBottomStatusTextInactive,
+                        {
+                          fontSize: Math.max(5.2, Math.round(u * 3.8 * 10) / 10),
+                          lineHeight: Math.max(7.2, Math.round(u * 5.2 * 10) / 10),
+                        },
+                      ]}
+                    >
+                      {isIdActive ? "ACTIVE" : "INACTIVE"}
+                    </Text>
+                  </View>
+                </View>
 
                 {/* PART 2: Middle Identity Column (4 Icon + Label/Value Rows) */}
                 <View
@@ -924,7 +992,7 @@ export function EcoDivePassportView() {
               color={colors.primaryBlue}
             />
             <Text style={styles.tapCardHintText}>
-              Tap ID card to view full details &amp; save
+              Tap card to view full details &amp; save
             </Text>
           </TouchableOpacity>
 
@@ -1238,20 +1306,36 @@ export function EcoDivePassportView() {
                   SINSAY Eco-Dive ID Pass
                 </Text>
                 <Text style={styles.recapSheetSubtitle}>
-                  Full digital pass details &amp; offline save
+                  Full digital pass details &amp; accreditation
                 </Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.recapSheetCloseBtn}
-                onPress={() => setShowIdCardModal(false)}
-                activeOpacity={0.8}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Close ID card details modal"
-              >
-                <Ionicons name="close" size={17} color="#0D74E7" />
-              </TouchableOpacity>
+              <View style={styles.recapSheetHeaderActions}>
+                <TouchableOpacity
+                  style={styles.recapSheetCloseBtn}
+                  onPress={() => {
+                    setShowIdCardModal(false);
+                    router.push("/tourist/dive-details/step1");
+                  }}
+                  activeOpacity={0.8}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit ID card details"
+                >
+                  <Ionicons name="create-outline" size={17} color="#0D74E7" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.recapSheetCloseBtn}
+                  onPress={() => setShowIdCardModal(false)}
+                  activeOpacity={0.8}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close ID card details modal"
+                >
+                  <Ionicons name="close" size={17} color="#0D74E7" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <ScrollView
@@ -1302,6 +1386,32 @@ export function EcoDivePassportView() {
 
               {/* Complete Un-truncated Details List */}
               <View style={styles.idFullGridCard}>
+                {/* ECO-DIVE ID NO. */}
+                <View style={styles.idFullDetailItem}>
+                  <Ionicons
+                    name="finger-print-outline"
+                    size={16}
+                    color={colors.primaryBlue}
+                  />
+                  <View style={styles.idFullDetailTextCol}>
+                    <Text style={styles.idFullLabel}>ECO-DIVE ID NO.</Text>
+                    <Text
+                      style={[
+                        styles.idFullValue,
+                        {
+                          color: colors.primaryBlue,
+                          fontFamily: "Quicksand_700Bold",
+                          letterSpacing: 0.5,
+                        },
+                      ]}
+                    >
+                      {ecoId?.eco_id_number || "ECO-ID PENDING"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.idFullDivider} />
+
                 <View style={styles.idFullDetailItem}>
                   <Ionicons
                     name="globe-outline"
@@ -1405,41 +1515,6 @@ export function EcoDivePassportView() {
               </View>
             </ScrollView>
 
-            {/* Save & Edit Actions */}
-            <View style={styles.idModalActionRow}>
-              <TouchableOpacity
-                style={styles.idModalEditBtn}
-                onPress={() => {
-                  setShowIdCardModal(false);
-                  router.push("/tourist/dive-details/step1");
-                }}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Edit ID card details"
-              >
-                <Ionicons
-                  name="create-outline"
-                  size={16}
-                  color={colors.primaryBlue}
-                />
-                <Text style={styles.idModalEditBtnText}>Edit Details</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.idModalSavePrimaryBtn}
-                onPress={handleSaveIdCard}
-                activeOpacity={0.86}
-                accessibilityRole="button"
-                accessibilityLabel="Save Eco-Dive ID card"
-              >
-                <Ionicons
-                  name="download-outline"
-                  size={17}
-                  color={colors.white}
-                />
-                <Text style={styles.idModalSavePrimaryText}>Save ID Card</Text>
-              </TouchableOpacity>
-            </View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -1711,11 +1786,55 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
   },
+  portraitCol: {
+    flexDirection: "column",
+    alignItems: "center",
+    flexShrink: 0,
+    justifyContent: "flex-start",
+  },
   portraitBox: {
-    height: "100%",
+    width: "100%",
     backgroundColor: "#C6DAF1",
     overflow: "hidden",
     flexShrink: 0,
+  },
+  portraitIdText: {
+    width: "100%",
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F294A",
+    letterSpacing: 0.1,
+    textAlign: "center",
+    flexShrink: 0,
+  },
+  portraitBottomStatusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    borderRadius: 999,
+    alignSelf: "center",
+    flexShrink: 0,
+  },
+  portraitBottomStatusPillActive: {
+    backgroundColor: "rgba(236, 253, 245, 0.95)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.4)",
+  },
+  portraitBottomStatusPillInactive: {
+    backgroundColor: "rgba(241, 245, 249, 0.95)",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.35)",
+  },
+  portraitBottomStatusText: {
+    fontFamily: "Quicksand_700Bold",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  portraitBottomStatusTextActive: {
+    color: "#059669",
+  },
+  portraitBottomStatusTextInactive: {
+    color: "#475569",
   },
   portraitImage: {
     width: "100%",
@@ -2299,6 +2418,11 @@ const styles = StyleSheet.create({
   },
   recapSheetTitleCol: {
     flex: 1,
+  },
+  recapSheetHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   recapSheetTitle: {
     fontSize: 17,

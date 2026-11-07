@@ -1,15 +1,13 @@
-import React, { forwardRef, useState } from "react";
+import React, { forwardRef } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
-import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
-import { SINSAY_WHITE_LOGO_URI } from "../constants/manifestLogo";
-import { MANIFESTO_HERO_BG_URI } from "../constants/manifestHeroBg";
-
-const HERO_BG_IMAGE = require("../../assets/manifesto-hero-bg.png");
+import Svg, { Path } from "react-native-svg";
+import { MABINI_LGU_LOGO_URI } from "../constants/lguLogo";
 
 export interface ManifestSnapshotDiver {
   name: string;
   ecoId?: string | null;
   isWalkIn?: boolean;
+  nationality?: string | null;
   certification?: string | null;
   municipalFeeStatus?: string;
   safetyWaiverStatus?: string;
@@ -21,12 +19,15 @@ export interface SnapshotManifest {
   dive_mode: string;
   dive_type?: string | null;
   location: string;
+  difficulty?: string | null;
   dive_date: string;
   diver_count: number;
   max_divers?: number | null;
   captain_name?: string | null;
   crew_members?: string[] | null;
   dive_masters?: string[] | null;
+  instructor_name?: string | null;
+  crew_count?: number | null;
   status: "active" | "upcoming" | "completed" | "done";
 }
 
@@ -36,428 +37,391 @@ export interface ManifestSnapshotCardProps {
   operatorName: string;
 }
 
-type TileIconType =
-  | "operator"
-  | "location"
-  | "calendar"
-  | "boat"
-  | "divers"
-  | "scubaTank"
-  | "capacity"
-  | "captain";
+const MIN_ROW_COUNT = 8;
 
-interface VesselTile {
-  iconType: TileIconType;
-  label: string;
-  value: string;
-}
-
-// Dedicated vector icons with zero font dependencies (100% faithful to the official manifesto design)
-function OperatorIcon({ color = "#0066FF" }: { color?: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 512 512">
-      <Path
-        d="M256 256a112 112 0 10-112-112 112 112 0 00112 112zm0 32c-69.42 0-208 42.88-208 128v32h416v-32c0-85.12-138.58-128-208-128z"
-        fill={color}
-      />
-    </Svg>
-  );
-}
-
-function LocationIcon({ color = "#0066FF" }: { color?: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 512 512">
-      <Path
-        d="M256 32C167.67 32 96 96.51 96 176c0 128 160 304 160 304s160-176 160-304c0-79.49-71.67-144-160-144zm0 224a64 64 0 1164-64 64.07 64.07 0 01-64 64z"
-        fill={color}
-      />
-    </Svg>
-  );
-}
-
-function CalendarIcon({ color = "#0066FF" }: { color?: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 512 512">
-      <Path
-        d="M416 64h-16V48a16 16 0 00-32 0v16H144V48a16 16 0 00-32 0v16H96a64.07 64.07 0 00-64 64v320a64.07 64.07 0 0064 64h320a64.07 64.07 0 0064-64V128a64.07 64.07 0 00-64-64zm32 384a32 32 0 01-32 32H96a32 32 0 01-32-32V208h384zm0-272H64v-48a32 32 0 0132-32h16v16a16 16 0 0032 0V96h224v16a16 16 0 0032 0V96h16a32 32 0 0132 32z"
-        fill={color}
-      />
-    </Svg>
-  );
-}
-
-function BoatIcon({ color = "#0066FF" }: { color?: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 512 512">
-      <Path
-        d="M439.47 220.55l-21.75-90.62A24 24 0 00394.39 112H117.61a24 24 0 00-23.33 17.93l-21.75 90.62A48.06 48.06 0 0048 249.2V288a16 16 0 0016 16h384a16 16 0 0016-16v-38.8a48.06 48.06 0 00-24.53-28.65zM272 64h-32a16 16 0 00-16 16v32h64V80a16 16 0 00-16-16z"
-        fill={color}
-      />
-      <Path
-        d="M432 352a48.06 48.06 0 00-34 14.16 48 48 0 01-68 0 48 48 0 00-68 0 48 48 0 01-68 0 48 48 0 00-68 0 48 48 0 01-34-14.16V336H64v16a48 48 0 0080 35.84 48 48 0 0168 0 48 48 0 0068 0 48 48 0 0168 0 48 48 0 0080-35.84v-16h-28v16z"
-        fill={color}
-      />
-      <Path
-        d="M432 416a48.06 48.06 0 00-34 14.16 48 48 0 01-68 0 48 48 0 00-68 0 48 48 0 01-68 0 48 48 0 00-68 0 48 48 0 01-34-14.16V400H64v16a48 48 0 0080 35.84 48 48 0 0168 0 48 48 0 0068 0 48 48 0 0168 0 48 48 0 0080-35.84v-16h-28v16z"
-        fill={color}
-      />
-    </Svg>
-  );
-}
-
-function PeopleIcon({ color = "#0066FF" }: { color?: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 512 512">
-      <Path
-        d="M402 168a70 70 0 10-70-70 70 70 0 0070 70zm-144 48a70 70 0 10-70-70 70 70 0 0070 70zm0 32c-53 0-160 27-160 80v32h320v-32c0-53-107-80-160-80zm144 0c-11.7 0-25 1.5-38.3 4.2 24.3 18.5 38.3 43.6 38.3 67.8v32h120v-32c0-47.1-85.3-72-120-72z"
-        fill={color}
-      />
-    </Svg>
-  );
-}
-
-function PersonCircleIcon({ color = "#0066FF" }: { color?: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 512 512">
-      <Path
-        d="M256 48C141.31 48 48 141.31 48 256s93.31 208 208 208 208-93.31 208-208S370.69 48 256 48zm0 72a56 56 0 11-56 56 56 56 0 0156-56zm0 288a143.64 143.64 0 01-105.77-46.74C157.73 335.79 194.7 320 256 320s98.27 15.79 105.77 41.26A143.64 143.64 0 01256 408z"
-        fill={color}
-      />
-    </Svg>
-  );
-}
-
-// Scuba cylinder icon matching the official boat dive manifesto
-function ScubaTankIcon({ color = "#0066FF" }: { color?: string }) {
-  return (
-    <View style={tankStyles.wrap}>
-      {/* Top Valve */}
-      <View style={[tankStyles.valve, { backgroundColor: color }]} />
-      {/* Neck */}
-      <View style={[tankStyles.neck, { backgroundColor: color }]} />
-      {/* Main Tank Body */}
-      <View style={[tankStyles.body, { backgroundColor: color }]} />
-    </View>
-  );
-}
-
-const tankStyles = StyleSheet.create({
-  wrap: {
-    width: 20,
-    height: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  valve: {
-    width: 4,
-    height: 2,
-    borderRadius: 1,
-    marginBottom: 0.5,
-  },
-  neck: {
-    width: 6,
-    height: 1.5,
-    borderTopLeftRadius: 1,
-    borderTopRightRadius: 1,
-  },
-  body: {
-    width: 8,
-    height: 14,
-    borderRadius: 3.5,
-  },
-});
-
-function renderTileIcon(tile: VesselTile) {
-  switch (tile.iconType) {
-    case "operator":
-      return <OperatorIcon />;
-    case "location":
-      return <LocationIcon />;
-    case "calendar":
-      return <CalendarIcon />;
-    case "boat":
-      return <BoatIcon />;
-    case "divers":
-    case "capacity":
-      return <PeopleIcon />;
-    case "scubaTank":
-      return <ScubaTankIcon />;
-    case "captain":
-      return <PersonCircleIcon />;
-    default:
-      return null;
-  }
-}
-
-
-
-// 1024px Official Boat Dive Manifesto Canvas
 export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
   function ManifestSnapshotCard({ manifest, divers, operatorName }, ref) {
     const isBoatDive = (manifest.dive_mode || "Boat Dive").toLowerCase().includes("boat");
-    const displayMode = isBoatDive ? "Boat Dive" : manifest.dive_mode || "Dive";
+    const subHeaderTitle = isBoatDive ? "Boat Trip Record" : "Shore Dive Record";
+    const resolvedOperator = operatorName || "Accredited Dive Operator";
 
     const normalizedDivers: ManifestSnapshotDiver[] = (divers || []).map((d) => {
       if (typeof d === "string") {
         return {
           name: d,
-          ecoId: "VERIFIED ID",
+          ecoId: "ECO-2026-0042",
           isWalkIn: false,
+          nationality: "Filipino",
           certification: "Certified Diver",
           municipalFeeStatus: "PAID & CLEARED",
           safetyWaiverStatus: "SIGNED",
         };
       }
+      const isWalkIn = Boolean(d.isWalkIn);
+      let resolvedEcoId = "Walk-in";
+      if (isWalkIn) {
+        resolvedEcoId = "Walk-in";
+      } else if (d.ecoId && d.ecoId !== "VERIFIED ID" && d.ecoId !== "WALK-IN GUEST") {
+        resolvedEcoId = d.ecoId;
+      } else {
+        resolvedEcoId = d.ecoId || "—";
+      }
+
       return {
         ...d,
-        ecoId: d.ecoId || (d.isWalkIn ? "WALK-IN GUEST" : "VERIFIED ID"),
+        ecoId: resolvedEcoId,
+        isWalkIn,
+        nationality: d.nationality || "Filipino",
         certification:
-          d.certification || (d.isWalkIn ? "Walk-in Registration" : "Certified Diver"),
+          d.certification || (isWalkIn ? "Walk-in Registration" : "Certified Diver"),
         municipalFeeStatus: d.municipalFeeStatus || "PAID & CLEARED",
         safetyWaiverStatus: d.safetyWaiverStatus || "SIGNED",
       };
     });
 
     const diverCount = manifest.diver_count || normalizedDivers.length;
-    const maxDivers = manifest.max_divers || 22;
+    const maxDivers = manifest.max_divers || (isBoatDive ? 22 : 30);
 
-    const row1Tiles: VesselTile[] = [
-      {
-        iconType: "operator",
-        label: "ACCREDITED OPERATOR",
-        value: operatorName || "Operator",
-      },
-      {
-        iconType: "location",
-        label: "DIVE LOCATION",
-        value: manifest.location || "Anilao Pier",
-      },
-      {
-        iconType: "calendar",
-        label: "VOYAGE DATE",
-        value: manifest.dive_date,
-      },
-      {
-        iconType: "boat",
-        label: isBoatDive ? "VESSEL / BOAT" : "DIVE MODE",
-        value: manifest.boat_name || manifest.dive_mode || "Bantay Dagat",
-      },
-    ];
+    const shortId = manifest.id
+      ? manifest.id.length > 10
+        ? manifest.id.slice(0, 5).toUpperCase()
+        : manifest.id.toUpperCase()
+      : "0001";
 
-    const row2Tiles: VesselTile[] = [
-      {
-        iconType: "divers",
-        label: "DIVERS ONBOARD",
-        value: `${diverCount} Certified Diver${diverCount === 1 ? "" : "s"}`,
-      },
-      {
-        iconType: "scubaTank",
-        label: "DIVE TYPE",
-        value: manifest.dive_type || "Scuba Diving",
-      },
-      {
-        iconType: "capacity",
-        label: "CAPACITY",
-        value: `${diverCount}/${maxDivers} Max`,
-      },
-      {
-        iconType: "captain",
-        label: isBoatDive ? "GUIDE / CAPTAIN" : "DIVE GUIDE",
-        value: manifest.captain_name || "Licensed Guide",
-      },
-    ];
+    const manifestNumber = `2026-${shortId}`;
+    const permitNumber = manifest.dive_date || `2026-11-${shortId}`;
 
-    const [heroImgSource, setHeroImgSource] = useState<any>(HERO_BG_IMAGE);
+    const rawDate = manifest.dive_date || "";
+    let formattedDate = rawDate;
+    if (rawDate) {
+      try {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          formattedDate = d.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+        }
+      } catch {
+        formattedDate = rawDate;
+      }
+    }
+
+    const diveSiteDisplay =
+      manifest.location?.trim() ||
+      (isBoatDive ? "Anilao Dive Site" : "Anilao Shore Entry");
+    const vesselNameDisplay =
+      manifest.boat_name?.trim() || "Official Dive Vessel";
+    const captainDisplay =
+      manifest.captain_name?.trim() || "Assigned Boat Captain";
+
+    const dms = (manifest.dive_masters || [])
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const leadDmDisplay =
+      dms.length > 0
+        ? dms.join(", ")
+        : manifest.instructor_name?.trim() || "Assigned Divemaster";
+
+    const crews = (manifest.crew_members || [])
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const crewDisplay =
+      crews.length > 0
+        ? crews.join(", ")
+        : manifest.crew_count
+        ? `${manifest.crew_count} Vessel Crew`
+        : "Standard Vessel Crew";
+
+    const difficultyDisplay = manifest.difficulty?.trim() || "All Levels";
+    const diveTypeDisplay = manifest.dive_type?.trim() || "Scuba Diving";
+
+    const totalRows = Math.max(MIN_ROW_COUNT, normalizedDivers.length + 4);
+    const emptyRowCount = Math.max(3, totalRows - normalizedDivers.length);
 
     return (
       <View ref={ref} style={styles.canvas} collapsable={false}>
-        {/* Fallback Gradient */}
-        <Svg width={1024} height={262} style={styles.heroBackground}>
-          <Defs>
-            <LinearGradient id="heroFallbackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#0B79F2" />
-              <Stop offset="50%" stopColor="#0060DF" />
-              <Stop offset="100%" stopColor="#003599" />
-            </LinearGradient>
-          </Defs>
-          <Rect width={1024} height={262} fill="url(#heroFallbackGrad)" />
-        </Svg>
-
-        {/* Hero Background Image */}
-        <Image
-          source={heroImgSource}
-          onError={() => setHeroImgSource({ uri: MANIFESTO_HERO_BG_URI })}
-          style={styles.heroBackground}
-          resizeMode="cover"
-        />
-
-        {/* Top Header Section */}
-        <View style={styles.topHeader}>
-          {/* SINSAY Brand Logo (Embedded Base64 Data URI) + Underline Bar */}
-          <View style={styles.brandCol}>
+        {/* Top Header Section: Mabini LGU Logo + Letterhead on Left, Manifest No. & Date on Right */}
+        <View style={styles.topHeaderRow}>
+          <View style={styles.brandGroup}>
             <Image
-              source={{ uri: SINSAY_WHITE_LOGO_URI }}
-              style={styles.logoImage}
+              source={{ uri: MABINI_LGU_LOGO_URI }}
+              style={styles.lguLogo}
               resizeMode="contain"
             />
-            <View style={styles.logoAccentBar} />
+            <View style={styles.letterheadTextGroup}>
+              <Text style={styles.lguCountry}>REPUBLIC OF THE PHILIPPINES</Text>
+              <Text style={styles.lguProvince}>
+                PROVINCE OF BATANGAS • MUNICIPALITY OF MABINI
+              </Text>
+              <Text style={styles.lguOffice}>
+                MUNICIPAL TOURISM & MARITIME SAFETY OFFICE
+              </Text>
+              <Text style={styles.lguOperator} numberOfLines={1}>
+                Operating Resort: {resolvedOperator}
+              </Text>
+            </View>
           </View>
 
-          {/* Official Manifesto Display Title */}
-          <View style={styles.titleWrap}>
-            <Text style={styles.titleLine}>Official {displayMode}</Text>
-            <Text style={styles.titleLine}>Manifesto</Text>
+          {/* Clean Right-Aligned Manifest No. and Date (Matching Option 1 Reference) */}
+          <View style={styles.metaRightBlock}>
+            <Text style={styles.metaManifestNo}>Manifest No. {manifestNumber}</Text>
+            <Text style={styles.metaDate}>Date: {formattedDate}</Text>
           </View>
         </View>
 
-        {/* Layered Ocean Wavy Transition on Top of Vessel Details */}
-        <View style={styles.waveContainer} pointerEvents="none">
+        {/* Centered Document Title Block */}
+        <View style={styles.titleBlock}>
+          <Text style={styles.titleMain}>PASSENGER MANIFEST</Text>
+          <Text style={styles.titleSub}>{subHeaderTitle}</Text>
+          <View style={styles.titleDivider} />
+        </View>
+
+        {/* Section 1: Vessel & Trip Information Table (3 Rows x 3 Columns, #0D3B66 Header) */}
+        <View style={styles.tableCard}>
+          <View style={styles.tableHeaderSection}>
+            <Text style={styles.tableHeaderSectionText}>
+              {isBoatDive ? "Vessel & Trip Information" : "Dive Site & Entry Information"}
+            </Text>
+          </View>
+          <View style={styles.tableGrid}>
+            {isBoatDive ? (
+              <>
+                {/* Row 1: Vessel, Dive Site Destination, Mode & Type */}
+                <View style={styles.tableGridRow}>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Vessel Name</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {vesselNameDisplay}
+                    </Text>
+                  </View>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Dive Site / Destination</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {diveSiteDisplay}
+                    </Text>
+                  </View>
+                  <View style={styles.gridCell}>
+                    <Text style={styles.cellLabel}>Dive Mode & Type</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      Boat Dive • {diveTypeDisplay}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Row 2: Captain, Lead Divemaster, Crew */}
+                <View style={styles.tableGridRow}>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Boat Captain</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {captainDisplay}
+                    </Text>
+                  </View>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Lead Divemaster / Guide</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {leadDmDisplay}
+                    </Text>
+                  </View>
+                  <View style={styles.gridCell}>
+                    <Text style={styles.cellLabel}>Crew Members</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {crewDisplay}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Row 3: Diver Capacity, Difficulty, Date */}
+                <View style={[styles.tableGridRow, styles.rowNoBottomBorder]}>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Diver Capacity</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {diverCount} / {maxDivers} Max Divers
+                    </Text>
+                  </View>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Difficulty Tier</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {difficultyDisplay}
+                    </Text>
+                  </View>
+                  <View style={styles.gridCell}>
+                    <Text style={styles.cellLabel}>Departure Date</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {formattedDate}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                {/* Shore Dive Row 1 */}
+                <View style={styles.tableGridRow}>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Dive Site / Shore Entry</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {diveSiteDisplay}
+                    </Text>
+                  </View>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Dive Mode</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      Shore Entry Dive
+                    </Text>
+                  </View>
+                  <View style={styles.gridCell}>
+                    <Text style={styles.cellLabel}>Dive Type</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {diveTypeDisplay}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Shore Dive Row 2 */}
+                <View style={styles.tableGridRow}>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Lead Divemaster / Guide</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {leadDmDisplay}
+                    </Text>
+                  </View>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Operating Resort</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {resolvedOperator}
+                    </Text>
+                  </View>
+                  <View style={styles.gridCell}>
+                    <Text style={styles.cellLabel}>Difficulty Tier</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {difficultyDisplay}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Shore Dive Row 3 */}
+                <View style={[styles.tableGridRow, styles.rowNoBottomBorder]}>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Registered Divers</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {diverCount} Divers Registered
+                    </Text>
+                  </View>
+                  <View style={[styles.gridCell, styles.cellBorderRight]}>
+                    <Text style={styles.cellLabel}>Schedule Date</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      {formattedDate}
+                    </Text>
+                  </View>
+                  <View style={styles.gridCell}>
+                    <Text style={styles.cellLabel}>Safety / Duty Protocol</Text>
+                    <Text style={styles.cellValue} numberOfLines={1}>
+                      Standard PCSSD Protocols
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+
+        {/* Section 2: Passenger List Table (Ice-Blue #C8DCF0 Column Headers) */}
+        <View style={styles.tableCard}>
+          {/* Table Header Bar */}
+          <View style={styles.tableHeaderSection}>
+            <Text style={styles.tableHeaderSectionText}>Passenger List</Text>
+          </View>
+
+          {/* Ice-Blue Column Sub-Headers Row */}
+          <View style={styles.columnSubHeaderRow}>
+            <Text style={[styles.columnSubHeaderText, styles.colNo]}>No.</Text>
+            <Text style={[styles.columnSubHeaderText, styles.colName]}>
+              Diver Passenger Name
+            </Text>
+            <Text style={[styles.columnSubHeaderText, styles.colNationality]}>
+              Nationality
+            </Text>
+            <Text style={[styles.columnSubHeaderText, styles.colEcoId]}>
+              ECO ID / ID No.
+            </Text>
+          </View>
+
+          {/* Active Passenger Rows */}
+          {normalizedDivers.map((diver, idx) => (
+            <View
+              key={`diver-${idx}-${diver.name}`}
+              style={styles.dataRow}
+            >
+              <Text style={[styles.dataCellNo, styles.colNo]}>{idx + 1}</Text>
+              <Text
+                style={[styles.dataCellName, styles.colName]}
+                numberOfLines={1}
+              >
+                {diver.name}
+              </Text>
+              <Text
+                style={[styles.dataCellNationality, styles.colNationality]}
+                numberOfLines={1}
+              >
+                {diver.nationality || "Filipino"}
+              </Text>
+              <Text
+                style={[styles.dataCellEcoId, styles.colEcoId]}
+                numberOfLines={1}
+              >
+                {diver.ecoId}
+              </Text>
+            </View>
+          ))}
+
+          {/* Padded Empty Grid Rows (Matching Reference Image) */}
+          {Array.from({ length: emptyRowCount }).map((_, emptyIdx) => {
+            const isLast = emptyIdx === emptyRowCount - 1;
+            return (
+              <View
+                key={`empty-grid-row-${emptyIdx}`}
+                style={[styles.emptyGridRow, isLast && styles.rowNoBottomBorder]}
+              >
+                <View style={styles.colNo} />
+                <View style={styles.colName} />
+                <View style={styles.colNationality} />
+                <View style={styles.colEcoId} />
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Bottom Flowing Multi-Tone Ocean Wave Graphic Border (Exact Vector SVG from Design) */}
+        <View style={styles.waveGraphicWrap} pointerEvents="none">
           <Svg
             width="100%"
-            height={44}
-            viewBox="0 0 1024 80"
+            height={100}
+            viewBox="0 0 484 57"
             preserveAspectRatio="none"
           >
-            {/* Wave 1: Back Soft Translucent Tint Wave */}
             <Path
-              d="M 0,40 C 256,15 460,50 716,10 C 870,-10 972,30 1024,35 L 1024,80 L 0,80 Z"
-              fill="rgba(215, 233, 253, 0.65)"
+              d="M0 26.7778C80 4.61481 112 43.9037 190 30.8074C260 16.7037 286 2.6 332 8.64444C375 16.7037 383 -12.5111 441 6.62963C463 14.6889 475 19.7259 484 21.7407V57H0V26.7778Z"
+              fill="#EEF6FE"
             />
-            {/* Wave 2: Foreground Crest Wave Matching Canvas Background */}
             <Path
-              d="M 0,55 C 186,20 391,15 563,42 C 735,68 903,25 1024,45 L 1024,80 L 0,80 Z"
-              fill="rgba(238, 245, 253, 0.92)"
+              d="M0 4.65804C57 -4.40114 102 26.8027 160 22.7764C223 20.7633 247 1.63831 305 17.7435C368 34.8553 412 50.9605 484 15.7304V57H0V4.65804Z"
+              fill="#9CC8F1"
+            />
+            <Path
+              d="M0 4C73 -4 132 35 209 37C298 44 355 48 414 29C445 20 463 9 484 0V57H0V4Z"
+              fill="#6CB0E7"
+            />
+            <Path
+              d="M0 27.0129C79 3.02321 143 28.0125 215 41.0069C295 56.0004 380 57.9996 484 27.0129V57H0V27.0129Z"
+              fill="#13508B"
+            />
+            <Path
+              d="M0 25C76 26.0667 112 61.2667 194 47.4C268 35.6667 326 20.7333 378 36.7333C421 50.6 452 42.0667 484 30.3333V57H0V25Z"
+              fill="#1970B9"
+              opacity={0.85}
             />
           </Svg>
-        </View>
-
-        {/* Floating White Card Container */}
-        <View style={styles.whiteCard}>
-          {/* Section 1: Vessel Details */}
-          <View style={styles.sectionHeader}>
-            <View style={styles.blueBar} />
-            <Text style={styles.sectionTitle}>Vessel Details</Text>
-          </View>
-
-          {/* Explicit 2-row grid: strictly 4 columns per row */}
-          <View style={styles.gridContainer}>
-            <View style={styles.gridRow}>
-              {row1Tiles.map((tile, i) => (
-                <View key={`r1-${i}`} style={styles.gridTile}>
-                  {renderTileIcon(tile)}
-                  <View style={styles.tileTextCol}>
-                    <Text style={styles.tileLabel} numberOfLines={1}>
-                      {tile.label}
-                    </Text>
-                    <Text style={styles.tileValue} numberOfLines={1}>
-                      {tile.value}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.gridRow}>
-              {row2Tiles.map((tile, i) => (
-                <View key={`r2-${i}`} style={styles.gridTile}>
-                  {renderTileIcon(tile)}
-                  <View style={styles.tileTextCol}>
-                    <Text style={styles.tileLabel} numberOfLines={1}>
-                      {tile.label}
-                    </Text>
-                    <Text style={styles.tileValue} numberOfLines={1}>
-                      {tile.value}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Dedicated Crew & Dive Staff Bar (Exempt from Diver Pass Count) */}
-          {((manifest.dive_masters && manifest.dive_masters.length > 0) ||
-            (manifest.crew_members && manifest.crew_members.length > 0)) && (
-            <View style={styles.staffContainer}>
-              {manifest.dive_masters && manifest.dive_masters.length > 0 && (
-                <View style={styles.staffRow}>
-                  <View style={styles.staffLabelBadge}>
-                    <Text style={styles.staffLabelText}>DIVE MASTER / INSTRUCTOR</Text>
-                  </View>
-                  <Text style={styles.staffNamesText}>
-                    {manifest.dive_masters.join(" • ")}
-                  </Text>
-                  <View style={styles.exemptBadge}>
-                    <Text style={styles.exemptBadgeText}>FEE EXEMPT</Text>
-                  </View>
-                </View>
-              )}
-              {manifest.crew_members && manifest.crew_members.length > 0 && (
-                <View style={styles.staffRow}>
-                  <View style={[styles.staffLabelBadge, { backgroundColor: "#475569" }]}>
-                    <Text style={styles.staffLabelText}>BOAT CREW</Text>
-                  </View>
-                  <Text style={styles.staffNamesText}>
-                    {manifest.crew_members.join(" • ")}
-                  </Text>
-                  <View style={styles.exemptBadge}>
-                    <Text style={styles.exemptBadgeText}>FEE EXEMPT</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Section 2: Diver List */}
-          <View style={styles.sectionHeader}>
-            <View style={styles.blueBar} />
-            <Text style={styles.sectionTitle}>Diver List</Text>
-          </View>
-
-          {/* Table Header Bar */}
-          <View style={styles.tableHeader}>
-            <Text style={[styles.thText, styles.colIndex]}>#</Text>
-            <Text style={[styles.thText, styles.colName]}>DIVER PASSENGER NAME</Text>
-            <Text style={[styles.thText, styles.colEcoId]}>ECO DIVE ID</Text>
-            <Text style={[styles.thText, styles.colCert]}>CERTIFICATION / STATUS</Text>
-            <Text style={[styles.thText, styles.colFee]}>MUNICIPAL FEE</Text>
-            <Text style={[styles.thText, styles.colWaiver]}>SAFETY WAIVER</Text>
-          </View>
-
-          {/* Table Rows */}
-          {normalizedDivers.length > 0 ? (
-            normalizedDivers.map((d, index) => (
-              <View key={`${d.name}-${index}`} style={styles.tableRow}>
-                <Text style={[styles.tdText, styles.colIndex]}>{index + 1}</Text>
-                <Text style={[styles.tdName, styles.colName]} numberOfLines={1}>
-                  {d.name}
-                </Text>
-                <Text style={[styles.tdEcoId, styles.colEcoId]} numberOfLines={1}>
-                  {d.ecoId}
-                </Text>
-                <Text style={[styles.tdCert, styles.colCert]} numberOfLines={1}>
-                  {d.certification}
-                </Text>
-                <View style={styles.colFee}>
-                  <View style={styles.greenPill}>
-                    <Text style={styles.greenPillText}>
-                      {d.municipalFeeStatus || "PAID & CLEARED"}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.colWaiver}>
-                  <View style={styles.greenPill}>
-                    <Text style={styles.greenPillText}>
-                      {d.safetyWaiverStatus ? `✓ ${d.safetyWaiverStatus}` : "✓ SIGNED"}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyRow}>
-              <Text style={styles.emptyText}>No divers recorded on this manifest.</Text>
-            </View>
-          )}
         </View>
       </View>
     );
@@ -467,276 +431,238 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
 const styles = StyleSheet.create({
   canvas: {
     width: 1024,
-    minHeight: 840,
-    backgroundColor: "#EEF5FD",
+    minHeight: 1320,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 48,
+    paddingTop: 44,
+    paddingBottom: 0,
     position: "relative",
     overflow: "hidden",
-    paddingBottom: 68,
   },
-  waveContainer: {
-    position: "absolute",
-    top: 220,
-    left: 0,
-    right: 0,
-    height: 44,
-    zIndex: 1,
-  },
-  heroBackground: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 1024,
-    height: 262,
-    backgroundColor: "#0B79F2",
-  },
-  topHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 1024,
-    height: 262,
-    paddingTop: 56,
-    paddingLeft: 52,
-  },
-  brandCol: {
+  topHeaderRow: {
+    flexDirection: "row",
     alignItems: "flex-start",
-  },
-  logoImage: {
-    width: 140,
-    height: 42,
-    marginLeft: -3.5,
-  },
-  logoAccentBar: {
-    width: 44,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "rgba(255, 255, 255, 0.45)",
-    marginTop: 12,
-    marginLeft: 0,
-  },
-  titleWrap: {
-    marginTop: 26,
-  },
-  titleLine: {
-    fontSize: 34,
-    fontFamily: "Quicksand_700Bold",
-    color: "#FFFFFF",
-    letterSpacing: -0.4,
-    lineHeight: 40,
-  },
-  whiteCard: {
-    marginTop: 262,
-    marginHorizontal: 35,
-    minHeight: 460,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    paddingHorizontal: 30,
-    paddingTop: 26,
-    paddingBottom: 52,
-    shadowColor: "#001030",
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
-    zIndex: 2,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  blueBar: {
-    width: 4,
-    height: 18,
-    borderRadius: 2,
-    backgroundColor: "#0066FF",
-    marginRight: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: "Quicksand_700Bold",
-    color: "#0F172A",
-  },
-  gridContainer: {
-    marginBottom: 26,
-  },
-  gridRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
-  },
-  gridTile: {
-    flex: 1,
-    height: 60,
-    backgroundColor: "#F4F7FC",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  tileTextCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  tileLabel: {
-    fontSize: 9,
-    fontFamily: "Quicksand_700Bold",
-    color: "#7E92A9",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-  tileValue: {
-    fontSize: 13,
-    fontFamily: "Quicksand_700Bold",
-    color: "#0F172A",
-    marginTop: 2,
-  },
-  staffContainer: {
-    backgroundColor: "#F0F7FF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#CCE3FF",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    justifyContent: "space-between",
     marginBottom: 20,
-    gap: 8,
   },
-  staffRow: {
+  brandGroup: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap",
+    gap: 16,
+    flex: 1,
+    paddingRight: 20,
   },
-  staffLabelBadge: {
-    backgroundColor: "#0066FF",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  lguLogo: {
+    width: 82,
+    height: 82,
   },
-  staffLabelText: {
-    fontSize: 9,
-    fontFamily: "Quicksand_700Bold",
-    color: "#FFFFFF",
-    letterSpacing: 0.5,
-  },
-  staffNamesText: {
-    fontSize: 12,
-    fontFamily: "Quicksand_600SemiBold",
-    color: "#0F2E6B",
+  letterheadTextGroup: {
+    justifyContent: "center",
     flex: 1,
   },
-  exemptBadge: {
-    backgroundColor: "#DCFCE7",
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#86EFAC",
-  },
-  exemptBadgeText: {
-    fontSize: 8.5,
-    fontFamily: "Quicksand_700Bold",
-    color: "#166534",
-    letterSpacing: 0.5,
-  },
-  tableHeader: {
-    backgroundColor: "#0066FF",
-    borderRadius: 8,
-    height: 35,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  thText: {
-    color: "#FFFFFF",
-    fontSize: 10.5,
-    fontFamily: "Quicksand_700Bold",
-    letterSpacing: 0.6,
-  },
-  tableRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EDF2F7",
-  },
-  colIndex: {
-    width: 36,
-    textAlign: "center",
-    paddingRight: 6,
-  },
-  colName: {
-    flex: 2.1,
-    paddingHorizontal: 8,
-  },
-  colEcoId: {
-    flex: 1.6,
-    paddingHorizontal: 8,
-  },
-  colCert: {
-    flex: 2.0,
-    paddingHorizontal: 8,
-  },
-  colFee: {
-    width: 140,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  colWaiver: {
-    width: 130,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingLeft: 4,
-  },
-  tdText: {
-    fontSize: 13,
-    fontFamily: "Quicksand_700Bold",
-    color: "#0F172A",
-  },
-  tdName: {
-    fontSize: 13.5,
-    fontFamily: "Quicksand_700Bold",
-    color: "#0F172A",
-  },
-  tdEcoId: {
+  lguCountry: {
     fontSize: 11,
     fontFamily: "Quicksand_700Bold",
-    color: "#0066FF",
+    color: "#475569",
+    letterSpacing: 1.4,
   },
-  tdCert: {
-    fontSize: 12.5,
-    fontFamily: "Quicksand_500Medium",
-    color: "#334155",
-  },
-  greenPill: {
-    backgroundColor: "#E6F8F0",
-    borderWidth: 1,
-    borderColor: "#A7F3D0",
-    borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  greenPillText: {
-    fontSize: 9.5,
+  lguProvince: {
+    fontSize: 14,
     fontFamily: "Quicksand_700Bold",
-    color: "#059669",
+    color: "#0F172A",
+    letterSpacing: 0.3,
+    marginTop: 2,
+  },
+  lguOffice: {
+    fontSize: 12,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0D3B66",
+    letterSpacing: 0.8,
+    marginTop: 2,
+  },
+  lguOperator: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#0066CC",
+    marginTop: 3,
+  },
+  metaRightBlock: {
+    alignItems: "flex-end",
+    justifyContent: "flex-start",
+    paddingTop: 4,
+  },
+  metaManifestNo: {
+    fontSize: 14.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F172A",
     letterSpacing: 0.2,
   },
-  emptyRow: {
-    paddingVertical: 24,
+  metaDate: {
+    fontSize: 13.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#0F172A",
+    marginTop: 4,
+  },
+  titleBlock: {
     alignItems: "center",
+    marginTop: 10,
+    marginBottom: 24,
+  },
+  titleMain: {
+    fontSize: 30,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0D3B66",
+    letterSpacing: 2,
+  },
+  titleSub: {
+    fontSize: 16,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F172A",
+    marginTop: 4,
+  },
+  titleDivider: {
+    height: 2,
+    backgroundColor: "#0D3B66",
+    width: "100%",
+    marginTop: 18,
+  },
+  tableCard: {
+    borderWidth: 1,
+    borderColor: "#B8D2EB",
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    marginBottom: 24,
+  },
+  tableHeaderSection: {
+    backgroundColor: "#0D3B66",
+    height: 42,
+    paddingHorizontal: 16,
     justifyContent: "center",
   },
-  emptyText: {
-    fontSize: 13,
-    fontFamily: "Quicksand_500Medium",
-    color: "#94A3B8",
-    fontStyle: "italic",
+  tableHeaderSectionText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontFamily: "Quicksand_700Bold",
+  },
+  tableGrid: {
+    backgroundColor: "#FFFFFF",
+  },
+  tableGridRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#C5D9ED",
+  },
+  rowNoBottomBorder: {
+    borderBottomWidth: 0,
+  },
+  gridCell: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    justifyContent: "center",
+  },
+  cellBorderRight: {
+    borderRightWidth: 1,
+    borderRightColor: "#C5D9ED",
+  },
+  cellLabel: {
+    fontSize: 12.5,
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#334E68",
+  },
+  cellValue: {
+    fontSize: 14.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0A2540",
+    marginTop: 2,
+  },
+  columnSubHeaderRow: {
+    backgroundColor: "#C8DCF0",
+    height: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#B8D2EB",
+  },
+  columnSubHeaderText: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0A2540",
+    lineHeight: 42,
+  },
+  colNo: {
+    width: 70,
+    textAlign: "center",
+    borderRightWidth: 1,
+    borderRightColor: "#B8D2EB",
+  },
+  colName: {
+    flex: 1,
+    paddingHorizontal: 16,
+    textAlign: "left",
+    borderRightWidth: 1,
+    borderRightColor: "#B8D2EB",
+  },
+  colNationality: {
+    width: 200,
+    paddingHorizontal: 12,
+    textAlign: "center",
+    borderRightWidth: 1,
+    borderRightColor: "#B8D2EB",
+  },
+  colEcoId: {
+    width: 250,
+    paddingHorizontal: 12,
+    textAlign: "center",
+  },
+  dataRow: {
+    height: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#C5D9ED",
+    backgroundColor: "#FFFFFF",
+  },
+  dataCellNo: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0A2540",
+    textAlign: "center",
+    lineHeight: 44,
+  },
+  dataCellName: {
+    fontSize: 14.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0A2540",
+    lineHeight: 44,
+  },
+  dataCellNationality: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0A2540",
+    textAlign: "center",
+    lineHeight: 44,
+  },
+  dataCellEcoId: {
+    fontSize: 14,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0066CC",
+    textAlign: "center",
+    letterSpacing: 0.3,
+    lineHeight: 44,
+  },
+  emptyGridRow: {
+    height: 40,
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#C5D9ED",
+    backgroundColor: "#FFFFFF",
+  },
+  waveGraphicWrap: {
+    height: 100,
+    marginTop: "auto",
+    marginHorizontal: -48,
+    marginBottom: 0,
   },
 });

@@ -22,7 +22,14 @@ export async function captureNodeToPng(node: unknown): Promise<string> {
     throw new Error("Snapshot card isn't ready yet. Try again.");
   }
   const { toPng } = await import("html-to-image");
-  return toPng(el, { cacheBust: true, pixelRatio: 2 });
+  return toPng(el, {
+    cacheBust: true,
+    pixelRatio: 2,
+    style: {
+      transform: "none",
+      zoom: "1",
+    },
+  });
 }
 
 export async function sharePng(dataUrl: string, fileName: string): Promise<SnapshotResult> {
