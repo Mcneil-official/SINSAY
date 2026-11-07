@@ -113,6 +113,22 @@ export default function AddDiverScreen() {
         .limit(1)
         .maybeSingle();
       ecoId = data?.eco_id_number ?? undefined;
+      if (!ecoId && tourist.id) {
+        const year = new Date().getFullYear();
+        const fallbackNum = `ECO-${year}-${Math.floor(100000 + Math.random() * 900000)}`;
+        const { data: createdEco } = await supabase
+          .from("eco_dive_ids")
+          .insert({
+            tourist_id: tourist.id,
+            eco_id_number: fallbackNum,
+            status: "incomplete",
+          })
+          .select("eco_id_number")
+          .maybeSingle();
+        if (createdEco?.eco_id_number) {
+          ecoId = createdEco.eco_id_number;
+        }
+      }
     } catch {
       ecoId = undefined;
     }

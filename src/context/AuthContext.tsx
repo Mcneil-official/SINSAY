@@ -414,8 +414,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq("tourist_id", userId)
       .maybeSingle();
     if (!isLatest()) return false;
-    if (ecoData) setEcoId(ecoData);
-    else setEcoId(null);
+    if (ecoData) {
+      setEcoId(ecoData);
+    } else {
+      // Auto-provisioning safety net: ensures every tourist account has an Eco-Dive ID
+      const year = new Date().getFullYear();
+      const fallbackNum = `ECO-${year}-${Math.floor(100000 + Math.random() * 900000)}`;
+      const { data: createdEco } = await supabase
+        .from("eco_dive_ids")
+        .insert({
+          tourist_id: userId,
+          eco_id_number: fallbackNum,
+          status: "incomplete",
+        })
+        .select("*")
+        .maybeSingle();
+      if (createdEco && isLatest()) {
+        setEcoId(createdEco);
+      } else {
+        setEcoId(null);
+      }
+    }
 
     const { data: opApp } = await supabase
       .from("operator_applications")

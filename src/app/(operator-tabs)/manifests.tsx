@@ -38,6 +38,7 @@ interface ManifestItem {
   dive_mode: string;
   dive_type?: string | null;
   location: string;
+  difficulty?: string | null;
   dive_date: string;
   diver_count: number;
   max_divers?: number | null;
@@ -73,6 +74,15 @@ export default function ManifestsScreen() {
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const [snapshotMsg, setSnapshotMsg] = useState("");
   const cardRef = useRef<View>(null);
+  const [previewContainerWidth, setPreviewContainerWidth] = useState(0);
+  const [customZoom, setCustomZoom] = useState<number | null>(null);
+  const [cardHeight, setCardHeight] = useState(1360);
+
+  const fitScale =
+    previewContainerWidth > 0
+      ? Math.min(1, Math.max(0.25, (previewContainerWidth - 20) / 1024))
+      : 0.38;
+  const currentZoom = customZoom ?? fitScale;
 
   const loadManifests = useCallback(async () => {
     if (!user) return;
@@ -83,7 +93,7 @@ export default function ManifestsScreen() {
       // Capped at 50 rows with an explicit note instead of unbounded growth.
       const { data: mfData, error: mfErr } = await supabase
         .from("dive_manifests")
-        .select("id, boat_name, dive_mode, dive_type, location, dive_date, max_divers, captain_name, crew_members, dive_masters, instructor_name, crew_count, manifest_divers(count)")
+        .select("id, boat_name, dive_mode, dive_type, location, difficulty, dive_date, max_divers, captain_name, crew_members, dive_masters, instructor_name, crew_count, manifest_divers(count)")
         .eq("operator_id", user.id)
         .order("dive_date", { ascending: false })
         .limit(50);
@@ -93,7 +103,7 @@ export default function ManifestsScreen() {
         (mfData || []).map((m: any) => {
           const dc = m.manifest_divers;
           const diver_count = Array.isArray(dc) ? (dc[0]?.count ?? 0) : (dc?.count ?? 0);
-          return { id: m.id, boat_name: m.boat_name, dive_mode: m.dive_mode, dive_type: m.dive_type, location: m.location, dive_date: m.dive_date, diver_count, max_divers: m.max_divers, captain_name: m.captain_name, crew_members: m.crew_members, dive_masters: m.dive_masters, instructor_name: m.instructor_name, crew_count: m.crew_count };
+          return { id: m.id, boat_name: m.boat_name, dive_mode: m.dive_mode, dive_type: m.dive_type, location: m.location, difficulty: m.difficulty, dive_date: m.dive_date, diver_count, max_divers: m.max_divers, captain_name: m.captain_name, crew_members: m.crew_members, dive_masters: m.dive_masters, instructor_name: m.instructor_name, crew_count: m.crew_count };
         })
       );
 
@@ -145,6 +155,7 @@ export default function ManifestsScreen() {
     setSelected(m);
     setSnapshotMsg("");
     setDiversList([]);
+    setCustomZoom(null);
     setDiversLoading(true);
     try {
       const { data, error } = await supabase
@@ -159,13 +170,25 @@ export default function ManifestsScreen() {
         .filter((id: any): id is string => Boolean(id));
 
       let certMap: Record<string, string> = {};
+      let nationalityMap: Record<string, string> = {};
+      let ecoIdMap: Record<string, string> = {};
+
       if (touristIds.length > 0) {
         const { data: touristsData } = await supabase
           .from("tourists")
-          .select("id, certification_level")
+          .select("id, certification_level, nationality")
           .in("id", touristIds);
         for (const t of touristsData || []) {
           if (t.certification_level) certMap[t.id] = t.certification_level;
+          if (t.nationality) nationalityMap[t.id] = t.nationality;
+        }
+
+        const { data: ecoData } = await supabase
+          .from("eco_dive_ids")
+          .select("tourist_id, eco_id_number")
+          .in("tourist_id", touristIds);
+        for (const e of ecoData || []) {
+          if (e.eco_id_number) ecoIdMap[e.tourist_id] = e.eco_id_number;
         }
       }
 
@@ -184,10 +207,27 @@ export default function ManifestsScreen() {
           else certLabel = rawCert;
         }
 
+        const isWalkIn = Boolean(d.is_walk_in);
+        let resolvedEcoId = "Walk-in";
+        if (isWalkIn) {
+          resolvedEcoId = "Walk-in";
+        } else {
+          const directEcoId =
+            d.eco_id && d.eco_id !== "VERIFIED ID" && d.eco_id !== "WALK-IN GUEST"
+              ? d.eco_id
+              : null;
+          const lookedUpEcoId = d.tourist_id ? ecoIdMap[d.tourist_id] : null;
+          resolvedEcoId = directEcoId || lookedUpEcoId || d.eco_id || "—";
+        }
+
+        const nationality =
+          (d.tourist_id ? nationalityMap[d.tourist_id] : null) || "Filipino";
+
         return {
           name: d.name,
-          ecoId: d.is_walk_in ? "WALK-IN GUEST" : (d.eco_id || "VERIFIED ID"),
-          isWalkIn: d.is_walk_in,
+          ecoId: resolvedEcoId,
+          isWalkIn,
+          nationality,
           certification: certLabel,
           municipalFeeStatus: "PAID & CLEARED",
           safetyWaiverStatus: "SIGNED",
@@ -565,53 +605,147 @@ export default function ManifestsScreen() {
       >
         <View style={styles.sheetOverlay}>
           <View style={styles.sheet}>
+            {/* Header Row */}
             <View style={styles.sheetHeader}>
               <View style={styles.sheetTitleWrap}>
-                <Text style={styles.sheetEyebrow}>MANIFESTO PREVIEW</Text>
-                <Text style={styles.sheetTitle}>Share dive details</Text>
+                <Text style={styles.sheetEyebrow}>OFFICIAL MARITIME MANIFEST</Text>
+                <Text style={styles.sheetTitle}>Manifest Preview</Text>
               </View>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setSelected(null)}
                 accessibilityRole="button"
                 accessibilityLabel="Close snapshot"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="close" size={21} color="#31466e" />
+                <Ionicons name="close" size={22} color="#0B2545" />
               </TouchableOpacity>
             </View>
+
+            {/* Dedicated Zoom Toolbar Sub-Bar */}
+            <View style={styles.toolbarRow}>
+              <View style={styles.zoomPillGroup}>
+                <TouchableOpacity
+                  style={styles.zoomIconBtn}
+                  onPress={() => setCustomZoom(Math.max(0.25, Number(((currentZoom) - 0.1).toFixed(2))))}
+                  accessibilityLabel="Zoom out"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="remove" size={17} color="#0B2545" />
+                </TouchableOpacity>
+                <Text style={styles.zoomLevelText}>{Math.round(currentZoom * 100)}%</Text>
+                <TouchableOpacity
+                  style={styles.zoomIconBtn}
+                  onPress={() => setCustomZoom(Math.min(1.5, Number(((currentZoom) + 0.1).toFixed(2))))}
+                  accessibilityLabel="Zoom in"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="add" size={17} color="#0B2545" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.zoomQuickGroup}>
+                <TouchableOpacity
+                  style={[styles.quickBtn, customZoom === fitScale && styles.quickBtnActive]}
+                  onPress={() => setCustomZoom(fitScale)}
+                  accessibilityLabel="Fit to width"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="scan-outline" size={14} color={customZoom === fitScale ? "#FFFFFF" : "#0B2545"} />
+                  <Text style={[styles.quickBtnText, customZoom === fitScale && styles.quickBtnTextActive]}>Fit Width</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.quickBtn, customZoom === 1.0 && styles.quickBtnActive]}
+                  onPress={() => setCustomZoom(1.0)}
+                  accessibilityLabel="100% Zoom"
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.quickBtnText, customZoom === 1.0 && styles.quickBtnTextActive]}>100%</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {selected && (
               <>
-                <ScrollView style={styles.sheetPreviewScroll} showsVerticalScrollIndicator={false}>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.cardWrap}
-                  >
-                    {diversLoading ? (
+                {/* Interactive Scaled Preview Viewport */}
+                <View
+                  style={styles.previewViewport}
+                  onLayout={(e) => {
+                    const w = e.nativeEvent.layout.width;
+                    if (w > 0 && Math.abs(w - previewContainerWidth) > 5) {
+                      setPreviewContainerWidth(w);
+                    }
+                  }}
+                >
+                  {diversLoading ? (
+                    <View style={styles.previewLoadingWrap}>
                       <ActivityIndicator size="small" color={colors.primaryBlue} />
-                    ) : (
-                      <ManifestSnapshotCard
-                        ref={cardRef}
-                        manifest={{
-                          id: selected.id,
-                          boat_name: selected.boat_name,
-                          dive_mode: selected.dive_mode,
-                          dive_type: selected.dive_type,
-                          location: selected.location,
-                          dive_date: selected.dive_date,
-                          diver_count: selected.diver_count,
-                          max_divers: selected.max_divers,
-                          captain_name: selected.captain_name,
-                          crew_members: selected.crew_members,
-                          dive_masters: selected.dive_masters,
-                          status: deriveManifestStatus(selected.dive_date),
-                        }}
-                        divers={diversList}
-                        operatorName={operatorName}
-                      />
-                    )}
-                  </ScrollView>
-                </ScrollView>
+                      <Text style={styles.loadingText}>Loading manifest details…</Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      style={styles.sheetPreviewScroll}
+                      contentContainerStyle={styles.viewportScrollVertical}
+                      showsVerticalScrollIndicator={true}
+                    >
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={true}
+                        contentContainerStyle={styles.viewportScrollHorizontal}
+                      >
+                        <View
+                          style={[
+                            styles.scaledCardContainer,
+                            {
+                              width: 1024 * currentZoom,
+                              height: cardHeight * currentZoom,
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.scaledCardInner,
+                              {
+                                transform: [{ scale: currentZoom }],
+                                transformOrigin: "top left",
+                              },
+                            ]}
+                            onLayout={(e) => {
+                              const h = e.nativeEvent.layout.height;
+                              if (h > 1000 && Math.abs(h - cardHeight) > 10) {
+                                setCardHeight(h);
+                              }
+                            }}
+                          >
+                            <ManifestSnapshotCard
+                              ref={cardRef}
+                              manifest={{
+                                id: selected.id,
+                                boat_name: selected.boat_name,
+                                dive_mode: selected.dive_mode,
+                                dive_type: selected.dive_type,
+                                location: selected.location,
+                                difficulty: selected.difficulty,
+                                dive_date: selected.dive_date,
+                                diver_count: selected.diver_count,
+                                max_divers: selected.max_divers,
+                                captain_name: selected.captain_name,
+                                crew_members: selected.crew_members,
+                                dive_masters: selected.dive_masters,
+                                instructor_name: selected.instructor_name,
+                                crew_count: selected.crew_count,
+                                status: deriveManifestStatus(selected.dive_date),
+                              }}
+                              divers={diversList}
+                              operatorName={operatorName}
+                            />
+                          </View>
+                        </View>
+                      </ScrollView>
+                    </ScrollView>
+                  )}
+                </View>
                 {snapshotMsg ? (
                   <View style={styles.sheetMessageBox}>
                     <Ionicons name="checkmark-circle" size={17} color="#129b83" />
@@ -981,7 +1115,7 @@ const styles = StyleSheet.create({
   loadingText: { fontSize: 11, fontFamily: "Quicksand_500Medium", color: "#647797" },
   sheetOverlay: {
     flex: 1,
-    backgroundColor: "rgba(5,23,59,0.58)",
+    backgroundColor: "rgba(5, 23, 59, 0.65)",
     justifyContent: "center",
     alignItems: "center",
     padding: 12,
@@ -989,32 +1123,145 @@ const styles = StyleSheet.create({
   sheet: {
     width: "100%",
     maxWidth: 1080,
-    maxHeight: "92%",
-    backgroundColor: "#f4f9ff",
-    borderRadius: 23,
-    padding: 14,
+    maxHeight: "94%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.8)",
+    borderColor: "#E2E8F0",
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
   },
   sheetHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 11,
+    marginBottom: 10,
   },
   sheetTitleWrap: { flex: 1 },
-  sheetEyebrow: { fontSize: 8.5, fontFamily: "Quicksand_700Bold", letterSpacing: 0.8, color: "#1682ff" },
-  sheetTitle: { fontSize: 16, fontFamily: "Quicksand_700Bold", color: "#07156c", marginTop: 2 },
+  sheetEyebrow: { fontSize: 9.5, fontFamily: "Quicksand_700Bold", letterSpacing: 1.1, color: "#0066FF" },
+  sheetTitle: { fontSize: 18, fontFamily: "Quicksand_700Bold", color: "#0B2545", marginTop: 2 },
   closeButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#e7f3ff",
+    backgroundColor: "#F1F5F9",
   },
-  sheetPreviewScroll: { flexShrink: 1, marginBottom: 8 },
-  cardWrap: { alignItems: "flex-start", justifyContent: "center", paddingBottom: 20 },
+  toolbarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10,
+    gap: 8,
+  },
+  zoomPillGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    gap: 4,
+  },
+  zoomIconBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+  },
+  zoomLevelText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F172A",
+    minWidth: 40,
+    textAlign: "center",
+  },
+  zoomQuickGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  quickBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  quickBtnActive: {
+    backgroundColor: "#0B2545",
+    borderColor: "#0B2545",
+  },
+  quickBtnText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: "#0F172A",
+  },
+  quickBtnTextActive: {
+    color: "#FFFFFF",
+  },
+  previewViewport: {
+    flexShrink: 1,
+    width: "100%",
+    backgroundColor: "#E2E8F0",
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    marginBottom: 10,
+    minHeight: 280,
+  },
+  previewLoadingWrap: {
+    height: 260,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  sheetPreviewScroll: {
+    flexShrink: 1,
+    marginBottom: 8
+  },
+  viewportScrollVertical: {
+    flexGrow: 1,
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  viewportScrollHorizontal: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+  },
+  scaledCardContainer: {
+    overflow: "hidden",
+    borderRadius: 4,
+    shadowColor: "#000000",
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  scaledCardInner: {
+    width: 1024,
+  },
   sheetMessageBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -1022,6 +1269,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
   },
+  cardWrap: { alignItems: "flex-start", justifyContent: "center", paddingBottom: 20 },
   sheetMsg: { flexShrink: 1, fontSize: 11, fontFamily: "Quicksand_600SemiBold", color: "#16835e", textAlign: "center" },
   sheetBtns: { flexDirection: "row", gap: 10, marginTop: 4 },
   sheetBtn: {
