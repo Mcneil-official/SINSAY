@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   scrollContent: {
-    paddingBottom: 96,
+    paddingBottom: 20,
   },
   headerBackgroundWrap: {
     position: "absolute",
