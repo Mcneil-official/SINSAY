@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   },
   container: { flex: 1, minHeight: 0 },
   fixedHeader: { flexShrink: 0, paddingTop: 12 },
-  scrollContent: { paddingBottom: 20 },
+  scrollContent: { paddingBottom: 96 },
   heroHeader: {
     flexDirection: "row",
     alignItems: "center",

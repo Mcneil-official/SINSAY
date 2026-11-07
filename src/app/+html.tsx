@@ -25,14 +25,28 @@ export default function Root({ children }: PropsWithChildren) {
 
 const responsiveBackground = `
 html,
-body,
-#root {
+body {
   height: 100%;
-  min-height: 100%;
-  min-height: -webkit-fill-available;
   width: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
+  background-color: #F8FAFC;
+}
+
+#root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background-color: #F8FAFC;
 }
 `;
