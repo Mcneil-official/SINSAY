@@ -1,95 +1,33 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useCallback, useState } from "react";
+import React, { useEffect } from "react";
 import {
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
-import { ContentContainer, EmptyState } from "../components";
+import { ContentContainer, NotificationsPanel } from "../components";
+import { useNotificationModal } from "../context/NotificationModalContext";
 import { safeBack } from "../lib/navigation";
-import { supabase } from "../lib/supabase";
-import { resolveNotificationRoute } from "../lib/notifications";
-
-const notifIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
-  eco_dive_activated: "checkmark-circle",
-  dive_plan_ready: "map",
-  operator_application_approved: "checkmark-done",
-  operator_application_rejected: "close-circle",
-  pass_purchase_verified: "wallet",
-  manifest_submitted: "document-text",
-  announcement_published: "megaphone",
-};
-
-const notifColors: Record<string, string> = {
-  eco_dive_activated: colors.green,
-  dive_plan_ready: colors.primaryBlue,
-  operator_application_approved: colors.green,
-  operator_application_rejected: colors.red,
-  pass_purchase_verified: colors.green,
-  manifest_submitted: colors.primaryBlue,
-  announcement_published: colors.amberDark,
-};
-
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = Math.floor((now - then) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const safeTop = Math.max(insets.top, 38);
-  const { notifications, fetchNotifications, markAllNotificationsRead, isLoading, isOperator } = useAuth();
-  const [activeAnnouncements, setActiveAnnouncements] = useState<{ id: string; title: string }[]>([]);
+  const { isOperator, unreadCount, markAllNotificationsRead } = useAuth();
+  const { openAnnouncementModal } = useNotificationModal();
 
   useEffect(() => {
-    fetchNotifications();
     markAllNotificationsRead();
-    supabase
-      .from("announcements")
-      .select("id, title")
-      .eq("status", "published")
-      .then(({ data }) => {
-        if (data) setActiveAnnouncements(data);
-      });
-  }, [fetchNotifications, markAllNotificationsRead]);
-
-  const handleNotificationPress = useCallback(
-    (notif: typeof notifications[0]) => {
-      const dest = resolveNotificationRoute(notif, activeAnnouncements);
-      router.push(dest as any);
-    },
-    [router, activeAnnouncements]
-  );
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" />
-        <ActivityIndicator size="large" color={colors.primaryBlue} style={{ marginTop: 40 }} />
-      </SafeAreaView>
-    );
-  }
+  }, [markAllNotificationsRead]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
-      <View style={[styles.headerRow, { paddingTop: safeTop + 4 }]}>
+      <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => safeBack(router, isOperator ? "/(operator-tabs)" : "/(tabs)")}
@@ -98,46 +36,30 @@ export default function NotificationsScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.darkText} />
         </TouchableOpacity>
+
         <Text style={styles.title}>Notifications</Text>
+
+        <View style={styles.headerRight}>
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              onPress={markAllNotificationsRead}
+              style={styles.markAllBtn}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Mark all as read"
+            >
+              <Text style={styles.markAllText}>Mark all read</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {notifications.length === 0 ? (
-        <EmptyState icon="notifications-off-outline" message="No notifications yet" />
-      ) : (
-        <ContentContainer maxWidth={720} style={styles.container}>
-          <ScrollView
-            style={styles.containerInner}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-          {notifications.map((notif) => {
-            const icon = notifIcons[notif.type] || "ellipse";
-            const iconColor = notifColors[notif.type] || colors.gray;
-            return (
-              <TouchableOpacity
-                key={notif.id}
-                style={[styles.notifRow, !notif.is_read && styles.notifRowUnread]}
-                onPress={() => handleNotificationPress(notif)}
-                activeOpacity={0.6}
-              >
-                <View style={[styles.notifIcon, { backgroundColor: iconColor + "15" }]}>
-                  <Ionicons name={icon} size={20} color={iconColor} />
-                </View>
-                <View style={styles.notifContent}>
-                  <Text style={styles.notifTitle}>{notif.title}</Text>
-                  <Text style={styles.notifBody} numberOfLines={2}>
-                    {notif.body}
-                  </Text>
-                  <Text style={styles.notifTime}>{timeAgo(notif.created_at)}</Text>
-                </View>
-                {!notif.is_read && <View style={styles.unreadDot} />}
-                <Ionicons name="chevron-forward" size={16} color="#94A3B8" style={styles.chevron} />
-              </TouchableOpacity>
-            );
-          })}
-          </ScrollView>
-          </ContentContainer>
-      )}
+      <ContentContainer maxWidth={720} style={styles.container}>
+        <NotificationsPanel
+          variant="page"
+          onOpenAnnouncement={openAnnouncementModal}
+        />
+      </ContentContainer>
     </SafeAreaView>
   );
 }
@@ -152,7 +74,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 12,
-    gap: 16,
+    paddingBottom: 10,
+    gap: 12,
   },
   backButton: {
     width: 36,
@@ -162,67 +85,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    fontSize: 24,
-    fontWeight: "700",
+    fontSize: 22,
+    fontFamily: "Quicksand_700Bold",
     color: colors.darkText,
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  markAllBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  markAllText: {
+    fontSize: 12,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.primaryBlue,
   },
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-  },
-  containerInner: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
-  notifRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    gap: 12,
-    marginTop: 8,
-  },
-  notifRowUnread: {
-    backgroundColor: "#F5F8FF",
-  },
-  notifIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  notifContent: {
-    flex: 1,
-  },
-  notifTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.darkText,
-  },
-  notifBody: {
-    fontSize: 12,
-    color: colors.gray,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  notifTime: {
-    fontSize: 11,
-    color: colors.gray,
-    marginTop: 4,
-  },
-  chevron: {
-    alignSelf: "center",
-    marginLeft: 6,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primaryBlue,
-    marginTop: 6,
+    paddingHorizontal: 8,
   },
 });

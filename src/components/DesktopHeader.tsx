@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../hooks/useAuth";
+import { useNotificationModal } from "../context/NotificationModalContext";
 import { colors } from "../constants/colors";
 
 interface DesktopHeaderProps {
@@ -10,6 +11,7 @@ interface DesktopHeaderProps {
 
 export default function DesktopHeader({ sidebarWidth }: DesktopHeaderProps) {
   const { profile, unreadCount } = useAuth();
+  const { openNotifications } = useNotificationModal();
 
   return (
     <View style={[styles.header, { marginLeft: sidebarWidth }]}>
@@ -19,14 +21,20 @@ export default function DesktopHeader({ sidebarWidth }: DesktopHeaderProps) {
         </Text>
       </View>
       <View style={styles.rightSection}>
-        <View style={styles.notifWrapper}>
+        <TouchableOpacity
+          style={styles.notifWrapper}
+          onPress={openNotifications}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
           <Ionicons name="notifications-outline" size={22} color={colors.darkText} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
         <View style={styles.avatar}>
           <Ionicons name="person" size={18} color={colors.white} />
         </View>

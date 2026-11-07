@@ -181,7 +181,6 @@ export default function AddDiverScreen() {
           <TouchableOpacity style={styles.backCta} onPress={() => safeBack(router, "/establishment/create-manifest/step1")} activeOpacity={0.88}>
             <Text style={styles.backCtaText}>Back to Manifest</Text>
           </TouchableOpacity>
-          <View style={{ height: 60 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>

@@ -160,8 +160,7 @@ export default function BottomNav({
     );
   };
 
-  const navBottomPadding =
-    insets.bottom > 0 ? Math.max(insets.bottom - 10, 10) : 10;
+  const navBottomPadding = insets.bottom > 0 ? insets.bottom : 12;
 
   return (
     <View

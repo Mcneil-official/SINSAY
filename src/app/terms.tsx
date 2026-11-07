@@ -155,8 +155,6 @@ export default function TermsScreen() {
               By utilizing SINSAY, you agree to uphold maritime safety, environmental protection, and all municipal regulations of Mabini, Batangas.
             </Text>
           </View>
-
-          <View style={{ height: 40 }} />
         </ContentContainer>
       </ScrollView>
     </SafeAreaView>
