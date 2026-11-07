@@ -234,7 +234,7 @@ function FilterButton({
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F6FAFF" },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 28 },
+  scrollContent: { paddingBottom: 100 },
   header: {
     height: 54,
     flexDirection: "row",
