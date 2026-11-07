@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 100,
     alignItems: "center",
   },
   mascotWrap: {
