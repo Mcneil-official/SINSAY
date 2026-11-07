@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 96,
+    paddingBottom: 20,
   },
   topBar: {
     flexDirection: "row",

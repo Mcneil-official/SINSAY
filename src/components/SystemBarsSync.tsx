@@ -29,7 +29,7 @@ export function SystemBarsSync() {
       // Standard pages (Tourist Home, Operator Dashboard, Manifests, Profile, etc.):
       // #FFFFFF theme color guarantees Android's bottom 3-button system bar
       // blends seamlessly with the white BottomNav container without a blue strip!
-      setSystemThemeColor("#FFFFFF", "black-translucent");
+      setSystemThemeColor("#FFFFFF", "default");
     }
   }, [isSplash]);
 

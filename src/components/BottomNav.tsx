@@ -6,7 +6,7 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors } from "../constants/colors";
 import { useLayout } from "../context/LayoutContext";
 
-export const BOTTOM_NAV_HEIGHT = 50;
+export const BOTTOM_NAV_HEIGHT = 54;
 
 const INACTIVE_COLOR = "#657C9B";
 
@@ -160,7 +160,8 @@ export default function BottomNav({
     );
   };
 
-  const navBottomPadding = 10;
+  const navBottomPadding =
+    insets.bottom > 0 ? Math.max(Math.round(insets.bottom * 0.35), 10) : 8;
 
   return (
     <View
@@ -179,17 +180,12 @@ export default function BottomNav({
 
 const styles = StyleSheet.create({
   barWrap: {
-    position: Platform.OS === "web" ? ("fixed" as any) : "relative",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
     width: "100%",
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: "#DBE8F4",
-    paddingTop: 10,
-    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingHorizontal: 12,
     alignItems: "center",
   },
   bar: {
@@ -204,13 +200,13 @@ const styles = StyleSheet.create({
   activeTab: {
     flexGrow: 0,
     flexShrink: 0,
-    minHeight: 40,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: colors.primaryBlue,
   },
@@ -230,12 +226,13 @@ const styles = StyleSheet.create({
   inactiveTab: {
     flex: 1,
     minWidth: 56,
-    minHeight: 42,
+    minHeight: 38,
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
     paddingHorizontal: 2,
+    paddingVertical: 2,
     borderRadius: 999,
   },
   operatorInactiveTab: {
