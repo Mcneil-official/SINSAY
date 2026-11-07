@@ -1,4 +1,4 @@
-const CACHE_NAME = "sinsay-v6";
+const CACHE_NAME = "sinsay-v7";
 const STATIC_ASSETS = [
   "/",
   "/index.html",

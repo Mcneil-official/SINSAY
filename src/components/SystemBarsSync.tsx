@@ -29,7 +29,7 @@ export function SystemBarsSync() {
       // Standard pages (Tourist Home, Operator Dashboard, Manifests, Profile, etc.):
       // #FFFFFF theme color guarantees Android's bottom 3-button system bar
       // blends seamlessly with the white BottomNav container without a blue strip!
-      setSystemThemeColor("#FFFFFF", "default");
+      setSystemThemeColor("#FFFFFF", "black-translucent");
     }
   }, [isSplash]);
 
@@ -37,7 +37,10 @@ export function SystemBarsSync() {
   // - "light" (white icons) on full-screen splash and operator dashboard top header
   // - "dark" (black icons) on white header screens
   const isOperatorHome = isOperatorGroup && segments.length === 1;
-  const isLightStatusBar = isSplash || isAuthPage || isOperatorHome;
+  const isOnboarding =
+    typeof segments[0] === "string" && segments[0].startsWith("next");
+  const isLightStatusBar =
+    isSplash || isAuthPage || isOperatorHome || isOnboarding;
 
   return (
     <StatusBar
