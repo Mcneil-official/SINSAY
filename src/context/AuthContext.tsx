@@ -525,7 +525,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           filter: `tourist_id=eq.${user.id}`,
         },
         (payload) => {
-          if (payload.new) setEcoId(payload.new as EcoDiveIDRow);
+          if (payload.new) {
+            setEcoId(payload.new as EcoDiveIDRow);
+            fetchProfile(user.id);
+          }
+        }
+      )
+      .subscribe();
+
+    const touristChannel = supabase
+      .channel("tourist-profile-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tourists",
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            setProfile(payload.new as TouristRow);
+          }
         }
       )
       .subscribe();
@@ -585,6 +606,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(ecoChannel);
       supabase.removeChannel(notifChannel);
       supabase.removeChannel(opAppChannel);
+      supabase.removeChannel(touristChannel);
     };
   }, [user, fetchNotifications, fetchUnreadCount, fetchProfile]);
 

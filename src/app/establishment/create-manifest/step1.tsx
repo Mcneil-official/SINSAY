@@ -60,11 +60,8 @@ const nationalities = [
 ];
 
 const diveLevels = [
-  { label: "Fun Dive", value: "Fun Dive" },
-  { label: "Open Water", value: "Open Water" },
-  { label: "Advanced Adventurer", value: "Advanced Adventurer" },
-  { label: "Rescue Diver", value: "Rescue Diver" },
-  { label: "Divemaster", value: "Divemaster" },
+  { label: "Fun Dive / Intro Dive / Guest", value: "Fun Dive / Intro Dive / Guest" },
+  { label: "Divemaster / Instructor", value: "Divemaster / Instructor" },
 ];
 
 interface Diver {
@@ -82,18 +79,21 @@ interface Diver {
 }
 
 // Tourist certification_level (step2 vocabulary) → manifest dive-level list.
-const certToDiveLevel = (cert: string | null | undefined): string => {
+const certToDiveLevel = (cert?: string | null, typeOfDive?: string | null): string => {
+  const t = (typeOfDive || "").toLowerCase();
+  if (t === "instructor-master" || t === "dive-master" || t === "certified") {
+    return "Divemaster / Instructor";
+  }
   const c = (cert || "").toLowerCase();
-  if (c.includes("rescue")) return "Rescue Diver";
-  if (c.includes("advanced")) return "Advanced Adventurer";
-  if (c.includes("open")) return "Open Water";
-  if (c.includes("divemaster")) return "Divemaster";
-  return "Fun Dive";
+  if (c.includes("master") || c.includes("instructor")) {
+    return "Divemaster / Instructor";
+  }
+  return "Fun Dive / Intro Dive / Guest";
 };
 
 const buildDiverMeta = (d: Pick<Diver, "ecoId" | "isWalkIn" | "nationality" | "diveLevel">): string => {
   const nat = d.nationality || "Unknown";
-  const lvl = d.diveLevel || "Fun Dive";
+  const lvl = d.diveLevel || "Fun Dive / Intro Dive / Guest";
   if (d.isWalkIn) return `Walk-in · ${lvl} · ${nat}`;
   const idPart = d.ecoId || "No Eco-Dive ID on file";
   return `${idPart} · ${nat} · ${lvl}`;
@@ -241,7 +241,7 @@ export default function CreateManifestStep1() {
   const [newFirstName, setNewFirstName] = useState("");
   const [newLastName, setNewLastName] = useState("");
   const [newNationality, setNewNationality] = useState("Filipino");
-  const [newDiveLevel, setNewDiveLevel] = useState("Fun Dive");
+  const [newDiveLevel, setNewDiveLevel] = useState("Fun Dive / Intro Dive / Guest");
 
   useEffect(() => {
     if (!user) {
@@ -544,7 +544,7 @@ export default function CreateManifestStep1() {
     // per diver below).
     let ecoId: string | undefined;
     let nationality = "Filipino";
-    let diveLevel = "Fun Dive";
+    let diveLevel = "Fun Dive / Intro Dive / Guest";
     try {
       const [{ data: eco }, { data: prof }] = await Promise.all([
         supabase
@@ -555,7 +555,7 @@ export default function CreateManifestStep1() {
           .maybeSingle(),
         supabase
           .from("tourists")
-          .select("nationality, certification_level")
+          .select("nationality, certification_level, type_of_dive")
           .eq("id", tourist.id)
           .maybeSingle(),
       ]);
@@ -579,7 +579,8 @@ export default function CreateManifestStep1() {
       }
       if (prof?.nationality) nationality = prof.nationality;
       diveLevel = certToDiveLevel(
-        (prof as { certification_level?: string } | null)?.certification_level
+        (prof as { certification_level?: string; type_of_dive?: string } | null)?.certification_level,
+        (prof as { certification_level?: string; type_of_dive?: string } | null)?.type_of_dive
       );
     } catch (e) {
       console.warn("Eco-ID/profile lookup failed:", e);
@@ -1195,7 +1196,7 @@ export default function CreateManifestStep1() {
                         <View style={{ flex: 1 }}>
                           <Dropdown
                             label="Dive Level"
-                            value={d.diveLevel || "Fun Dive"}
+                            value={d.diveLevel || "Fun Dive / Intro Dive / Guest"}
                             options={diveLevels}
                             onSelect={(v) => updateDiverAttrs(d.id, { diveLevel: v })}
                           />

@@ -32,11 +32,8 @@ const nationalities = [
 ];
 
 const diveLevels = [
-  { label: "Fun Dive", value: "Fun Dive" },
-  { label: "Open Water", value: "Open Water" },
-  { label: "Advanced Adventurer", value: "Advanced Adventurer" },
-  { label: "Rescue Diver", value: "Rescue Diver" },
-  { label: "Divemaster", value: "Divemaster" },
+  { label: "Fun Dive / Intro Dive / Guest", value: "Fun Dive / Intro Dive / Guest" },
+  { label: "Divemaster / Instructor", value: "Divemaster / Instructor" },
 ];
 
 export default function AddDiverScreen() {
@@ -49,7 +46,7 @@ export default function AddDiverScreen() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [nationality, setNationality] = useState("Filipino");
-  const [diveLevel, setDiveLevel] = useState("Fun Dive");
+  const [diveLevel, setDiveLevel] = useState("Fun Dive / Intro Dive / Guest");
   const [notice, setNotice] = useState("");
 
   if (!authLoading && !user) {

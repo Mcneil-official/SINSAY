@@ -37,17 +37,8 @@ const nationalityOptions = [
 ];
 
 const diveTypeOptions = [
-  { label: "Intro Dive", value: "intro" },
-  { label: "Fun Dive", value: "fun" },
-  { label: "Guest or Tourist", value: "guest-tourist" },
-  { label: "Certified", value: "certified" },
-];
-
-const certLevelOptions = [
-  { label: "Open Water Diver", value: "open-water" },
-  { label: "Advanced Open Water", value: "advanced" },
-  { label: "Rescue Diver", value: "rescue" },
-  { label: "Dive Master / Instructor", value: "dive-master" },
+  { label: "Fun Dive / Intro Dive / Guest", value: "fun-intro-guest" },
+  { label: "Dive Instructor / Master", value: "instructor-master" },
 ];
 
 const privacyLabel = "I consent to the collection and processing of my personal data in accordance with the Data Privacy Act of 2012.";
@@ -60,7 +51,6 @@ export default function DiveDetailsStep1() {
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [diveType, setDiveType] = useState("");
-  const [certLevel, setCertLevel] = useState("");
   const [pcssdAccreditationNo, setPcssdAccreditationNo] = useState("");
   const [pcssdFile, setPcssdFile] = useState<FileInfo | null>(null);
   const [pcssdError, setPcssdError] = useState("");
@@ -80,8 +70,13 @@ export default function DiveDetailsStep1() {
       setNationality(profile.nationality || "");
       setEmergencyName(profile.emergency_contact_name || "");
       setEmergencyPhone(toLocalPhDigits(profile.emergency_contact_number || ""));
-      setDiveType(profile.type_of_dive || "");
-      setCertLevel(profile.certification_level || "");
+      let initialType = profile.type_of_dive || "";
+      if (["fun", "intro", "guest", "guest-tourist", "intro-fun", "fun-intro-guest"].includes(initialType)) {
+        initialType = "fun-intro-guest";
+      } else if (["dive-master", "instructor", "certified", "instructor-master"].includes(initialType)) {
+        initialType = "instructor-master";
+      }
+      setDiveType(initialType);
       setPcssdAccreditationNo(profile.pcssd_accreditation_no || "");
       setPermitToOperateNo(profile.permit_to_operate_no || "");
     });
@@ -99,14 +94,11 @@ export default function DiveDetailsStep1() {
       }
     } else if (currentStep === 1) {
       if (!diveType) nextErrors.diveType = "Required";
-      if (diveType === "certified") {
-        if (!certLevel) nextErrors.certLevel = "Required";
-        if (certLevel === "dive-master") {
-          if (!pcssdAccreditationNo.trim()) nextErrors.pcssdAccreditationNo = "Required";
-          if (!pcssdFile && !profile?.pcssd_url) nextErrors.pcssdFile = "PCSSD Certificate required";
-          if (!permitToOperateNo.trim()) nextErrors.permitToOperateNo = "Required";
-          if (!permitFile && !profile?.permit_to_operate_url) nextErrors.permitFile = "Permit to Operate required";
-        }
+      if (diveType === "instructor-master") {
+        if (!pcssdAccreditationNo.trim()) nextErrors.pcssdAccreditationNo = "Required";
+        if (!pcssdFile && !profile?.pcssd_url) nextErrors.pcssdFile = "PCSSD Certificate required";
+        if (!permitToOperateNo.trim()) nextErrors.permitToOperateNo = "Required";
+        if (!permitFile && !profile?.permit_to_operate_url) nextErrors.permitFile = "Permit to Operate required";
       }
       if (!agreed) nextErrors.agreed = "You must agree to continue";
     }
@@ -202,8 +194,8 @@ export default function DiveDetailsStep1() {
         type_of_dive: diveType,
       };
 
-      if (diveType === "certified") {
-        updates.certification_level = certLevel;
+      if (diveType === "instructor-master") {
+        updates.certification_level = "dive-master";
         if (pcssdAccreditationNo.trim()) {
           updates.pcssd_accreditation_no = pcssdAccreditationNo.trim();
         }
@@ -243,7 +235,7 @@ export default function DiveDetailsStep1() {
       if (user) await ensureCompletedEcoId(user.id);
       await refreshProfile();
       setSaving(false);
-      router.push(diveType === "certified" ? "/eco-dive-id/complete" : "/(tabs)/eco-dive-id");
+      router.push("/(tabs)/eco-dive-id");
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
       setSaving(false);
@@ -326,7 +318,7 @@ export default function DiveDetailsStep1() {
               <View style={styles.sectionIcon}><Ionicons name="ribbon-outline" size={17} color="#087bff" /></View>
               <View style={styles.sectionCopy}>
                 <Text style={styles.sectionTitle}>Dive Credentials</Text>
-                <Text style={styles.sectionHint}>Certification details are required for certified divers.</Text>
+                <Text style={styles.sectionHint}>Credentials are required for Dive Instructors & Dive Masters.</Text>
               </View>
             </View>
             <View style={styles.fieldsGroup}>
@@ -350,31 +342,13 @@ export default function DiveDetailsStep1() {
                 error={errors.diveType}
               />
 
-              {diveType === "certified" ? (
+              {diveType === "instructor-master" ? (
                 <View style={styles.certificationGroup}>
-                  <Dropdown
-                    label="Type of Diver"
-                    placeholder="Select diver certification level"
-                    value={certLevel}
-                    options={certLevelOptions}
-                    onSelect={(val) => {
-                      setCertLevel(val);
-                      setErrors((curr) => {
-                        const next = { ...curr };
-                        delete next.certLevel;
-                        return next;
-                      });
-                    }}
-                    error={errors.certLevel}
-                  />
-
                   {/* PCSSD Accreditation */}
                   <View style={styles.uploadCard}>
                     <Text style={styles.uploadTitle}>PCSSD Accreditation</Text>
                     <Text style={styles.sectionHint}>
-                      {certLevel === "dive-master"
-                        ? "Mandatory for Dive Masters & Instructors. Accreditation number & certificate."
-                        : "Official Philippine Commission on Sports Scuba Diving number & certificate (if accredited)."}
+                      Mandatory for Dive Masters & Instructors. Accreditation number & certificate.
                     </Text>
                     <TextInput
                       label="PCSSD Accreditation Number"
@@ -400,9 +374,7 @@ export default function DiveDetailsStep1() {
                   <View style={styles.uploadCard}>
                     <Text style={styles.uploadTitle}>Permit to Operate</Text>
                     <Text style={styles.sectionHint}>
-                      {certLevel === "dive-master"
-                        ? "Mandatory municipal guide permit number & document for commercial dives."
-                        : "Local government / MTO municipal dive permit number & document (if issued)."}
+                      "Mandatory municipal guide permit number & document for commercial dives."
                     </Text>
                     <TextInput
                       label="Permit to Operate Number"
@@ -426,10 +398,10 @@ export default function DiveDetailsStep1() {
                 </View>
               ) : null}
 
-              {diveType && diveType !== "certified" ? (
+              {diveType === "fun-intro-guest" ? (
                 <View style={styles.infoHint}>
                   <Text style={styles.infoHintText}>
-                    Intro, Fun, and Guest/Tourist divers can continue without certification details.
+                    Fun, Intro, and Guest divers can continue without uploading credentials.
                   </Text>
                 </View>
               ) : null}

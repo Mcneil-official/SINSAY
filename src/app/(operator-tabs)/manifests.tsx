@@ -170,16 +170,18 @@ export default function ManifestsScreen() {
         .filter((id: any): id is string => Boolean(id));
 
       let certMap: Record<string, string> = {};
+      let typeOfDiveMap: Record<string, string> = {};
       let nationalityMap: Record<string, string> = {};
       let ecoIdMap: Record<string, string> = {};
 
       if (touristIds.length > 0) {
         const { data: touristsData } = await supabase
           .from("tourists")
-          .select("id, certification_level, nationality")
+          .select("id, certification_level, nationality, type_of_dive")
           .in("id", touristIds);
         for (const t of touristsData || []) {
           if (t.certification_level) certMap[t.id] = t.certification_level;
+          if (t.type_of_dive) typeOfDiveMap[t.id] = t.type_of_dive;
           if (t.nationality) nationalityMap[t.id] = t.nationality;
         }
 
@@ -194,17 +196,18 @@ export default function ManifestsScreen() {
 
       const mapped: ManifestSnapshotDiver[] = (data || []).map((d: any) => {
         const rawCert = d.tourist_id ? certMap[d.tourist_id] : null;
-        let certLabel = "Certified Diver";
+        const rawType = d.tourist_id ? typeOfDiveMap[d.tourist_id] : null;
+        let certLabel = "Fun Dive / Intro / Guest";
         if (d.is_walk_in) {
           certLabel = "Walk-in Registration";
+        } else if (
+          rawType === "instructor-master" ||
+          rawType === "dive-master" ||
+          (rawCert && (rawCert.toLowerCase().includes("master") || rawCert.toLowerCase().includes("instructor")))
+        ) {
+          certLabel = "Divemaster / Instructor";
         } else if (rawCert) {
-          const c = rawCert.toLowerCase();
-          if (c.includes("open")) certLabel = "Open Water Diver";
-          else if (c.includes("advanced")) certLabel = "Advanced Adventurer";
-          else if (c.includes("rescue")) certLabel = "Rescue Diver";
-          else if (c.includes("master")) certLabel = "Divemaster";
-          else if (c.includes("instructor")) certLabel = "Instructor";
-          else certLabel = rawCert;
+          certLabel = rawCert;
         }
 
         const isWalkIn = Boolean(d.is_walk_in);
