@@ -8,6 +8,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "transparent",
   },
 });

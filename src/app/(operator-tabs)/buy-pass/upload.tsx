@@ -22,6 +22,7 @@ import Svg, {
     Stop,
 } from "react-native-svg";
 import { BuyPassProgress, ContentContainer } from "../../../components";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../hooks/useAuth";
 import type { FileInfo } from "../../../lib/storage";
 import { uploadFile, validateFile } from "../../../lib/storage";
@@ -29,6 +30,7 @@ import { supabase } from "../../../lib/supabase";
 
 export default function UploadReceiptScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, isLoading: authLoading } = useAuth();
   const { passId, passLabel, passCount, quantity } =
     useLocalSearchParams<{
@@ -262,10 +264,10 @@ export default function UploadReceiptScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* Top Ocean Gradient and Wave Background Header */}
-      <View style={styles.headerBackgroundWrap} pointerEvents="none">
+      <View style={[styles.headerBackgroundWrap, { top: -insets.top, height: 220 + insets.top }]} pointerEvents="none">
         <Svg
           width="100%"
-          height={220}
+          height={220 + insets.top}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -278,7 +280,7 @@ export default function UploadReceiptScreen() {
               <Stop offset="1" stopColor="#f1f9ff" />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height={220} fill="url(#screenTopGrad)" />
+          <Rect x="0" y="0" width="100%" height={220 + insets.top} fill="url(#screenTopGrad)" />
         </Svg>
 
         <Svg
