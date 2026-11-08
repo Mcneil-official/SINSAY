@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors } from "../../constants/colors";
-import { BOTTOM_NAV_HEIGHT } from "../BottomNav";
+import { BOTTOM_NAV_HEIGHT, BOTTOM_NAV_PADDING } from "../BottomNav";
 import { AssistantChatPanel } from "./AssistantChatPanel";
 import { AssistantPlannerPanel } from "./AssistantPlannerPanel";
 
@@ -97,8 +97,7 @@ export function FloatingAssistant() {
   }, [mode, drawerAnim, useNative]);
 
   const hideFloatingTrigger = pathname?.includes("/dive-assistant") ?? false;
-  const navBottomPadding = 10;
-  const fabBottom = navBottomPadding + BOTTOM_NAV_HEIGHT + 12;
+  const fabBottom = BOTTOM_NAV_PADDING + BOTTOM_NAV_HEIGHT + 12;
 
   const handleFabPress = () => {
     setMode((prev) => (prev === "chooser" ? "closed" : "chooser"));

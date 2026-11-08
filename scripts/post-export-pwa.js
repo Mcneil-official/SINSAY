@@ -68,10 +68,10 @@ if (fs.existsSync(indexPath)) {
   // appropriate diving icon. The installed PWA icon is configured in the manifest.
   html = html.replace(/^\s*<link rel="(?:manifest|icon|apple-touch-icon)"[^>]*>\s*$/gim, '');
 
-  // Ensure viewport includes viewport-fit=cover, maximum-scale=1, user-scalable=no for iOS edge-to-edge PWA
+  // Keep the iOS PWA within the browser viewport instead of forcing edge-to-edge layout.
   html = html.replace(
     /<meta\s+name=["']viewport["'][^>]*>/i,
-    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />'
+    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=auto" />'
   );
 
   const pwaTags = `

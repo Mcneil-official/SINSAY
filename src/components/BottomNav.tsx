@@ -7,6 +7,7 @@ import { colors } from "../constants/colors";
 import { useLayout } from "../context/LayoutContext";
 
 export const BOTTOM_NAV_HEIGHT = 54;
+export const BOTTOM_NAV_PADDING = 0;
 
 const INACTIVE_COLOR = "#657C9B";
 
@@ -160,14 +161,12 @@ export default function BottomNav({
     );
   };
 
-  const navBottomPadding = 10;
-
   return (
     <View
       style={[
         styles.barWrap,
         isCompact && styles.compactBarWrap,
-        { paddingBottom: navBottomPadding },
+        { paddingBottom: BOTTOM_NAV_PADDING },
       ]}
     >
       <View style={styles.bar}>
