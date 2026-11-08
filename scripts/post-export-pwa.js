@@ -72,10 +72,10 @@ if (fs.existsSync(indexPath)) {
   html = html.replace(/^\s*<meta name="theme-color"[^>]*>\s*$/gim, '');
   html = html.replace(/<!-- Disable stale caching on initial HTML load -->[\s\S]*?<\/style>/gi, '');
 
-  // Keep the iOS PWA within the browser viewport instead of forcing edge-to-edge layout.
+  // Ensure viewport includes viewport-fit=cover for edge-to-edge rendering behind notch & status bar
   html = html.replace(
     /<meta\s+name=["']viewport["'][^>]*>/i,
-    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=auto" />'
+    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />'
   );
 
   const pwaTags = `
@@ -87,7 +87,7 @@ if (fs.existsSync(indexPath)) {
     <link rel="manifest" href="/manifest.json" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="SINSAY" />
     <meta name="application-name" content="SINSAY" />
     <meta name="theme-color" content="#FFFFFF" id="sinsay-theme-color" />
