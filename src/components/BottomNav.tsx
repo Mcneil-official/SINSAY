@@ -160,7 +160,7 @@ export default function BottomNav({
     );
   };
 
-  const navBottomPadding = 10;
+  const navBottomPadding = 0;
 
   return (
     <View
