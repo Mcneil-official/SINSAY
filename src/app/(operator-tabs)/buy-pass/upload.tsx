@@ -262,16 +262,10 @@ export default function UploadReceiptScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* Top Ocean Gradient and Wave Background Header */}
-      <View
-        style={[
-          styles.headerBackgroundWrap,
-          { top: -insets.top, height: 220 + insets.top },
-        ]}
-        pointerEvents="none"
-      >
+      <View style={styles.headerBackgroundWrap} pointerEvents="none">
         <Svg
           width="100%"
-          height={220 + insets.top}
+          height={220}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -284,13 +278,13 @@ export default function UploadReceiptScreen() {
               <Stop offset="1" stopColor="#f1f9ff" />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height={220 + insets.top} fill="url(#screenTopGrad)" />
+          <Rect x="0" y="0" width="100%" height={220} fill="url(#screenTopGrad)" />
         </Svg>
 
         <Svg
           viewBox="0 0 1024 496"
           preserveAspectRatio="none"
-          style={[styles.headerWaveSvg, { height: 180 + insets.top }]}
+          style={styles.headerWaveSvg}
         >
           <Path
             d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z"

@@ -296,16 +296,10 @@ export default function ManifestsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" />
-      <View
-        style={[
-          styles.headerBackground,
-          { top: -insets.top, height: 245 + insets.top },
-        ]}
-        pointerEvents="none"
-      >
+      <View style={styles.headerBackground} pointerEvents="none">
         <Svg
           width="100%"
-          height={245 + insets.top}
+          height={245}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -318,12 +312,12 @@ export default function ManifestsScreen() {
               <Stop offset="1" stopColor="#f1f9ff" />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height={245 + insets.top} fill="url(#screenTopGrad)" />
+          <Rect x="0" y="0" width="100%" height={245} fill="url(#screenTopGrad)" />
         </Svg>
         <Svg
           viewBox="0 0 1024 496"
           preserveAspectRatio="none"
-          style={[styles.headerWaveSvg, { height: 190 + insets.top }]}
+          style={styles.headerWaveSvg}
         >
           <Path
             d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z"

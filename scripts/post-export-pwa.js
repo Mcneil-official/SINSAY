@@ -68,14 +68,10 @@ if (fs.existsSync(indexPath)) {
   // appropriate diving icon. The installed PWA icon is configured in the manifest.
   html = html.replace(/^\s*<link rel="(?:manifest|icon|apple-touch-icon)"[^>]*>\s*$/gim, '');
 
-  // Strip existing theme-color tags and any previous PWA injected blocks so only the canonical one exists
-  html = html.replace(/^\s*<meta name="theme-color"[^>]*>\s*$/gim, '');
-  html = html.replace(/<!-- Disable stale caching on initial HTML load -->[\s\S]*?<\/style>/gi, '');
-
-  // Ensure viewport includes viewport-fit=cover for edge-to-edge rendering behind notch & status bar
+  // Keep the iOS PWA within the browser viewport instead of forcing edge-to-edge layout.
   html = html.replace(
     /<meta\s+name=["']viewport["'][^>]*>/i,
-    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />'
+    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=auto" />'
   );
 
   const pwaTags = `
@@ -94,23 +90,34 @@ if (fs.existsSync(indexPath)) {
     <link rel="apple-touch-icon" href="/pwa-apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="/SINSAY Blue Diving Icon.png" media="(prefers-color-scheme: light)" />
     <link rel="icon" type="image/png" href="/SINSAY White Diving Icon.png" media="(prefers-color-scheme: dark)" />
-    <!-- Enforce physical screen coverage without position:fixed trapping on iOS WebKit -->
+    <!-- Enforce physical screen pinning on iOS WebKit -->
     <style id="sinsay-viewport-pin">
       html, body {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
         width: 100% !important;
         height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow: hidden !important;
-        overscroll-behavior: none !important;
       }
       #root {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
         width: 100% !important;
-        height: 100% !important;
+        height: auto !important;
+        min-height: 100% !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
         overscroll-behavior: none !important;
+        background-color: #F8FAFC !important;
       }
     </style>
   `;
