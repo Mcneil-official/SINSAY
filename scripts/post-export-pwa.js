@@ -59,7 +59,7 @@ if (fs.existsSync(swDistPath)) {
   console.log(`Updated dist/sw.js cache name to ${buildVersion}`);
 }
 
-// 2. Patch dist/index.html with PWA tags
+// 2. Patch dist/index.html with PWA tags & physical viewport pinning
 const indexPath = path.join(distDir, 'index.html');
 if (fs.existsSync(indexPath)) {
   let html = fs.readFileSync(indexPath, 'utf8');
@@ -90,11 +90,41 @@ if (fs.existsSync(indexPath)) {
     <link rel="apple-touch-icon" href="/pwa-apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="/SINSAY Blue Diving Icon.png" media="(prefers-color-scheme: light)" />
     <link rel="icon" type="image/png" href="/SINSAY White Diving Icon.png" media="(prefers-color-scheme: dark)" />
+    <!-- Enforce physical screen pinning on iOS WebKit -->
+    <style id="sinsay-viewport-pin">
+      html, body {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+      }
+      #root {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        overscroll-behavior: none !important;
+        background-color: #F8FAFC !important;
+      }
+    </style>
   `;
 
   html = html.replace('</head>', `${pwaTags}\n</head>`);
   fs.writeFileSync(indexPath, html, 'utf8');
-  console.log('Injected PWA meta & theme-aware favicon tags into dist/index.html');
+  console.log('Injected PWA meta, theme-aware favicon, and viewport pinning into dist/index.html');
 }
 
 console.log('PWA post-export processing complete.');

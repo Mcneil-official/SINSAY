@@ -67,16 +67,29 @@ export function registerServiceWorker() {
     }
   });
 
-  window.addEventListener("load", () => {
+  const doRegister = () => {
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
       .then((reg) => {
         console.log("[SW] Registered successfully with scope:", reg.scope);
         // Force an immediate check for updated sw.js
         reg.update().catch(() => {});
+
+        // Re-check for SW update on app resume / tab refocus
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            reg.update().catch(() => {});
+          }
+        });
       })
       .catch((err) => {
         console.warn("[SW] Registration failed:", err);
       });
-  });
+  };
+
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    doRegister();
+  } else {
+    window.addEventListener("load", doRegister);
+  }
 }
