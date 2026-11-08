@@ -107,6 +107,7 @@ if (fs.existsSync(indexPath)) {
         margin: 0 !important;
         padding: 0 !important;
         overflow: hidden !important;
+        background-color: #FFFFFF !important;
       }
       #root {
         position: fixed !important;
@@ -115,13 +116,12 @@ if (fs.existsSync(indexPath)) {
         right: 0 !important;
         bottom: 0 !important;
         width: 100% !important;
-        height: auto !important;
-        min-height: 100% !important;
+        height: 100% !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
         overscroll-behavior: none !important;
-        background-color: #F8FAFC !important;
+        background-color: #FFFFFF !important;
       }
     </style>
   `;

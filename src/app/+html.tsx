@@ -42,7 +42,7 @@ body {
   padding: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  background-color: #F8FAFC;
+  background-color: #FFFFFF;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
@@ -54,12 +54,11 @@ body {
   right: 0 !important;
   bottom: 0 !important;
   width: 100% !important;
-  height: auto !important;
-  min-height: 100% !important;
+  height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
   overscroll-behavior: none !important;
-  background-color: #F8FAFC;
+  background-color: #FFFFFF;
 }
 `;

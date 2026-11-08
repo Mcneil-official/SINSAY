@@ -4,10 +4,15 @@ import { Platform } from "react-native";
  * Dynamically updates the browser / PWA theme color and iOS status bar style.
  * This controls the color of the native Android navigation bar (bottom 3 buttons),
  * the top status bar, and iOS Safari status bar/overscroll background.
+ *
+ * @param themeColor The system theme color (used for Android status bar and browser chrome)
+ * @param appleStatusBarStyle iOS status bar style ("default" for dark icons, "black-translucent" for white icons over dark/blue headers)
+ * @param canvasBackground The underlying background color for html, body, and #root. Defaults to "#FFFFFF" so bottom navigation bars are never underlined with mismatched colors.
  */
 export function setSystemThemeColor(
   themeColor: string,
-  appleStatusBarStyle: "default" | "black-translucent" = "default"
+  appleStatusBarStyle: "default" | "black-translucent" = "default",
+  canvasBackground: string = "#FFFFFF"
 ) {
   if (Platform.OS !== "web") return;
   try {
@@ -37,17 +42,17 @@ export function setSystemThemeColor(
       metaApples.forEach((el) => el.setAttribute("content", appleStatusBarStyle));
     }
 
-    // 3. Keep body, html, and #root background colors synchronized
-    // This prevents overscroll elastic bounce or edge letterboxing from showing mismatched colors on iOS & Android
+    // 3. Keep body, html, and #root background colors synchronized with canvasBackground
+    // On tab screens, canvasBackground is #FFFFFF so that the area below the white navbar is seamless white
     if (document.body) {
-      document.body.style.backgroundColor = themeColor;
+      document.body.style.backgroundColor = canvasBackground;
     }
     if (document.documentElement) {
-      document.documentElement.style.backgroundColor = themeColor;
+      document.documentElement.style.backgroundColor = canvasBackground;
     }
     const rootEl = document.getElementById("root");
     if (rootEl) {
-      rootEl.style.setProperty("background-color", themeColor, "important");
+      rootEl.style.setProperty("background-color", canvasBackground, "important");
     }
   } catch {
     // Non-DOM runtimes silently no-op

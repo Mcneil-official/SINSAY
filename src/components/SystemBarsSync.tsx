@@ -32,36 +32,46 @@ export function SystemBarsSync() {
   let themeColor = colors.white;
   let isLightStatusBar = false;
   let appleStyle: "default" | "black-translucent" = "default";
+  // On full-blue pages (Splash, Onboarding, Auth), canvas is blue.
+  // On tab screens (both Operator & Tourist), canvas is white (#FFFFFF) so that
+  // any safe-area behind the white BottomNav is seamless white with no blue strip.
+  let canvasBackground = colors.white;
 
   if (isSplash) {
     themeColor = colors.splashBlue;
     isLightStatusBar = true;
     appleStyle = "black-translucent";
+    canvasBackground = colors.splashBlue;
   } else if (isOnboarding) {
     themeColor = colors.primaryBlue;
     isLightStatusBar = true;
     appleStyle = "black-translucent";
+    canvasBackground = colors.primaryBlue;
   } else if (isAuthPage) {
     themeColor = colors.splashBlue;
     isLightStatusBar = true;
     appleStyle = "black-translucent";
+    canvasBackground = colors.splashBlue;
   } else if (isOperatorGroup) {
     themeColor = "#0061f5";
     isLightStatusBar = true;
     appleStyle = "black-translucent";
+    canvasBackground = colors.white;
   } else if (isEcoIdOrProfile) {
     themeColor = "#F6FAFF";
     isLightStatusBar = false;
     appleStyle = "default";
+    canvasBackground = colors.white;
   } else {
     themeColor = colors.white;
     isLightStatusBar = false;
     appleStyle = "default";
+    canvasBackground = colors.white;
   }
 
   useEffect(() => {
-    setSystemThemeColor(themeColor, appleStyle);
-  }, [themeColor, appleStyle]);
+    setSystemThemeColor(themeColor, appleStyle, canvasBackground);
+  }, [themeColor, appleStyle, canvasBackground]);
 
   return (
     <StatusBar
