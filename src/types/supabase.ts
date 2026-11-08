@@ -151,6 +151,7 @@ export interface TouristRow {
   avatar_path?: string | null;
   age?: number | null;
   sex?: "male" | "female" | "other" | "prefer_not_to_say" | string | null;
+  onboarding_completed?: boolean | null;
   // 031_tourist_status: operator-intent status (Active/Expired/Suspended).
   // Loose string — the caps differ from eco_dive_ids lowercase union, so a
   // shared enum would lie.

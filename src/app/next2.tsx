@@ -2,9 +2,21 @@ import { Stack, useRouter } from "expo-router";
 import React from "react";
 import EcoOnboarding from "../components/EcoOnboarding";
 import { safeBack } from "../lib/navigation";
+import { useAuth } from "../hooks/useAuth";
+import { markUserOnboardingCompleted } from "../lib/onboarding";
 
 export default function Next2Page() {
   const router = useRouter();
+  const { user, isOperator, viewAsTourist } = useAuth();
+
+  const handleSkip = async () => {
+    if (user) {
+      await markUserOnboardingCompleted(user.id);
+    }
+    router.replace(
+      isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"
+    );
+  };
 
   return (
     <>
@@ -21,7 +33,7 @@ export default function Next2Page() {
         illustrationAspect={960 / 1280}
         onNext={() => router.push("/next3")}
         onBack={() => safeBack(router, "/next")}
-        onSkip={() => router.replace("/(tabs)")}
+        onSkip={handleSkip}
       />
     </>
   );

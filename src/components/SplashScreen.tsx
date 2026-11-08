@@ -1,59 +1,78 @@
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, StyleSheet } from "react-native";
 import { colors } from "../constants/colors";
 
-const FADE_IN_MS = 700;
-const HOLD_MS = 1100;
-const FADE_OUT_MS = 400;
+const FADE_IN_MS = 600;
+const HOLD_MS = 800;
+const FADE_OUT_MS = 350;
 
 interface SplashScreenProps {
-  onFinish: () => void;
+  onFinish?: () => void;
+  isReady?: boolean;
 }
 
-export default function SplashScreen({ onFinish }: SplashScreenProps) {
+export default function SplashScreen({
+  onFinish,
+  isReady = true,
+}: SplashScreenProps) {
   const [overlayOpacity] = useState(() => new Animated.Value(1));
   const [logoOpacity] = useState(() => new Animated.Value(0));
   const [logoScale] = useState(() => new Animated.Value(0.88));
   const onFinishRef = useRef(onFinish);
+  const minTimeElapsedRef = useRef(false);
+  const fadeOutStartedRef = useRef(false);
 
   useEffect(() => {
     onFinishRef.current = onFinish;
   }, [onFinish]);
 
+  const startFadeOut = useCallback(() => {
+    if (fadeOutStartedRef.current) return;
+    fadeOutStartedRef.current = true;
+    const useNativeDriver = Platform.OS !== "web";
+    Animated.timing(overlayOpacity, {
+      toValue: 0,
+      duration: FADE_OUT_MS,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver,
+    }).start(({ finished }) => {
+      if (finished) onFinishRef.current?.();
+    });
+  }, [overlayOpacity]);
+
   useEffect(() => {
     const useNativeDriver = Platform.OS !== "web";
-    const animation = Animated.sequence([
-      Animated.parallel([
-        Animated.timing(logoOpacity, {
-          toValue: 1,
-          duration: FADE_IN_MS,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver,
-        }),
-        Animated.timing(logoScale, {
-          toValue: 1,
-          duration: FADE_IN_MS,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver,
-        }),
-      ]),
-      Animated.delay(HOLD_MS),
-      Animated.timing(overlayOpacity, {
-        toValue: 0,
-        duration: FADE_OUT_MS,
-        easing: Easing.in(Easing.cubic),
+    Animated.parallel([
+      Animated.timing(logoOpacity, {
+        toValue: 1,
+        duration: FADE_IN_MS,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver,
       }),
-    ]);
-
-    animation.start(({ finished }) => {
-      if (finished) onFinishRef.current();
+      Animated.timing(logoScale, {
+        toValue: 1,
+        duration: FADE_IN_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver,
+      }),
+    ]).start(() => {
+      const timer = setTimeout(() => {
+        minTimeElapsedRef.current = true;
+        if (isReady) {
+          startFadeOut();
+        }
+      }, HOLD_MS);
+      return () => clearTimeout(timer);
     });
+  }, [logoOpacity, logoScale, startFadeOut, isReady]);
 
-    return () => animation.stop();
-  }, [logoOpacity, logoScale, overlayOpacity]);
+  useEffect(() => {
+    if (isReady && minTimeElapsedRef.current) {
+      startFadeOut();
+    }
+  }, [isReady, startFadeOut]);
 
   return (
     <>

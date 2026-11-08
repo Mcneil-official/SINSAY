@@ -3,7 +3,8 @@
 -- 1. "fun-intro-guest" (or fun/intro/guest legacy): 100% complete based on 4 personal/contact fields.
 -- 2. "instructor-master" (or dive-master/certified legacy): 100% complete based on 5 fields (including accreditation/permit).
 
-create or replace view public.dive_profile_completion as
+create or replace view public.dive_profile_completion
+with (security_invoker = true) as
 select
   id as tourist_id,
   case
@@ -26,3 +27,5 @@ select
       ) * 100 / 4
   end as completion_pct
 from public.tourists;
+
+alter view if exists public.dive_profile_completion set (security_invoker = true);

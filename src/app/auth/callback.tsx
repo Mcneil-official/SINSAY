@@ -34,7 +34,11 @@ export default function AuthCallbackScreen() {
     if (isLoading || !roleReady || !user) return;
     const roleSettled = profile !== null || operatorApplication !== null;
     if (roleSettled) {
-      router.replace(isOperator ? "/(operator-tabs)" : "/(tabs)");
+      if (profile && profile.onboarding_completed === false) {
+        router.replace("/next");
+      } else {
+        router.replace(isOperator ? "/(operator-tabs)" : "/(tabs)");
+      }
       return;
     }
     const t = setTimeout(() => {

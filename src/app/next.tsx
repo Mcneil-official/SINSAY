@@ -1,9 +1,32 @@
 import { Stack, useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import EcoOnboarding from "../components/EcoOnboarding";
+import { useAuth } from "../hooks/useAuth";
+import { markUserOnboardingCompleted } from "../lib/onboarding";
 
 export default function NextPage() {
   const router = useRouter();
+  const { user, profile, isOperator, viewAsTourist, isLoading, roleReady } =
+    useAuth();
+
+  // If user is already authenticated and has already completed onboarding, bounce directly to Home
+  useEffect(() => {
+    if (isLoading || !roleReady || !user) return;
+    if (profile?.onboarding_completed === true) {
+      router.replace(
+        isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"
+      );
+    }
+  }, [isLoading, roleReady, user, profile, isOperator, viewAsTourist, router]);
+
+  const handleSkip = async () => {
+    if (user) {
+      await markUserOnboardingCompleted(user.id);
+    }
+    router.replace(
+      isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"
+    );
+  };
 
   return (
     <>
@@ -19,7 +42,7 @@ export default function NextPage() {
         wave="marine-life"
         illustrationAspect={853 / 1280}
         onNext={() => router.push("/next2")}
-        onSkip={() => router.replace("/(tabs)")}
+        onSkip={handleSkip}
       />
     </>
   );

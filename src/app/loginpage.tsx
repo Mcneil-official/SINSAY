@@ -213,7 +213,8 @@ export default function LoginPage() {
       data: { session },
     } = await supabase.auth.getSession();
     if (session) {
-      router.replace("/(tabs)");
+      // New accounts must complete onboarding (/next) before reaching home
+      router.replace("/next");
       return;
     }
     setSuccess(true);

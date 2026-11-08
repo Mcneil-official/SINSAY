@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
+import SplashScreen from "../../components/SplashScreen";
 import { FloatingAssistant } from "../../components/assistant/FloatingAssistant";
 import WiderScreenNavbar from "../../components/WiderScreenNavbar";
 import { colors } from "../../constants/colors";
@@ -58,9 +59,7 @@ export default function TabLayout() {
     return (
       <>
         <TouristGate />
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator size="large" color={colors.primaryBlue} />
-        </View>
+        <SplashScreen isReady={ready} />
       </>
     );
   }

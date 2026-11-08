@@ -12,29 +12,12 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import Svg, {
-  Circle,
-  Defs,
-  G,
-  Line,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
-  Text as SvgText,
-} from "react-native-svg";
 import { DidYouKnowCard, ErrorState, resolveSiteImage } from "../../components";
-import { BOTTOM_NAV_HEIGHT } from "../../components/BottomNav";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 import { DiveSiteRow } from "../../types/supabase";
-
-interface PinPosition {
-  x: number;
-  y: number;
-}
 
 interface MarineSpecies {
   name: string;
@@ -43,7 +26,8 @@ interface MarineSpecies {
 }
 
 interface SiteEnrichment {
-  coords: PinPosition;
+  lat: number;
+  lng: number;
   barangay: string;
   depthRange: string;
   featureTag: string;
@@ -54,30 +38,463 @@ interface SiteEnrichment {
   ecoRules: string[];
 }
 
-const DEFAULT_CATHEDRAL_ROCK: DiveSiteRow = {
-  id: "landmark-cathedral-rock",
-  site_code: "DS-001",
-  name: "Cathedral Rock",
-  barangay: "Bagalangit",
-  depth_range: "12–28m",
-  difficulty: "Beginner",
-  site_type: "Reef",
-  status: "Active",
-  rating: "4.9",
-  description:
-    "Iconic marine sanctuary featuring two submerged volcanic rock pinnacles framing a cross-adorned cavern at 15 meters, surrounded by vibrant soft corals and dense schools of reef fish.",
-  image_url: null,
-  photo_url: null,
-  lat: 13.7225,
-  lng: 120.8758,
-  created_at: "2026-01-01T00:00:00.000Z",
-};
+export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
+  {
+    id: "landmark-cathedral-rock",
+    site_code: "DS-001",
+    name: "Cathedral Rock",
+    barangay: "Bagalangit",
+    depth_range: "12–28m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.9",
+    description:
+      "Iconic marine sanctuary featuring two submerged volcanic rock pinnacles framing a cross-adorned cavern at 15 meters, surrounded by vibrant soft corals and dense schools of reef fish.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7225,
+    lng: 120.8758,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-arthurs-rock",
+    site_code: "DS-002",
+    name: "Arthur's Rock",
+    barangay: "Bagalangit",
+    depth_range: "8–26m",
+    difficulty: "Advanced",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "A protected coral slope descending from a shallow boulder reef into rich crinoid and soft-coral gardens, prized by underwater photographers for rare critters and vibrant reef life.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7142,
+    lng: 120.8878,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-twin-rocks",
+    site_code: "DS-003",
+    name: "Twin Rocks Sanctuary",
+    barangay: "Solo",
+    depth_range: "5–22m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.9",
+    description:
+      "A premier marine sanctuary off Barangay Solo where twin submerged barges and thriving hard-coral slopes host giant trevallies, resident turtles, and clouds of damselfish.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7025,
+    lng: 120.8992,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-anilao-cove",
+    site_code: "DS-004",
+    name: "Anilao Cove",
+    barangay: "Anilao Proper",
+    depth_range: "5–18m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.7",
+    description:
+      "Sheltered cove with gentle slopes and calm surface conditions, perfect for check-out dives and night macro critter hunts.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7550,
+    lng: 120.8960,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-sombrero-island",
+    site_code: "DS-005",
+    name: "Sombrero Island",
+    barangay: "Maricaban Strait",
+    depth_range: "10–35m",
+    difficulty: "Intermediate",
+    site_type: "Wall",
+    status: "Active",
+    rating: "4.9",
+    description:
+      "Hat-shaped offshore island encircled by steep drop-offs, vibrant sea fan gardens, schooling jacks, and occasional reef sharks in brisk currents.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.6960,
+    lng: 120.8285,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-beatrice-rock",
+    site_code: "DS-006",
+    name: "Beatrice Rock",
+    barangay: "Sombrero Channel",
+    depth_range: "14–32m",
+    difficulty: "Advanced",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "Dynamic current-swept pinnacle swarming with thousands of orange and purple anthias, fusiliers, and hunting bluefin trevallies.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.6890,
+    lng: 120.8190,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-sepoc-wall",
+    site_code: "DS-007",
+    name: "Sepoc Wall",
+    barangay: "Maricaban NW",
+    depth_range: "6–28m",
+    difficulty: "Beginner",
+    site_type: "Wall",
+    status: "Active",
+    rating: "4.7",
+    description:
+      "Gentle vertical wall with coral crevices, barrel sponges, and friendly sea turtles basking along sunny reef flats.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.6950,
+    lng: 120.8140,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-layag-layag",
+    site_code: "DS-008",
+    name: "Layag-Layag",
+    barangay: "Caban Island",
+    depth_range: "8–24m",
+    difficulty: "Intermediate",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "Vibrant ridge formation with thriving staghorn thickets, colorful nudibranchs, and schools of yellowtail snappers.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7120,
+    lng: 120.8400,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-kiribatcho",
+    site_code: "DS-009",
+    name: "Kiribatcho",
+    barangay: "Caban Island",
+    depth_range: "12–28m",
+    difficulty: "Intermediate",
+    site_type: "Wall",
+    status: "Active",
+    rating: "4.7",
+    description:
+      "Dramatic wall drop-off favored by macro photographers for pygmy seahorses, ornate ghost pipefish, and rare nudibranchs.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7160,
+    lng: 120.8480,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-eagle-point",
+    site_code: "DS-010",
+    name: "Eagle Point",
+    barangay: "Bagalangit",
+    depth_range: "5–25m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "House reef with easy boat access, healthy hard-coral bommies, clownfish colonies, and moray eels in shallow crevices.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7175,
+    lng: 120.8710,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-batong-buhay",
+    site_code: "DS-011",
+    name: "Batong Buhay",
+    barangay: "Bagalangit",
+    depth_range: "10–30m",
+    difficulty: "Advanced",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "Deep sloping coral reef known for encounters with big pelagics, hunting Spanish mackerels, and lush black coral bushes.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7200,
+    lng: 120.8740,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-anilao-pier",
+    site_code: "DS-012",
+    name: "Anilao Pier",
+    barangay: "Anilao Proper",
+    depth_range: "3–14m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "Legendary night and twilight critter diving directly beneath the public pier pilings; famed for bobtail squids, stargazers, and frogfish.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7580,
+    lng: 120.8950,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-mainit-muck",
+    site_code: "DS-013",
+    name: "Mainit Muck",
+    barangay: "San Jose",
+    depth_range: "5–20m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.9",
+    description:
+      "Warm hydrothermal springs bubbling up through dark volcanic sand, creating unique habitats for mimic octopuses, wonderpus, and dragonets.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.6900,
+    lng: 120.8950,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-mapating-rock",
+    site_code: "DS-014",
+    name: "Mapating Rock",
+    barangay: "Maricaban Strait",
+    depth_range: "15–40m",
+    difficulty: "Advanced",
+    site_type: "Pinnacle",
+    status: "Active",
+    rating: "4.9",
+    description:
+      "Current-swept open-water pinnacle ('Shark Rock') attracting whitetip and grey reef sharks, giant trevallies, and schooling tuna.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.6820,
+    lng: 120.8250,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-red-rock",
+    site_code: "DS-015",
+    name: "Red Rock",
+    barangay: "Bagalangit",
+    depth_range: "8–25m",
+    difficulty: "Intermediate",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.7",
+    description:
+      "Named after reddish volcanic shoreline cliffs, offering terraced coral gardens with sea anemones, porcelain crabs, and pipefish.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7080,
+    lng: 120.8860,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-mermaid-rock",
+    site_code: "DS-016",
+    name: "Mermaid Rock",
+    barangay: "Bagalangit",
+    depth_range: "6–22m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.7",
+    description:
+      "Picturesque reef slope adorned with leather soft corals, blue damselfish, juvenile batfish, and resident hawksbill turtles.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7190,
+    lng: 120.8760,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-koala",
+    site_code: "DS-017",
+    name: "Koala",
+    barangay: "San Teodoro",
+    depth_range: "9–26m",
+    difficulty: "Intermediate",
+    site_type: "Wall",
+    status: "Active",
+    rating: "4.6",
+    description:
+      "A scenic drift dive along lush sloping drop-offs with crinoid-covered boulders, triggerfish, and hunting sweetlips.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7050,
+    lng: 120.8920,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-bethlehem",
+    site_code: "DS-018",
+    name: "Bethlehem",
+    barangay: "Solo",
+    depth_range: "6–20m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "Protected reef garden known for nudibranch biodiversity, painted frogfish, and dense schooling fusiliers.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7010,
+    lng: 120.9010,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-secret-bay",
+    site_code: "DS-019",
+    name: "Secret Bay (Basura)",
+    barangay: "Mainaga",
+    depth_range: "5–18m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.9",
+    description:
+      "World-renowned black-sand muck diving amphitheater famous for mimic octopuses, wonderpus, flamboyant cuttlefish, and frogfish.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7345,
+    lng: 120.8710,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-dead-palm",
+    site_code: "DS-020",
+    name: "Dead Palm",
+    barangay: "Bagalangit",
+    depth_range: "7–22m",
+    difficulty: "Intermediate",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.6",
+    description:
+      "Rich macro slope named after an old shoreline landmark, home to pygmy seahorses, banded sea kraits, and mantis shrimps.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7240,
+    lng: 120.8750,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-divers-sanctuary",
+    site_code: "DS-021",
+    name: "Diver's Sanctuary",
+    barangay: "Bagalangit",
+    depth_range: "6–20m",
+    difficulty: "Beginner",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "Protected reef sanctuary with vibrant brain corals, giant clams, and friendly schools of batfish.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7160,
+    lng: 120.8800,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-dari-laut",
+    site_code: "DS-022",
+    name: "Dari Laut",
+    barangay: "San Teodoro",
+    depth_range: "12–25m",
+    difficulty: "Intermediate",
+    site_type: "Wreck",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "Sunken floating casino timber wreck now encrusted with hard and soft corals, serving as an artificial reef haven for sweetlips and moray eels.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7080,
+    lng: 120.8860,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-ligpo-island",
+    site_code: "DS-023",
+    name: "Ligpo Island",
+    barangay: "Ligpo",
+    depth_range: "10–30m",
+    difficulty: "Intermediate",
+    site_type: "Wall",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "Dramatic offshore rocky islet with steep coral drop-offs, gorgonian sea fans, and frequent sightings of schooling barracudas.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.7885,
+    lng: 120.8988,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-mainit-point",
+    site_code: "DS-024",
+    name: "Mainit Point",
+    barangay: "San Jose",
+    depth_range: "8–28m",
+    difficulty: "Advanced",
+    site_type: "Reef",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "High-energy tip of the peninsula featuring roaring currents, schooling jacks, dogtooth tuna, and pristine gorgonian seafans.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.6850,
+    lng: 120.8900,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "landmark-devils-point",
+    site_code: "DS-025",
+    name: "Devil's Point",
+    barangay: "Maricaban Strait",
+    depth_range: "12–35m",
+    difficulty: "Advanced",
+    site_type: "Wall",
+    status: "Active",
+    rating: "4.8",
+    description:
+      "Exhilarating deep drift along underwater ravines, hosting black coral forests, stingrays, and cruising trevallies.",
+    image_url: null,
+    photo_url: null,
+    lat: 13.6780,
+    lng: 120.8450,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+];
 
-// Pin coordinates calibrated in the upper/middle map region (y: 132–322)
-// so the bottom Map Legend never overlaps any pins.
-const SITE_ENRICHMENTS: Record<string, SiteEnrichment> = {
+const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
   "Cathedral Rock": {
-    coords: { x: 184, y: 182 },
+    lat: 13.7225,
+    lng: 120.8758,
     barangay: "Bagalangit, Mabini",
     depthRange: "12–28m",
     featureTag: "Cavern & Coral Sanctuary",
@@ -89,17 +506,17 @@ const SITE_ENRICHMENTS: Record<string, SiteEnrichment> = {
       { name: "Hawksbill Sea Turtle", tag: "Resident", icon: "shield-outline" },
       { name: "Giant Frogfish", tag: "Macro", icon: "eye-outline" },
       { name: "Yellowtail Barracuda", tag: "Schooling", icon: "fish-outline" },
-      { name: "Nudibranchs (Chromodoris)", tag: "Macro", icon: "color-palette-outline" },
-      { name: "Blue-Spotted Stingray", tag: "Reef Floor", icon: "compass-outline" },
+      { name: "Nudibranchs", tag: "Macro", icon: "color-palette-outline" },
     ],
     ecoRules: [
-      "Strict No-Touch Sanctuary: Keep fins at least 1.5m above the coral garden and cavern floor.",
-      "Do not feed fish or touch resident Hawksbill turtles—maintain a respectful 3m viewing distance.",
-      "No reef hooks, pointer sticks on live coral, or flash strobes within 0.5m of frogfish.",
+      "Strict No-Touch Sanctuary: Keep fins at least 1.5m above the coral garden.",
+      "Do not feed fish or touch resident Hawksbill turtles—maintain a 3m viewing distance.",
+      "No reef hooks or flash strobes within 0.5m of frogfish.",
     ],
   },
   "Arthur's Rock": {
-    coords: { x: 202, y: 212 },
+    lat: 13.7142,
+    lng: 120.8878,
     barangay: "Bagalangit, Mabini",
     depthRange: "8–26m",
     featureTag: "Macro Pinnacle & Sanctuary",
@@ -111,15 +528,15 @@ const SITE_ENRICHMENTS: Record<string, SiteEnrichment> = {
       { name: "Pygmy Seahorse", tag: "Gorgonian Fan", icon: "sparkles-outline" },
       { name: "Harlequin Shrimp", tag: "Rare Critter", icon: "star-outline" },
       { name: "Banded Sea Krait", tag: "Reef Slope", icon: "water-outline" },
-      { name: "Ornate Ghost Pipefish", tag: "Camouflaged", icon: "leaf-outline" },
     ],
     ecoRules: [
-      "Marine Protected Area: Limit strobe flashes to 3 shots per pygmy seahorse to prevent stress blindness.",
+      "Limit strobe flashes to 3 shots per pygmy seahorse to prevent stress blindness.",
       "Never manipulate crinoids or sea fans to position macro subjects.",
     ],
   },
-  "Twin Rocks": {
-    coords: { x: 222, y: 238 },
+  "Twin Rocks Sanctuary": {
+    lat: 13.7025,
+    lng: 120.8992,
     barangay: "Solo, Mabini",
     depthRange: "5–22m",
     featureTag: "Core Marine Sanctuary",
@@ -131,200 +548,51 @@ const SITE_ENRICHMENTS: Record<string, SiteEnrichment> = {
       { name: "Green Sea Turtle", tag: "Resident", icon: "shield-outline" },
       { name: "Giant Trevally", tag: "Pelagic", icon: "flash-outline" },
       { name: "Ribbon Eel", tag: "Sandy Slope", icon: "water-outline" },
-      { name: "Clown Anemonefish", tag: "Reef Shallow", icon: "fish-outline" },
     ],
     ecoRules: [
       "Core No-Take Zone: Anchoring, fishing, and shell collection are strictly prohibited.",
       "Practice frog-kicking over sandy patches to avoid silting delicate table corals.",
     ],
   },
-  "Anilao Cove": {
-    coords: { x: 202, y: 140 },
-    barangay: "Anilao Proper, Mabini",
-    depthRange: "5–18m",
-    featureTag: "Calm Lagoon & Macro Muck",
-    difficulty: "Beginner",
-    isMpa: true,
-    description:
-      "Sheltered cove in Mabini renowned for gentle currents, juvenile reef fish nurseries, and world-class twilight/night macro diving along black-sand patches.",
-    marineLife: [
-      { name: "Wonderpus Octopus", tag: "Night / Muck", icon: "moon-outline" },
-      { name: "Flamboyant Cuttlefish", tag: "Bottom Dweller", icon: "color-palette-outline" },
-      { name: "Mandarin Fish", tag: "Dusk Rubble", icon: "sparkles-outline" },
-      { name: "Juvenile Batfish", tag: "Shallow Reef", icon: "fish-outline" },
-    ],
-    ecoRules: [
-      "Use red focus lights during dusk mandarin fish dives—avoid continuous bright white beams.",
-      "Maintain trim buoyancy above black-sand muck habitats to protect burrowing cephalopods.",
-    ],
-  },
   "Sombrero Island": {
-    coords: { x: 86, y: 246 },
+    lat: 13.6960,
+    lng: 120.8285,
     barangay: "Maricaban Strait",
-    depthRange: "8–25m",
-    featureTag: "Island Reef & Drop-Off",
+    depthRange: "10–35m",
+    featureTag: "Offshore Island Sanctuary",
     difficulty: "Intermediate",
     isMpa: true,
     description:
-      "A hat-shaped offshore island at the western entrance to Maricaban Strait offering sweeping coral terraces, swim-throughs, and nutrient-rich currents.",
+      "Hat-shaped offshore island encircled by steep drop-offs, vibrant sea fan gardens, schooling jacks, and occasional reef sharks in brisk currents.",
     marineLife: [
-      { name: "Whitetip Reef Shark", tag: "Deep Ledge", icon: "flash-outline" },
-      { name: "Emperor Angelfish", tag: "Coral Terrace", icon: "fish-outline" },
-      { name: "Moray Eel", tag: "Crevices", icon: "eye-outline" },
-      { name: "Sea Fans & Barrel Sponges", tag: "Wall", icon: "leaf-outline" },
+      { name: "Whitetip Reef Shark", tag: "Pelagic", icon: "shield-outline" },
+      { name: "Schooling Jacks", tag: "Pelagic", icon: "fish-outline" },
+      { name: "Gorgonian Sea Fans", tag: "Deep Wall", icon: "leaf-outline" },
     ],
     ecoRules: [
-      "Check current strength with your dive guide before descending and carry a Surface Marker Buoy (SMB).",
-      "Stay clear of shallow surge zones to avoid damaging fire and staghorn corals.",
-    ],
-  },
-  "Sepoc Beach": {
-    coords: { x: 118, y: 294 },
-    barangay: "Maricaban Island, Tingloy",
-    depthRange: "6–20m",
-    featureTag: "Vertical Wall & Coral Garden",
-    difficulty: "Beginner",
-    isMpa: true,
-    description:
-      "Crystal-clear turquoise waters off the western tip of Maricaban Island featuring a shallow coral garden that drops into a colorful miniature wall teeming with sponges.",
-    marineLife: [
-      { name: "Hawksbill Turtle", tag: "Wall Ledge", icon: "shield-outline" },
-      { name: "Blue-Ringed Octopus", tag: "Rubble Reef", icon: "warning-outline" },
-      { name: "Anthias & Fusiliers", tag: "Reef Crest", icon: "fish-outline" },
-      { name: "Leaf Scorpionfish", tag: "Camouflaged", icon: "leaf-outline" },
-    ],
-    ecoRules: [
-      "Marine Protected Area: Do not step on shallow reef flats when boarding or exiting dive boats.",
-      "Blue-ringed octopuses are venomous—observe from a safe distance and never provoke.",
-    ],
-  },
-  Mainit: {
-    coords: { x: 278, y: 268 },
-    barangay: "Mainit, Mabini",
-    depthRange: "15–35m",
-    featureTag: "Strong Current & Pelagic Point",
-    difficulty: "Advanced",
-    isMpa: true,
-    description:
-      "Thrilling southern point of the Calumpan Peninsula where upwelling currents from Maricaban Strait attract patrolling sharks, dogtooth tuna, and swirling jacks.",
-    marineLife: [
-      { name: "Bigeye Trevally School", tag: "Pelagic", icon: "flash-outline" },
-      { name: "Whitetip & Grey Reef Sharks", tag: "Deep Point", icon: "compass-outline" },
-      { name: "Geothermal Bubble Vents", tag: "Volcanic Sand", icon: "flame-outline" },
-      { name: "Napoleon Wrasse", tag: "Outer Slope", icon: "fish-outline" },
-    ],
-    ecoRules: [
-      "Advanced Drift Site: Stay together with your buddy team and deploy your SMB before ascending.",
-      "Do not hold onto live coral heads in current—tuck into natural rock eddies only if needed.",
-    ],
-  },
-  Tingloy: {
-    coords: { x: 186, y: 318 },
-    barangay: "Tingloy Island",
-    depthRange: "10–28m",
-    featureTag: "Island Sanctuary & Soft Corals",
-    difficulty: "Intermediate",
-    isMpa: true,
-    description:
-      "Vibrant island reef along the Maricaban Strait celebrated for kaleidoscopic soft coral trees, crystal visibility, and abundant pelagic and macro marine life.",
-    marineLife: [
-      { name: "Soft Coral Dendronephthya", tag: "Reef Slope", icon: "flower-outline" },
-      { name: "Frogfish & Ghost Pipefish", tag: "Macro", icon: "eye-outline" },
-      { name: "Schooling Bannerfish", tag: "Mid-Water", icon: "fish-outline" },
-      { name: "Sea Turtles", tag: "Sanctuary", icon: "shield-outline" },
-    ],
-    ecoRules: [
-      "Keep hoses and gauges clipped tightly to your BCD so they never drag across soft coral trees.",
-      "Ensure your Eco-Dive ID pass is verified before entering Tingloy sanctuary waters.",
+      "Carry a surface marker buoy (SMB) on every dive due to open-water current shears.",
+      "Stay close to your accredited dive guide when rounding the northern current ridge.",
     ],
   },
 };
 
-const FALLBACK_POSITIONS: PinPosition[] = [
-  { x: 184, y: 182 },
-  { x: 202, y: 212 },
-  { x: 222, y: 238 },
-  { x: 202, y: 140 },
-  { x: 86, y: 246 },
-  { x: 118, y: 294 },
-  { x: 278, y: 268 },
-  { x: 186, y: 318 },
-  { x: 152, y: 262 },
-  { x: 244, y: 286 },
-];
-
-const DIFFICULTY_FILTERS = [
-  { key: "All", label: "All Sites" },
-  { key: "Beginner", label: "Beginner" },
-  { key: "Intermediate", label: "Intermediate" },
-  { key: "Advanced", label: "Advanced" },
-];
-
 function getDifficultyColor(diff?: string | null): string {
-  switch (diff) {
-    case "Beginner":
-    case "Open Water":
-      return "#10B981";
-    case "Intermediate":
-    case "Rescue":
-      return "#F59E0B";
-    case "Advanced":
-    case "Divemaster":
-    case "Instructor":
-      return "#EF4444";
-    default:
-      return colors.primaryBlue;
-  }
+  if (!diff) return "#10B981";
+  const d = diff.toLowerCase();
+  if (d.includes("beginner") || d.includes("open water")) return "#10B981";
+  if (d.includes("intermediate") || d.includes("rescue")) return "#F59E0B";
+  if (d.includes("advanced") || d.includes("divemaster") || d.includes("instructor")) return "#EF4444";
+  return "#2563EB";
 }
 
-function matchesDifficultyFilter(
-  siteDiff: string | null | undefined,
-  filter: string,
-): boolean {
-  if (filter === "All") return true;
-  if (filter === "Beginner") {
-    return !siteDiff || siteDiff === "Beginner" || siteDiff === "Open Water";
-  }
-  if (filter === "Intermediate") {
-    return siteDiff === "Intermediate" || siteDiff === "Rescue";
-  }
-  if (filter === "Advanced") {
-    return (
-      siteDiff === "Advanced" ||
-      siteDiff === "Divemaster" ||
-      siteDiff === "Instructor"
-    );
-  }
-  return true;
-}
-
-function getEnrichment(site: DiveSiteRow, index: number): SiteEnrichment {
+function getEnrichment(site: DiveSiteRow): SiteEnrichment {
   const known = SITE_ENRICHMENTS[site.name];
-  let coords = known?.coords;
-
-  if (
-    !coords &&
-    typeof site.lat === "number" &&
-    typeof site.lng === "number" &&
-    site.lat >= 13.62 &&
-    site.lat <= 13.82 &&
-    site.lng >= 120.82 &&
-    site.lng <= 121.02
-  ) {
-    const normX = (site.lng - 120.82) / 0.18;
-    const normY = (13.8 - site.lat) / 0.16;
-    coords = {
-      x: Math.round(Math.min(Math.max(normX * 280 + 60, 68), 332)),
-      y: Math.round(Math.min(Math.max(normY * 200 + 125, 130), 322)),
-    };
-  }
-
-  if (!coords) {
-    coords = FALLBACK_POSITIONS[index % FALLBACK_POSITIONS.length];
-  }
+  const lat = site.lat ?? known?.lat ?? 13.722;
+  const lng = site.lng ?? known?.lng ?? 120.875;
 
   return {
-    coords,
+    lat,
+    lng,
     barangay: site.barangay
       ? `${site.barangay}, Mabini, Batangas`
       : known?.barangay || "Mabini, Batangas",
@@ -352,6 +620,294 @@ function getEnrichment(site: DiveSiteRow, index: number): SiteEnrichment {
   };
 }
 
+// Generates high-performance Leaflet container with OpenStreetMap tiles
+// 100% Free, ZERO API keys, ZERO watermarks, smooth 60fps pan & pinch-to-zoom!
+function generateLeafletMapHtml(
+  sitesJson: string,
+  initialSelectedId: string | null
+): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body, #map {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #E8ECE9;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .leaflet-bar { border: none !important; box-shadow: none !important; }
+    .custom-pin {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+    }
+    .pin-halo {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      transition: transform 0.2s ease;
+    }
+    .pin-core {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pin-dot {
+      width: 3.5px;
+      height: 3.5px;
+      border-radius: 50%;
+      background: #ffffff;
+    }
+    .pin-pulse {
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 2px dashed #2563EB;
+      background: rgba(37,99,235,0.18);
+      animation: pulse 1.8s infinite ease-out;
+      pointer-events: none;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.8); opacity: 1; }
+      100% { transform: scale(1.35); opacity: 0; }
+    }
+    .user-beacon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #2563EB;
+      border: 3px solid #ffffff;
+      box-shadow: 0 0 12px rgba(37,99,235,0.85);
+    }
+    .leaflet-control-attribution {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const sites = ${sitesJson};
+    let selectedId = ${initialSelectedId ? `'${initialSelectedId}'` : 'null'};
+
+    const map = L.map('map', {
+      center: [13.722, 120.875],
+      zoom: 13,
+      minZoom: 11,
+      maxZoom: 18,
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    // OpenStreetMap Standard Tiles (100% Free, Zero API Keys, Zero Watermarks)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 1. Official RA 8550 Maricaban Strait Median Line
+    const medianCoords = [
+      [13.676, 120.790],
+      [13.673, 120.830],
+      [13.670, 120.865],
+      [13.668, 120.900],
+      [13.672, 120.935],
+      [13.680, 120.965]
+    ];
+    L.polyline(medianCoords, {
+      color: '#0284C7',
+      weight: 2.5,
+      dashArray: '6, 6',
+      opacity: 0.85
+    }).addTo(map);
+
+    // 2. Marine Protected Area (MPA) Polygons
+    // Cathedral Rock Sanctuary
+    L.polygon([
+      [13.725, 120.871],
+      [13.725, 120.879],
+      [13.719, 120.879],
+      [13.719, 120.871]
+    ], {
+      color: '#059669',
+      weight: 1.5,
+      dashArray: '4, 4',
+      fillColor: '#10B981',
+      fillOpacity: 0.18
+    }).addTo(map);
+
+    // Twin Rocks Core Sanctuary
+    L.polygon([
+      [13.706, 120.893],
+      [13.706, 120.903],
+      [13.698, 120.903],
+      [13.698, 120.893]
+    ], {
+      color: '#059669',
+      weight: 1.5,
+      dashArray: '4, 4',
+      fillColor: '#10B981',
+      fillOpacity: 0.18
+    }).addTo(map);
+
+    // Sombrero Island Marine Reserve
+    L.polygon([
+      [13.701, 120.822],
+      [13.701, 120.835],
+      [13.691, 120.835],
+      [13.691, 120.822]
+    ], {
+      color: '#059669',
+      weight: 1.5,
+      dashArray: '4, 4',
+      fillColor: '#10B981',
+      fillOpacity: 0.18
+    }).addTo(map);
+
+    function getPinColor(diff) {
+      if (diff === 'Beginner' || diff === 'Open Water') return '#10B981';
+      if (diff === 'Intermediate' || diff === 'Rescue') return '#F59E0B';
+      if (diff === 'Advanced' || diff === 'Divemaster' || diff === 'Instructor') return '#EF4444';
+      return '#2563EB';
+    }
+
+    function createDivIcon(site, isSelected) {
+      const color = getPinColor(site.difficulty);
+      const pulseHtml = isSelected ? '<div class="pin-pulse"></div>' : '';
+      const haloScale = isSelected ? 'transform: scale(1.25);' : '';
+      const coreStyle = isSelected ? 'width:16px;height:16px;border-width:2.5px;' : '';
+
+      const html = '<div class="custom-pin">'
+        + pulseHtml
+        + '<div class="pin-halo" style="background-color:' + color + (isSelected ? '44' : '26') + ';' + haloScale + '"></div>'
+        + '<div class="pin-core" style="background-color:' + color + ';' + coreStyle + '">'
+        + '<div class="pin-dot"></div>'
+        + '</div>'
+        + '</div>';
+
+      return L.divIcon({
+        className: '',
+        html: html,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+    }
+
+    const markers = {};
+
+    // 3. Dive Site Markers
+    sites.forEach(site => {
+      if (typeof site.lat !== 'number' || typeof site.lng !== 'number') return;
+      const isSelected = site.id === selectedId;
+      const icon = createDivIcon(site, isSelected);
+
+      const marker = L.marker([site.lat, site.lng], {
+        icon: icon,
+        zIndexOffset: isSelected ? 1000 : 10
+      }).addTo(map);
+
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        selectedId = site.id;
+        updateMarkers();
+        map.flyTo([site.lat, site.lng], 14.5, { duration: 0.8 });
+        window.parent.postMessage({ type: 'SELECT_SITE', siteId: site.id }, '*');
+      });
+
+      markers[site.id] = { marker, site };
+    });
+
+    function updateMarkers() {
+      Object.keys(markers).forEach(id => {
+        const { marker, site } = markers[id];
+        const isSelected = site.id === selectedId;
+        marker.setIcon(createDivIcon(site, isSelected));
+        marker.setZIndexOffset(isSelected ? 1000 : 10);
+      });
+    }
+
+    map.on('click', () => {
+      selectedId = null;
+      updateMarkers();
+      window.parent.postMessage({ type: 'DESELECT_SITE' }, '*');
+    });
+
+    let userMarker = null;
+
+    // React Native Bridge
+    window.addEventListener('message', (e) => {
+      const data = e.data;
+      if (!data || !map) return;
+
+      if (data.type === 'FOCUS_SITE') {
+        selectedId = data.siteId;
+        updateMarkers();
+        if (data.siteId && markers[data.siteId]) {
+          const { site } = markers[data.siteId];
+          map.flyTo([site.lat, site.lng], 14.5, { duration: 0.8 });
+        }
+      } else if (data.type === 'ZOOM_IN') {
+        map.zoomIn();
+      } else if (data.type === 'ZOOM_OUT') {
+        map.zoomOut();
+      } else if (data.type === 'RESET_VIEW') {
+        selectedId = null;
+        updateMarkers();
+        map.flyTo([13.722, 120.875], 13, { duration: 0.8 });
+      } else if (data.type === 'LOCATE_ME') {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const lat = pos.coords.latitude;
+              const lng = pos.coords.longitude;
+              if (userMarker) {
+                userMarker.setLatLng([lat, lng]);
+              } else {
+                const userIcon = L.divIcon({
+                  className: '',
+                  html: '<div class="user-beacon"></div>',
+                  iconSize: [20, 20],
+                  iconAnchor: [10, 10]
+                });
+                userMarker = L.marker([lat, lng], { icon: userIcon, zIndexOffset: 2000 }).addTo(map);
+              }
+              map.flyTo([lat, lng], 14.5, { duration: 0.8 });
+            },
+            () => {
+              alert('Location access is disabled or unavailable.');
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        }
+      }
+    });
+  </script>
+</body>
+</html>`;
+}
+
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const mapBottomOffset = 16;
@@ -366,22 +922,11 @@ export default function MapScreen() {
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const [selectedDifficulty, setSelectedDifficulty] = useState("All");
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
-  const [zoomScale, setZoomScale] = useState<number>(1);
-  const [panOffset, setPanOffset] = useState<PinPosition>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [heroImgError, setHeroImgError] = useState(false);
 
-  const dragRef = useRef({
-    active: false,
-    moved: false,
-    startX: 0,
-    startY: 0,
-    originPanX: 0,
-    originPanY: 0,
-  });
+  const iframeRef = useRef<any>(null);
 
   const handleRetry = useCallback(() => {
     setLoading(true);
@@ -395,36 +940,38 @@ export default function MapScreen() {
       .from("dive_sites")
       .select("*")
       .order("created_at", { ascending: false })
-      .then(({ data, error: fetchError }) => {
-        if (!active) return;
-        if (fetchError) {
+      .then(
+        ({ data, error: fetchError }) => {
+          if (!active) return;
+          if (fetchError) {
+            setError(true);
+          } else {
+            const rawRows = (data ?? []).filter(
+              (r) => !r.status || r.status !== "Restricted",
+            );
+            // Combine with catalog to ensure all 25 sites are present
+            const dbNames = new Set(rawRows.map((r) => r.name.toLowerCase()));
+            const missingDefaults = ALL_DEFAULT_SITES.filter(
+              (d) => !dbNames.has(d.name.toLowerCase()),
+            );
+            const merged = [...rawRows, ...missingDefaults];
+            setSites(merged);
+            setError(false);
+          }
+          setLoading(false);
+        },
+        () => {
+          if (!active) return;
           setError(true);
-        } else {
-          const rawRows = (data ?? []).filter(
-            (r) => !r.status || r.status !== "Restricted",
-          );
-          const hasCathedral = rawRows.some(
-            (r) => r.name.toLowerCase() === "cathedral rock",
-          );
-          const merged = hasCathedral
-            ? rawRows
-            : [DEFAULT_CATHEDRAL_ROCK, ...rawRows];
-          setSites(merged);
-          setError(false);
-        }
-        setLoading(false);
-      },
-      () => {
-        if (!active) return;
-        setError(true);
-        setLoading(false);
-      });
+          setLoading(false);
+        },
+      );
     return () => {
       active = false;
     };
   }, [reloadKey]);
 
-    const loadFavorites = useCallback(async () => {
+  const loadFavorites = useCallback(async () => {
     if (!user) {
       setFavoriteIds(new Set());
       return;
@@ -490,33 +1037,47 @@ export default function MapScreen() {
     [favoriteIds, user],
   );
 
-  const filteredSites = useMemo(
-    () =>
-      sites.filter((s) =>
-        matchesDifficultyFilter(s.difficulty, selectedDifficulty),
-      ),
-    [sites, selectedDifficulty],
-  );
-
   const selectedSiteIndex = useMemo(
-    () => filteredSites.findIndex((s) => s.id === selectedSiteId),
-    [filteredSites, selectedSiteId],
+    () => sites.findIndex((s) => s.id === selectedSiteId),
+    [sites, selectedSiteId],
   );
 
   const selectedSite =
-    selectedSiteIndex >= 0 ? filteredSites[selectedSiteIndex] : null;
+    selectedSiteIndex >= 0 ? sites[selectedSiteIndex] : null;
 
   const selectedEnrichment = useMemo(() => {
     if (!selectedSite) return null;
-    return getEnrichment(selectedSite, Math.max(selectedSiteIndex, 0));
-  }, [selectedSite, selectedSiteIndex]);
+    return getEnrichment(selectedSite);
+  }, [selectedSite]);
+
+  // Handle message from Leaflet iframe
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      try {
+        const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        if (data?.type === "SELECT_SITE") {
+          setHeroImgError(false);
+          setSelectedSiteId(data.siteId);
+        } else if (data?.type === "DESELECT_SITE") {
+          setSelectedSiteId(null);
+        }
+      } catch {}
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("message", handleMessage);
+      return () => window.removeEventListener("message", handleMessage);
+    }
+  }, []);
 
   const handleSelectPin = useCallback((siteId: string) => {
-    if (dragRef.current.moved) return;
     setHeroImgError(false);
     setSelectedSiteId(siteId);
-    setPanOffset({ x: 0, y: 0 });
-    setZoomScale(1.85);
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: "FOCUS_SITE", siteId },
+        "*",
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -529,104 +1090,53 @@ export default function MapScreen() {
 
   const handleCloseDrawer = useCallback(() => {
     setSelectedSiteId(null);
-    setPanOffset({ x: 0, y: 0 });
-    setZoomScale(1);
   }, []);
 
   const handleZoomIn = useCallback(() => {
-    setZoomScale((z) => Math.min(z + 0.35, 2.6));
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ type: "ZOOM_IN" }, "*");
+    }
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setZoomScale((z) => Math.max(z - 0.35, 0.85));
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ type: "ZOOM_OUT" }, "*");
+    }
   }, []);
 
   const handleResetMap = useCallback(() => {
     setSelectedSiteId(null);
-    setPanOffset({ x: 0, y: 0 });
-    setZoomScale(1);
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ type: "RESET_VIEW" }, "*");
+    }
   }, []);
 
-  const effectiveZoom = selectedEnrichment
-    ? Math.max(zoomScale, 1.75)
-    : zoomScale;
+  const handleLocateMe = useCallback(() => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ type: "LOCATE_ME" }, "*");
+    }
+  }, []);
 
-  const startDrag = useCallback(
-    (clientX: number, clientY: number) => {
-      dragRef.current = {
-        active: true,
-        moved: false,
-        startX: clientX,
-        startY: clientY,
-        originPanX: panOffset.x,
-        originPanY: panOffset.y,
+  // Format sites payload for Leaflet
+  const sitesForMap = useMemo(() => {
+    return sites.map((s) => {
+      const enrichment = getEnrichment(s);
+      return {
+        id: s.id,
+        name: s.name,
+        difficulty: s.difficulty || enrichment.difficulty,
+        lat: enrichment.lat,
+        lng: enrichment.lng,
       };
-    },
-    [panOffset.x, panOffset.y],
-  );
+    });
+  }, [sites]);
 
-  const moveDrag = useCallback(
-    (clientX: number, clientY: number) => {
-      if (!dragRef.current.active) return;
-      const dx = clientX - dragRef.current.startX;
-      const dy = clientY - dragRef.current.startY;
-      if (!dragRef.current.moved && Math.hypot(dx, dy) > 5) {
-        dragRef.current.moved = true;
-        setIsDragging(true);
-      }
-      if (dragRef.current.moved) {
-        const vw = 400 / effectiveZoom;
-        const vh = 560 / effectiveZoom;
-        const scaleX = vw / Math.max(screenWidth, 320);
-        const scaleY = vh / Math.max(screenHeight, 480);
-        const nextX = Math.min(
-          Math.max(dragRef.current.originPanX - dx * scaleX, -150),
-          150,
-        );
-        const nextY = Math.min(
-          Math.max(dragRef.current.originPanY - dy * scaleY, -160),
-          160,
-        );
-        setPanOffset({ x: nextX, y: nextY });
-      }
-    },
-    [effectiveZoom, screenHeight, screenWidth],
-  );
-
-  const endDrag = useCallback(() => {
-    if (!dragRef.current.active) return;
-    const wasMoved = dragRef.current.moved;
-    dragRef.current.active = false;
-    setIsDragging(false);
-    if (!wasMoved && selectedSiteId) {
-      handleCloseDrawer();
-    }
-    setTimeout(() => {
-      dragRef.current.moved = false;
-    }, 40);
-  }, [handleCloseDrawer, selectedSiteId]);
-
-  // Compute dynamic SVG viewBox so Map Focus State zooms into the active pin
-  // and applies interactive panOffset in all directions
-  const viewBox = useMemo(() => {
-    const baseW = 400;
-    const baseH = 560;
-    const vw = baseW / effectiveZoom;
-    const vh = baseH / effectiveZoom;
-
-    if (selectedEnrichment) {
-      const targetX = selectedEnrichment.coords.x + panOffset.x;
-      // Place the pin in the clear middle window between the top bar and the 58% drawer
-      const targetY = selectedEnrichment.coords.y + vh * 0.11 + panOffset.y;
-      const minX = Math.min(Math.max(targetX - vw / 2, -140), baseW - vw + 140);
-      const minY = Math.min(Math.max(targetY - vh / 2, -160), baseH - vh + 160);
-      return `${minX.toFixed(1)} ${minY.toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`;
-    }
-
-    const minX = (baseW - vw) / 2 + panOffset.x;
-    const minY = (baseH - vh) / 2 + panOffset.y;
-    return `${minX.toFixed(1)} ${minY.toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`;
-  }, [effectiveZoom, panOffset.x, panOffset.y, selectedEnrichment]);
+  const leafletHtml = useMemo(() => {
+    return generateLeafletMapHtml(
+      JSON.stringify(sitesForMap),
+      selectedSiteId,
+    );
+  }, [selectedSiteId, sitesForMap]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -645,613 +1155,27 @@ export default function MapScreen() {
         </View>
       ) : (
         <View style={styles.mapViewport}>
-          {/* 1. MODERN FULL-SCREEN MARINE GIS VECTOR CANVAS (PAN & ZOOM ENABLED) */}
-          <View
-            style={[
-              styles.canvasWrap,
-              isDragging ? styles.canvasDragging : styles.canvasGrab,
-            ]}
-            onStartShouldSetResponder={() => true}
-            onMoveShouldSetResponder={() => true}
-            onResponderGrant={(e) => {
-              const { pageX, pageY } = e.nativeEvent;
-              startDrag(pageX, pageY);
-            }}
-            onResponderMove={(e) => {
-              const { pageX, pageY } = e.nativeEvent;
-              moveDrag(pageX, pageY);
-            }}
-            onResponderRelease={endDrag}
-            onResponderTerminate={endDrag}
-            {...({
-              onPointerDown: (e: any) => {
-                if (e?.clientX !== undefined && e?.clientY !== undefined) {
-                  startDrag(e.clientX, e.clientY);
-                }
+          {/* 1. LEAFLET CARTO VOYAGER ILLUSTRATED CONTAINER (ZERO CLUTTER, SMOOTH PAN & ZOOM) */}
+          <View style={styles.canvasWrap}>
+            {React.createElement("iframe", {
+              ref: iframeRef,
+              srcDoc: leafletHtml,
+              style: {
+                width: "100%",
+                height: "100%",
+                border: "none",
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "#E8ECE9",
               },
-              onPointerMove: (e: any) => {
-                if (e?.clientX !== undefined && e?.clientY !== undefined) {
-                  moveDrag(e.clientX, e.clientY);
-                }
-              },
-              onPointerUp: endDrag,
-              onPointerLeave: endDrag,
-              onWheel: (e: any) => {
-                if (typeof e?.deltaY === "number") {
-                  if (e.deltaY < 0) {
-                    setZoomScale((z) => Math.min(z + 0.18, 2.6));
-                  } else if (e.deltaY > 0) {
-                    setZoomScale((z) => Math.max(z - 0.18, 0.85));
-                  }
-                }
-              },
-            } as any)}
-          >
-            <Svg
-              width="100%"
-              height="100%"
-              viewBox={viewBox}
-              preserveAspectRatio="xMidYMid slice"
-            >
-              <Defs>
-                {/* Modern Deep-to-Coastal Bathymetry Gradient */}
-                <LinearGradient id="oceanGrad" x1="0" y1="0" x2="0.2" y2="1">
-                  <Stop offset="0" stopColor="#E3F2FD" />
-                  <Stop offset="0.45" stopColor="#C2E2FC" />
-                  <Stop offset="0.8" stopColor="#9ED1FA" />
-                  <Stop offset="1" stopColor="#82C2F6" />
-                </LinearGradient>
-
-                {/* Deep Pelagic Trench Gradient */}
-                <LinearGradient id="trenchGrad" x1="0" y1="0" x2="1" y2="1">
-                  <Stop offset="0" stopColor="#7CC0F7" stopOpacity="0.45" />
-                  <Stop offset="1" stopColor="#4EA4EE" stopOpacity="0.55" />
-                </LinearGradient>
-
-                {/* Lush Modern Peninsula Landmass Gradient */}
-                <LinearGradient id="landGrad" x1="0.1" y1="0" x2="0.9" y2="1">
-                  <Stop offset="0" stopColor="#ECF6EE" />
-                  <Stop offset="0.55" stopColor="#D7EDE0" />
-                  <Stop offset="1" stopColor="#BFE2CD" />
-                </LinearGradient>
-
-                {/* Highland Ridge Gradient */}
-                <LinearGradient id="ridgeGrad" x1="0" y1="0" x2="1" y2="1">
-                  <Stop offset="0" stopColor="#B4DEC5" stopOpacity="0.7" />
-                  <Stop offset="1" stopColor="#94CCA9" stopOpacity="0.85" />
-                </LinearGradient>
-              </Defs>
-
-              {/* Expanded Ocean Base so panning in any direction never reveals edges */}
-              <Rect
-                x="-300"
-                y="-300"
-                width="1000"
-                height="1200"
-                fill="url(#oceanGrad)"
-              />
-
-              {/* Layered Bathymetric Depth Contours */}
-              <Path
-                d="M-300 75 Q110 135 148 215 Q186 292 700 328 L700 900 L-300 900 Z"
-                fill="url(#trenchGrad)"
-              />
-              <Path
-                d="M-300 195 Q88 238 140 278 Q215 340 700 368 L700 900 L-300 900 Z"
-                fill="#5AB0F2"
-                opacity={0.28}
-              />
-              <Path
-                d="M-300 365 Q150 340 265 375 Q340 398 700 385 L700 900 L-300 900 Z"
-                fill="#3B9AE8"
-                opacity={0.22}
-              />
-
-              {/* Subtle Modern GIS Graticule Grid */}
-              {[-40, 40, 120, 200, 280, 360, 440, 520].map((y) => (
-                <Line
-                  key={`lat-${y}`}
-                  x1="-250"
-                  y1={y}
-                  x2="650"
-                  y2={y}
-                  stroke="#FFFFFF"
-                  strokeWidth={0.5}
-                  opacity={0.45}
-                  strokeDasharray="3,5"
-                />
-              ))}
-              {[-80, 0, 80, 160, 240, 320, 400, 480].map((x) => (
-                <Line
-                  key={`lng-${x}`}
-                  x1={x}
-                  y1="-250"
-                  x2={x}
-                  y2="800"
-                  stroke="#FFFFFF"
-                  strokeWidth={0.5}
-                  opacity={0.45}
-                  strokeDasharray="3,5"
-                />
-              ))}
-
-              {/* Turquoise Shallow Coral Reef Shelves Hugging Shorelines */}
-              {/* Calumpan Peninsula Reef Shelf */}
-              <Path
-                d="M204 -200 L520 -200 L520 238 Q358 258 334 282 Q302 310 270 298 Q232 284 212 248 Q190 218 184 182 Q180 142 196 102 Q206 52 204 -200 Z"
-                fill="#67E8F9"
-                opacity={0.38}
-              />
-              {/* Sombrero Island Reef Halo */}
-              <Circle cx={86} cy={246} r={24} fill="#67E8F9" opacity={0.42} />
-              {/* Caban Island Reef Halo */}
-              <Path
-                d="M142 268 Q166 258 178 274 Q174 290 152 288 Q134 282 142 268 Z"
-                fill="#67E8F9"
-                opacity={0.42}
-              />
-              {/* Maricaban (Tingloy) Island Reef Shelf */}
-              <Path
-                d="M96 300 Q148 278 210 304 Q256 328 242 358 Q204 380 142 362 Q90 342 96 300 Z"
-                fill="#67E8F9"
-                opacity={0.38}
-              />
-
-              {/* Mabini Municipal Ocean Territorial Water Boundary (RA 8550 / NAMRIA) */}
-              {/* Subtle Territorial Sea Fill for Mabini Municipal Waters */}
-              <Path
-                d="M35 -200 L35 60 Q30 140 45 190 Q70 215 120 230 Q165 252 215 272 Q260 286 315 296 Q370 298 430 278 Q490 252 550 215 L550 -200 Z"
-                fill="#0284C7"
-                opacity={0.038}
-              />
-
-              {/* Outer Nautical Boundary Buffer Glow */}
-              <Path
-                d="M35 -200 L35 60 Q30 140 45 190 Q70 215 120 230 Q165 252 215 272 Q260 286 315 296 Q370 298 430 278 Q490 252 550 215"
-                fill="none"
-                stroke="rgba(2, 132, 199, 0.22)"
-                strokeWidth={5}
-                strokeLinecap="round"
-              />
-
-              {/* Official Ocean Territorial Boundary Line */}
-              <Path
-                d="M35 -200 L35 60 Q30 140 45 190 Q70 215 120 230 Q165 252 215 272 Q260 286 315 296 Q370 298 430 278 Q490 252 550 215"
-                fill="none"
-                stroke="#0284C7"
-                strokeWidth={1.8}
-                strokeDasharray="9,4,2,4"
-              />
-
-              {/* Boundary Demarcation Waypoint Cross Ticks */}
-              <Line x1={30} y1={60} x2={40} y2={60} stroke="#0284C7" strokeWidth={1.2} />
-              <Line x1={40} y1={190} x2={50} y2={190} stroke="#0284C7" strokeWidth={1.2} />
-              <Line x1={210} y1={270} x2={220} y2={274} stroke="#0284C7" strokeWidth={1.2} />
-              <Line x1={310} y1={294} x2={320} y2={298} stroke="#0284C7" strokeWidth={1.2} />
-              <Line x1={425} y1={282} x2={435} y2={274} stroke="#0284C7" strokeWidth={1.2} />
-
-              {/* Marine Protected Area (MPA) Sanctuary Zone Boundaries */}
-              <Path
-                d="M170 124 Q154 186 196 252 Q238 288 292 282 Q264 232 220 176 Z"
-                fill="rgba(16, 185, 129, 0.14)"
-                stroke="#059669"
-                strokeWidth={1.1}
-                strokeDasharray="4,3"
-              />
-              <Circle
-                cx={86}
-                cy={246}
-                r={20}
-                fill="rgba(16, 185, 129, 0.12)"
-                stroke="#059669"
-                strokeWidth={1}
-                strokeDasharray="3,3"
-              />
-
-              {/* Landmass Coastal Drop Shadows */}
-              <Path
-                d="M214 -200 L520 -200 L520 226 Q354 244 330 268 Q302 294 274 284 Q242 270 224 236 Q202 206 196 176 Q192 138 206 100 Q216 52 214 -200 Z"
-                fill="#0F172A"
-                opacity={0.07}
-              />
-
-              {/* Calumpan Peninsula (Mabini / Anilao) Landmass */}
-              <Path
-                d="M214 -200 L520 -200 L520 222 Q354 240 330 264 Q302 290 274 280 Q242 266 224 232 Q202 202 196 172 Q192 134 206 96 Q216 48 214 -200 Z"
-                fill="url(#landGrad)"
-                stroke="#6EB88D"
-                strokeWidth={1.6}
-              />
-
-              {/* Mt. Gulugod Baboy Topographic Elevation Rings */}
-              <Path
-                d="M244 74 Q256 142 252 206 Q268 242 296 244 Q324 204 318 130 Q306 78 244 74 Z"
-                fill="url(#ridgeGrad)"
-              />
-              <Path
-                d="M262 108 Q270 154 268 196 Q282 218 298 216 Q312 184 304 134 Z"
-                fill="#8BC4A2"
-                opacity={0.55}
-              />
-
-              {/* Coastal Road Network on Mabini Peninsula */}
-              <Path
-                d="M210 132 Q202 174 228 228 Q250 262 278 272 Q308 274 338 242"
-                fill="none"
-                stroke="#FFFFFF"
-                strokeWidth={1.5}
-                opacity={0.75}
-                strokeDasharray="3,2"
-              />
-
-              {/* Sombrero Island */}
-              <Circle
-                cx={86}
-                cy={246}
-                r={12}
-                fill="url(#landGrad)"
-                stroke="#6EB88D"
-                strokeWidth={1.5}
-              />
-
-              {/* Caban Island */}
-              <Path
-                d="M146 271 Q164 264 172 275 Q168 286 152 284 Q140 279 146 271 Z"
-                fill="url(#landGrad)"
-                stroke="#6EB88D"
-                strokeWidth={1.4}
-              />
-
-              {/* Maricaban / Tingloy Island */}
-              <Path
-                d="M106 306 Q152 286 204 310 Q246 330 234 352 Q198 370 144 354 Q98 338 106 306 Z"
-                fill="url(#landGrad)"
-                stroke="#6EB88D"
-                strokeWidth={1.6}
-              />
-              {/* Tingloy Interior Ridge */}
-              <Path
-                d="M132 318 Q168 308 206 326 Q200 344 162 342 Q130 334 132 318 Z"
-                fill="url(#ridgeGrad)"
-              />
-
-              {/* Modern Cartographic Typography & Place Labels */}
-              <SvgText
-                x={292}
-                y={134}
-                fill="#1E4631"
-                fontSize={10.5}
-                fontWeight="700"
-                textAnchor="middle"
-                letterSpacing={1.4}
-              >
-                MABINI PENINSULA
-              </SvgText>
-              <SvgText
-                x={292}
-                y={147}
-                fill="#3B6E52"
-                fontSize={7.8}
-                fontWeight="600"
-                textAnchor="middle"
-                letterSpacing={0.6}
-              >
-                CALUMPAN SANCTUARY COAST
-              </SvgText>
-              <SvgText
-                x={284}
-                y={182}
-                fill="#3B6E52"
-                fontSize={7.5}
-                fontWeight="600"
-                textAnchor="middle"
-              >
-                ▲ Mt. Gulugod Baboy (525m)
-              </SvgText>
-
-              {/* Barangay Place Dots */}
-              <Circle cx={212} cy={136} r={2.2} fill="#3B6E52" />
-              <SvgText x={228} y={138} fill="#3B6E52" fontSize={7} fontWeight="600">
-                Anilao
-              </SvgText>
-              <Circle cx={206} cy={184} r={2.2} fill="#3B6E52" />
-              <SvgText x={226} y={186} fill="#3B6E52" fontSize={7} fontWeight="600">
-                Bagalangit
-              </SvgText>
-              <Circle cx={232} cy={234} r={2.2} fill="#3B6E52" />
-              <SvgText x={246} y={236} fill="#3B6E52" fontSize={7} fontWeight="600">
-                Solo
-              </SvgText>
-
-              <SvgText
-                x={172}
-                y={336}
-                fill="#1E4631"
-                fontSize={9.5}
-                fontWeight="700"
-                textAnchor="middle"
-                letterSpacing={1}
-              >
-                MARICABAN (TINGLOY)
-              </SvgText>
-              <SvgText
-                x={86}
-                y={228}
-                fill="#285948"
-                fontSize={7.5}
-                fontWeight="600"
-                textAnchor="middle"
-              >
-                Sombrero Is.
-              </SvgText>
-              <SvgText
-                x={158}
-                y={261}
-                fill="#285948"
-                fontSize={7}
-                fontWeight="600"
-                textAnchor="middle"
-              >
-                Caban Is.
-              </SvgText>
-
-              {/* Water Body Labels */}
-              <SvgText
-                x={78}
-                y={152}
-                fill="#2B6CB0"
-                fontSize={10.5}
-                fontStyle="italic"
-                fontWeight="600"
-                textAnchor="middle"
-                opacity={0.75}
-              >
-                BALAYAN BAY
-              </SvgText>
-              <SvgText
-                x={248}
-                y={312}
-                fill="#1E4E8C"
-                fontSize={8.5}
-                fontStyle="italic"
-                fontWeight="600"
-                textAnchor="middle"
-                opacity={0.75}
-              >
-                MARICABAN STRAIT
-              </SvgText>
-              <SvgText
-                x={348}
-                y={326}
-                fill="#2B6CB0"
-                fontSize={9}
-                fontStyle="italic"
-                fontWeight="600"
-                textAnchor="middle"
-                opacity={0.75}
-              >
-                BATANGAS BAY
-              </SvgText>
-
-              {/* Ocean Territorial Water Boundary Demarcation Labels */}
-              <SvgText
-                x={24}
-                y={95}
-                fill="#0284C7"
-                fontSize={6.2}
-                fontWeight="700"
-                letterSpacing={0.8}
-                transform="rotate(-90, 24, 95)"
-                opacity={0.85}
-              >
-                MABINI TERRITORIAL WATER LIMIT (15-KM)
-              </SvgText>
-              <SvgText
-                x={175}
-                y={252}
-                fill="#0284C7"
-                fontSize={5.8}
-                fontWeight="700"
-                letterSpacing={0.7}
-                transform="rotate(22, 175, 252)"
-                opacity={0.85}
-              >
-                MARICABAN STRAIT MEDIAN LINE
-              </SvgText>
-              <SvgText
-                x={438}
-                y={270}
-                fill="#0284C7"
-                fontSize={5.8}
-                fontWeight="700"
-                letterSpacing={0.8}
-                transform="rotate(-23, 438, 270)"
-                opacity={0.85}
-              >
-                MABINI MUNICIPAL OCEAN BOUNDARY
-              </SvgText>
-
-              {/* Subtle Compass Rose Watermark (Upper Left Ocean) */}
-              <G opacity={0.45}>
-                <Circle
-                  cx={46}
-                  cy={108}
-                  r={14}
-                  fill="none"
-                  stroke="#2B6CB0"
-                  strokeWidth={0.8}
-                />
-                <Path
-                  d="M46 91 L49 108 L46 105 L43 108 Z"
-                  fill="#2B6CB0"
-                />
-                <SvgText
-                  x={46}
-                  y={88}
-                  fill="#2B6CB0"
-                  fontSize={7}
-                  fontWeight="700"
-                  textAnchor="middle"
-                >
-                  N
-                </SvgText>
-              </G>
-
-              {/* Dive Site Pins & Focus Target Ring Marker */}
-              {filteredSites.map((site, idx) => {
-                const info = getEnrichment(site, idx);
-                const pos = info.coords;
-                const isSelected = selectedSite?.id === site.id;
-                const pinColor = getDifficultyColor(info.difficulty);
-                const pillW = Math.max(site.name.length * 4.7 + 16, 62);
-
-                return (
-                  <G
-                    key={site.id}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      handleSelectPin(site.id);
-                    }}
-                  >
-                    {isSelected ? (
-                      <>
-                        {/* Outer Concentric Target Ring */}
-                        <Circle
-                          cx={pos.x}
-                          cy={pos.y}
-                          r={24}
-                          fill="rgba(38, 121, 232, 0.16)"
-                          stroke={colors.primaryBlue}
-                          strokeWidth={1.5}
-                          strokeDasharray="4,3"
-                        />
-                        {/* Middle Concentric Target Ring */}
-                        <Circle
-                          cx={pos.x}
-                          cy={pos.y}
-                          r={14}
-                          fill="rgba(38, 121, 232, 0.28)"
-                          stroke="#FFFFFF"
-                          strokeWidth={1.5}
-                        />
-                        {/* Crosshair Ticks */}
-                        <Line
-                          x1={pos.x - 29}
-                          y1={pos.y}
-                          x2={pos.x - 20}
-                          y2={pos.y}
-                          stroke={colors.primaryBlue}
-                          strokeWidth={1.4}
-                        />
-                        <Line
-                          x1={pos.x + 20}
-                          y1={pos.y}
-                          x2={pos.x + 29}
-                          y2={pos.y}
-                          stroke={colors.primaryBlue}
-                          strokeWidth={1.4}
-                        />
-                        <Line
-                          x1={pos.x}
-                          y1={pos.y - 29}
-                          x2={pos.x}
-                          y2={pos.y - 20}
-                          stroke={colors.primaryBlue}
-                          strokeWidth={1.4}
-                        />
-                        <Line
-                          x1={pos.x}
-                          y1={pos.y + 20}
-                          x2={pos.x}
-                          y2={pos.y + 29}
-                          stroke={colors.primaryBlue}
-                          strokeWidth={1.4}
-                        />
-                        {/* Inner Bullseye Pin */}
-                        <Circle
-                          cx={pos.x}
-                          cy={pos.y}
-                          r={7.5}
-                          fill={colors.primaryBlue}
-                          stroke="#FFFFFF"
-                          strokeWidth={2.5}
-                        />
-                        <Circle cx={pos.x} cy={pos.y} r={2.8} fill="#FFFFFF" />
-
-                        {/* Floating Label Tag below Focused Pin so it never overlaps the top bar */}
-                        <G>
-                          <Rect
-                            x={pos.x - Math.max(site.name.length * 3.5 + 14, 54)}
-                            y={pos.y + 28}
-                            width={Math.max(site.name.length * 7 + 28, 108)}
-                            height={22}
-                            rx={11}
-                            fill="#0B192C"
-                            stroke="#60A5FA"
-                            strokeWidth={1.2}
-                          />
-                          <SvgText
-                            x={pos.x}
-                            y={pos.y + 42.5}
-                            fill="#FFFFFF"
-                            fontSize={9.5}
-                            fontWeight="700"
-                            textAnchor="middle"
-                          >
-                            {site.name}
-                          </SvgText>
-                        </G>
-                      </>
-                    ) : (
-                      <>
-                        {/* Modern Glowing Pin Marker + Pill Callout */}
-                        <Circle
-                          cx={pos.x}
-                          cy={pos.y}
-                          r={11}
-                          fill={pinColor}
-                          opacity={0.24}
-                        />
-                        <Circle
-                          cx={pos.x}
-                          cy={pos.y}
-                          r={6.2}
-                          fill={pinColor}
-                          stroke="#FFFFFF"
-                          strokeWidth={2.2}
-                        />
-                        <Circle cx={pos.x} cy={pos.y} r={2} fill="#FFFFFF" />
-
-                        {/* Crisp Rounded White Label Pill */}
-                        <Rect
-                          x={pos.x - pillW / 2}
-                          y={pos.y - 24}
-                          width={pillW}
-                          height={14}
-                          rx={7}
-                          fill="rgba(255, 255, 255, 0.92)"
-                          stroke="#CBD5E1"
-                          strokeWidth={0.8}
-                        />
-                        <SvgText
-                          x={pos.x}
-                          y={pos.y - 14.5}
-                          fill="#0F172A"
-                          fontSize={7.2}
-                          fontWeight="700"
-                          textAnchor="middle"
-                        >
-                          {site.name}
-                        </SvgText>
-                      </>
-                    )}
-                  </G>
-                );
-              })}
-            </Svg>
+              title: "Mabini Peninsula Illustrated Dive Map",
+            })}
           </View>
 
-          {/* 2. TOP OVERLAY: TITLE BAR & DIFFICULTY FILTERS */}
+          {/* 2. TOP OVERLAY: CLEAN HEADER BAR (NO FILTERS TAKING UP SPACE) */}
           <View style={styles.topOverlay} pointerEvents="box-none">
             <View style={styles.topHeaderCard}>
               <View style={styles.topHeaderLeft}>
@@ -1265,7 +1189,7 @@ export default function MapScreen() {
                 <View>
                   <Text style={styles.topTitle}>Mabini Peninsula Dive Map</Text>
                   <Text style={styles.topSubtitle}>
-                    Tap any site pin to explore • {filteredSites.length} sites
+                    {sites.length} Dive Sites • Tap any pin to explore
                   </Text>
                 </View>
               </View>
@@ -1285,59 +1209,14 @@ export default function MapScreen() {
                 <Text style={styles.allSitesBtnText}>List</Text>
               </TouchableOpacity>
             </View>
-
-            {!selectedSite && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.filterScroll}
-                contentContainerStyle={styles.filterRow}
-              >
-                {DIFFICULTY_FILTERS.map((f) => {
-                  const isActive = selectedDifficulty === f.key;
-                  return (
-                    <TouchableOpacity
-                      key={f.key}
-                      style={[
-                        styles.filterChip,
-                        isActive && styles.filterChipActive,
-                      ]}
-                      onPress={() => setSelectedDifficulty(f.key)}
-                      activeOpacity={0.85}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isActive }}
-                      accessibilityLabel={f.label}
-                    >
-                      {f.key !== "All" && (
-                        <View
-                          style={[
-                            styles.filterDot,
-                            {
-                              backgroundColor: isActive
-                                ? colors.white
-                                : getDifficultyColor(f.key),
-                            },
-                          ]}
-                        />
-                      )}
-                      <Text
-                        style={[
-                          styles.filterChipText,
-                          isActive && styles.filterChipTextActive,
-                        ]}
-                      >
-                        {f.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
           </View>
 
-          {/* 3. BOTTOM MAP LEGEND (DOCKED BELOW PINS SO NOTHING OVERLAPS) */}
+          {/* 3. BOTTOM MAP LEGEND */}
           {!selectedSite && (
-            <View style={[styles.bottomLegendWrap, { bottom: mapBottomOffset }]} pointerEvents="box-none">
+            <View
+              style={[styles.bottomLegendWrap, { bottom: mapBottomOffset }]}
+              pointerEvents="box-none"
+            >
               <View style={styles.legendBarCard}>
                 <View style={styles.legendBarHeader}>
                   <Ionicons
@@ -1388,7 +1267,7 @@ export default function MapScreen() {
             </View>
           )}
 
-          {/* 4. MAP ZOOM & RESET CONTROLS */}
+          {/* 4. MAP ZOOM & ACTION CONTROLS */}
           <View
             style={[
               styles.mapControlsCol,
@@ -1418,20 +1297,34 @@ export default function MapScreen() {
             <View style={styles.mapCtrlDivider} />
             <TouchableOpacity
               style={styles.mapCtrlBtn}
+              onPress={handleLocateMe}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Locate my position"
+            >
+              <Ionicons
+                name="locate"
+                size={17}
+                color={colors.primaryBlue}
+              />
+            </TouchableOpacity>
+            <View style={styles.mapCtrlDivider} />
+            <TouchableOpacity
+              style={styles.mapCtrlBtn}
               onPress={handleResetMap}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel="Reset map view"
             >
               <Ionicons
-                name="locate-outline"
-                size={17}
-                color={colors.primaryBlue}
+                name="refresh-outline"
+                size={16}
+                color={colors.darkText}
               />
             </TouchableOpacity>
           </View>
 
-          {/* 5. SLIDE-UP DETAIL DRAWER (FOCUSED PIN STATE) */}
+          {/* 5. SLIDE-UP DETAIL DRAWER */}
           {selectedSite && selectedEnrichment && (
             <View style={styles.drawerSheet}>
               <View style={styles.drawerGrabberRow}>
@@ -1440,7 +1333,10 @@ export default function MapScreen() {
 
               <ScrollView
                 style={styles.drawerScroll}
-                contentContainerStyle={[styles.drawerScrollContent, { paddingBottom: drawerScrollBottom }]}
+                contentContainerStyle={[
+                  styles.drawerScrollContent,
+                  { paddingBottom: drawerScrollBottom },
+                ]}
                 showsVerticalScrollIndicator={false}
               >
                 {/* Hero Image Card */}
@@ -1462,49 +1358,12 @@ export default function MapScreen() {
 
                   {/* Dark gradient overlay for overlaid badge & controls readability */}
                   <View
-                    style={styles.heroGradientOverlay}
+                    style={[
+                      styles.heroGradientOverlay,
+                      { backgroundColor: "rgba(2, 8, 23, 0.42)" },
+                    ]}
                     pointerEvents="none"
-                  >
-                    <Svg
-                      width="100%"
-                      height="100%"
-                      viewBox="0 0 100 100"
-                      preserveAspectRatio="none"
-                    >
-                      <Defs>
-                        <LinearGradient
-                          id="mapDrawerHeroGrad"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <Stop
-                            offset="0"
-                            stopColor="#020817"
-                            stopOpacity="0.58"
-                          />
-                          <Stop
-                            offset="0.4"
-                            stopColor="#020817"
-                            stopOpacity="0.1"
-                          />
-                          <Stop
-                            offset="1"
-                            stopColor="#020817"
-                            stopOpacity="0.65"
-                          />
-                        </LinearGradient>
-                      </Defs>
-                      <Rect
-                        x="0"
-                        y="0"
-                        width="100"
-                        height="100"
-                        fill="url(#mapDrawerHeroGrad)"
-                      />
-                    </Svg>
-                  </View>
+                  />
 
                   {/* Marine Protected Area Badge */}
                   <View style={styles.mpaBadge}>
@@ -1722,14 +1581,12 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#E3F2FD",
-    paddingBottom: 0,
+    backgroundColor: "#F8FAFC",
   },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
   },
   mapViewport: {
     flex: 1,
@@ -1742,36 +1599,29 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    userSelect: "none" as any,
-  },
-  canvasGrab: {
-    cursor: "grab" as any,
-  },
-  canvasDragging: {
-    cursor: "grabbing" as any,
+    backgroundColor: "#E8ECE9",
   },
   topOverlay: {
     position: "absolute",
-    top: 14,
-    left: 16,
-    right: 16,
-    zIndex: 20,
-    gap: 10,
+    top: 12,
+    left: 14,
+    right: 14,
+    zIndex: 10,
   },
   topHeaderCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(255, 255, 255, 0.94)",
-    borderRadius: 18,
-    paddingHorizontal: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
     paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(219, 232, 244, 0.9)",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    borderColor: "rgba(226, 232, 240, 0.9)",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
     elevation: 4,
   },
   topHeaderLeft: {
@@ -1781,121 +1631,79 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   compassBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#EBF3FF",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
   },
   topTitle: {
-    fontSize: 15,
-    fontFamily: "Quicksand_700Bold",
+    fontSize: 14,
+    fontWeight: "700",
     color: colors.darkText,
   },
   topSubtitle: {
-    fontSize: 11.5,
-    fontFamily: "Quicksand_500Medium",
-    color: "#64748B",
+    fontSize: 10.5,
+    color: colors.gray,
+    marginTop: 1,
   },
   allSitesBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#EBF3FF",
-    borderRadius: 999,
-    paddingHorizontal: 11,
     paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    backgroundColor: "#EFF6FF",
   },
   allSitesBtnText: {
-    fontSize: 12,
-    fontFamily: "Quicksand_700Bold",
+    fontSize: 11.5,
+    fontWeight: "700",
     color: colors.primaryBlue,
-  },
-  filterScroll: {
-    flexGrow: 0,
-  },
-  filterRow: {
-    gap: 8,
-    paddingRight: 8,
-  },
-  filterChip: {
-    flexGrow: 0,
-    flexShrink: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.94)",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "#DBE8F4",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  filterChipActive: {
-    backgroundColor: colors.primaryBlue,
-    borderColor: colors.primaryBlue,
-  },
-  filterDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  filterChipText: {
-    fontSize: 12,
-    fontFamily: "Quicksand_600SemiBold",
-    color: "#334155",
-  },
-  filterChipTextActive: {
-    color: colors.white,
   },
   bottomLegendWrap: {
     position: "absolute",
-    left: 16,
-    right: 66,
-    bottom: 74,
-    zIndex: 20,
+    left: 14,
+    right: 68,
+    zIndex: 10,
   },
   legendBarCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
+    borderRadius: 14,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
     borderWidth: 1,
-    borderColor: "#DBE8F4",
-    shadowColor: "#0F172A",
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-    gap: 6,
+    shadowRadius: 6,
+    elevation: 3,
   },
   legendBarHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
+    marginBottom: 5,
   },
   legendBarTitle: {
-    fontSize: 10,
-    fontFamily: "Quicksand_700Bold",
-    color: "#475569",
-    letterSpacing: 0.7,
+    fontSize: 9.5,
+    fontWeight: "700",
+    color: colors.darkText,
+    letterSpacing: 0.5,
   },
   legendBarRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
   },
   legendItemRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
   },
   legendPinDot: {
     width: 8,
@@ -1903,12 +1711,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   legendMpaBox: {
-    width: 9,
-    height: 9,
-    borderRadius: 3,
-    backgroundColor: "rgba(16, 185, 129, 0.25)",
+    width: 12,
+    height: 8,
+    borderRadius: 2,
+    backgroundColor: "rgba(16, 185, 129, 0.3)",
     borderWidth: 1,
     borderColor: "#059669",
+    borderStyle: "dashed",
   },
   legendTerritorialLine: {
     width: 14,
@@ -1918,36 +1727,37 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
   },
   legendItemText: {
-    fontSize: 11,
-    fontFamily: "Quicksand_600SemiBold",
-    color: "#334155",
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#475569",
   },
   mapControlsCol: {
     position: "absolute",
-    right: 16,
-    bottom: 74,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    right: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#DBE8F4",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     elevation: 4,
-    zIndex: 20,
+    zIndex: 10,
+    alignItems: "center",
     overflow: "hidden",
   },
   mapControlsColFocused: {
-    bottom: "64%",
+    display: "none",
   },
   mapCtrlBtn: {
-    width: 38,
-    height: 36,
+    width: 40,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
   },
   mapCtrlDivider: {
+    width: 24,
     height: 1,
     backgroundColor: "#E2E8F0",
   },
@@ -1956,25 +1766,25 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: "62%",
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.22,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -6 },
+    maxHeight: "58%",
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
     elevation: 16,
-    zIndex: 40,
-    overflow: "hidden",
+    zIndex: 50,
   },
   drawerGrabberRow: {
+    width: "100%",
     alignItems: "center",
     paddingTop: 8,
     paddingBottom: 6,
   },
   drawerGrabber: {
-    width: 40,
+    width: 36,
     height: 4,
     borderRadius: 2,
     backgroundColor: "#CBD5E1",
@@ -1983,89 +1793,80 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   drawerScrollContent: {
-    paddingHorizontal: 18,
-    paddingBottom: 100,
-    gap: 14,
+    paddingHorizontal: 16,
+    gap: 12,
   },
   heroCard: {
-    height: 168,
-    borderRadius: 20,
+    width: "100%",
+    height: 140,
+    borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: "#0B192C",
     position: "relative",
+    backgroundColor: "#E2E8F0",
   },
   heroImage: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
     width: "100%",
     height: "100%",
   },
   heroGradientOverlay: {
     position: "absolute",
     top: 0,
+    left: 0,
     right: 0,
     bottom: 0,
-    left: 0,
-    backgroundImage:
-      "linear-gradient(180deg, rgba(2, 8, 23, 0.58) 0%, rgba(2, 8, 23, 0.1) 40%, rgba(2, 8, 23, 0.65) 100%)" as any,
   },
   mpaBadge: {
     position: "absolute",
-    top: 12,
-    left: 12,
+    top: 10,
+    left: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(4, 13, 31, 0.76)",
+    gap: 4,
+    backgroundColor: "rgba(2, 44, 34, 0.78)",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(52, 211, 153, 0.55)",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderColor: "rgba(52, 211, 153, 0.4)",
   },
   mpaBadgeText: {
-    fontSize: 11,
-    fontFamily: "Quicksand_700Bold",
-    color: "#ECFDF5",
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#A7F3D0",
   },
   closeDrawerBtn: {
     position: "absolute",
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(15, 23, 42, 0.68)",
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
     alignItems: "center",
     justifyContent: "center",
   },
   titleBarRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
   },
   titleCol: {
     flex: 1,
-    gap: 3,
   },
   drawerSiteTitle: {
-    fontSize: 20,
-    fontFamily: "Quicksand_700Bold",
+    fontSize: 17,
+    fontWeight: "700",
     color: colors.darkText,
   },
   drawerLocationRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    marginTop: 2,
   },
   drawerLocationText: {
-    fontSize: 12.5,
-    fontFamily: "Quicksand_500Medium",
-    color: "#64748B",
+    fontSize: 11,
+    color: colors.gray,
   },
   titleActionsRow: {
     flexDirection: "row",
@@ -2073,178 +1874,161 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bookmarkBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#F8FBFF",
-    borderWidth: 1,
-    borderColor: "#DBE8F4",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
   },
-  bookmarkBtnActive: {
-    backgroundColor: "#EBF3FF",
-    borderColor: colors.primaryBlue,
-  },
   heartBtnActive: {
-    backgroundColor: "#FEF2F2",
-    borderColor: "#FCA5A5",
+    backgroundColor: "#FEE2E2",
   },
   quickSpecsRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    flexWrap: "wrap",
+    marginBottom: 4,
   },
   specPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    backgroundColor: "#F8FBFF",
+    gap: 6,
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#DBE8F4",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    borderColor: "#E2E8F0",
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 10,
   },
   specPillWide: {
     flex: 1,
-    minWidth: 130,
   },
   specLabel: {
-    fontSize: 9,
-    fontFamily: "Quicksand_700Bold",
-    color: "#94A3B8",
+    fontSize: 8.5,
+    fontWeight: "700",
+    color: colors.gray,
     letterSpacing: 0.5,
   },
   specValue: {
-    fontSize: 12,
-    fontFamily: "Quicksand_700Bold",
+    fontSize: 11,
+    fontWeight: "700",
     color: colors.darkText,
   },
   specDiffBadge: {
-    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 10,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    alignItems: "center",
-    justifyContent: "center",
   },
   specDiffText: {
-    fontSize: 11.5,
-    fontFamily: "Quicksand_700Bold",
+    fontSize: 11,
+    fontWeight: "700",
   },
   drawerSection: {
-    gap: 6,
+    marginBottom: 4,
+  },
+  drawerSectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.darkText,
+    marginBottom: 4,
+  },
+  drawerDescription: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#475569",
   },
   sectionTitleWithIcon: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
-  drawerSectionTitle: {
-    fontSize: 14.5,
-    fontFamily: "Quicksand_700Bold",
-    color: colors.darkText,
-  },
-  drawerDescription: {
-    fontSize: 13,
-    fontFamily: "Quicksand_500Medium",
-    color: "#475569",
-    lineHeight: 19.5,
+    marginBottom: 6,
   },
   marineLifeGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginTop: 2,
+    gap: 6,
   },
   speciesChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: "#F8FBFF",
+    gap: 6,
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#DBE8F4",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    minWidth: "47%",
-    flex: 1,
+    borderColor: "#E2E8F0",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 10,
   },
   speciesIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#EBF3FF",
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
   },
-  speciesTextCol: {
-    flex: 1,
-  },
+  speciesTextCol: {},
   speciesName: {
-    fontSize: 12,
-    fontFamily: "Quicksand_700Bold",
+    fontSize: 10.5,
+    fontWeight: "700",
     color: colors.darkText,
   },
   speciesTag: {
-    fontSize: 10.5,
-    fontFamily: "Quicksand_500Medium",
-    color: "#64748B",
+    fontSize: 9,
+    color: colors.gray,
   },
   ecoAlertBanner: {
-    backgroundColor: "#ECFDF5",
+    backgroundColor: "#F0FDF4",
     borderWidth: 1,
-    borderColor: "#A7F3D0",
-    borderRadius: 16,
-    padding: 14,
-    gap: 10,
-    marginTop: 2,
+    borderColor: "#BBF7D0",
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 6,
   },
   ecoAlertHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
+    marginBottom: 6,
   },
   ecoAlertIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#D1FAE5",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
   },
   ecoAlertTitle: {
-    fontSize: 13.5,
-    fontFamily: "Quicksand_700Bold",
-    color: "#065F46",
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: "#166534",
   },
   ecoAlertSub: {
-    fontSize: 11,
-    fontFamily: "Quicksand_500Medium",
-    color: "#047857",
+    fontSize: 9.5,
+    color: "#15803D",
   },
   ecoRulesList: {
-    gap: 6,
+    gap: 5,
   },
   ecoRuleRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 8,
+    gap: 6,
   },
   ecoRuleDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "#059669",
-    marginTop: 6,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#16A34A",
+    marginTop: 5,
   },
   ecoRuleText: {
     flex: 1,
-    fontSize: 12,
-    fontFamily: "Quicksand_500Medium",
-    color: "#065F46",
-    lineHeight: 17.5,
+    fontSize: 10.5,
+    lineHeight: 14,
+    color: "#14532D",
   },
 });
