@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -54,11 +54,16 @@ const PASS_TYPE_LABELS: Record<string, string> = {
 };
 
 const DIVE_TYPE_LABELS: Record<string, string> = {
-  "intro-fun": "Recreational Dive",
-  intro: "Intro Dive",
-  fun: "Fun Dive",
-  "guest-tourist": "Guest / Tourist",
-  certified: "Certified Dive",
+  "fun-intro-guest": "Fun Dive / Intro Dive / Guest",
+  "instructor-master": "Dive Instructor / Master",
+  "dive-master": "Dive Instructor / Master",
+  // Legacy / backward-compatibility mappings
+  "intro-fun": "Fun Dive / Intro Dive / Guest",
+  fun: "Fun Dive / Intro Dive / Guest",
+  intro: "Fun Dive / Intro Dive / Guest",
+  guest: "Fun Dive / Intro Dive / Guest",
+  "guest-tourist": "Fun Dive / Intro Dive / Guest",
+  certified: "Dive Instructor / Master",
 };
 
 const CERT_LEVEL_LABELS: Record<string, string> = {
@@ -153,7 +158,16 @@ export function EcoDivePassportView() {
     "Dive recap copied to clipboard!",
   );
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const profilePhotoUri = avatarUri;
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshProfile();
+      setRefreshKey((k) => k + 1);
+    }, [refreshProfile])
+  );
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -290,7 +304,7 @@ export function EcoDivePassportView() {
     return () => {
       active = false;
     };
-  }, [user, ecoId?.eco_id_number]);
+  }, [user, ecoId?.eco_id_number, refreshKey]);
 
   const handlePickProfilePhoto = useCallback(async () => {
     const result = await pickAvatarImage();
@@ -395,7 +409,7 @@ export function EcoDivePassportView() {
       (profile?.dive_pass_type &&
         PASS_TYPE_LABELS[profile.dive_pass_type.toLowerCase()]) ||
       profile?.dive_pass_type ||
-      "—";
+      (ecoId?.status === "active" ? "Tourist Dive Pass" : "—");
     const typeOfDive =
       (profile?.type_of_dive &&
         DIVE_TYPE_LABELS[profile.type_of_dive.toLowerCase()]) ||
@@ -405,7 +419,9 @@ export function EcoDivePassportView() {
       (profile?.certification_level &&
         CERT_LEVEL_LABELS[profile.certification_level.toLowerCase()]) ||
       profile?.certification_level ||
-      "—";
+      (profile?.type_of_dive === "instructor-master" || profile?.type_of_dive === "dive-master"
+        ? "Dive Master / Instructor"
+        : "—");
     const dateAccredited = formatCardDate(profile?.date_accredited);
     const renewalDate = formatCardDate(profile?.renewal_date);
     const emergencyName =
@@ -424,7 +440,7 @@ export function EcoDivePassportView() {
       emergencyName,
       emergencyNumber,
     };
-  }, [profile]);
+  }, [profile, ecoId?.status]);
 
   // Compute dive profile completion progress (0% - 100%)
   const { completionProgress, isProfileComplete, missingStepHint } =
@@ -443,16 +459,15 @@ export function EcoDivePassportView() {
           profile.emergency_contact_number?.trim(),
       );
       const hasDiveType = Boolean(profile.type_of_dive?.trim());
-      const isCertifiedPath = profile.type_of_dive === "certified";
-      const hasCertDetails = !isCertifiedPath
+      const isInstructorMasterPath =
+        profile.type_of_dive === "instructor-master" ||
+        profile.type_of_dive === "dive-master" ||
+        profile.type_of_dive === "certified";
+      const hasCertDetails = !isInstructorMasterPath
         ? hasDiveType
         : Boolean(
-            profile.certification_level?.trim() &&
-              (profile.certification_level !== "dive-master" ||
-                Boolean(
-                  (profile.pcssd_accreditation_no?.trim() || profile.pcssd_url?.trim()) &&
-                    (profile.permit_to_operate_no?.trim() || profile.permit_to_operate_url?.trim())
-                ))
+            (profile.pcssd_accreditation_no?.trim() || profile.pcssd_url?.trim()) &&
+            (profile.permit_to_operate_no?.trim() || profile.permit_to_operate_url?.trim())
           );
 
       const checks = [
@@ -470,8 +485,8 @@ export function EcoDivePassportView() {
         hint = "Add your nationality and emergency contact details.";
       } else if (!hasDiveType) {
         hint = "Select your preferred dive category.";
-      } else if (isCertifiedPath && !hasCertDetails) {
-        hint = "Complete your diver certification and required accreditation.";
+      } else if (isInstructorMasterPath && !hasCertDetails) {
+        hint = "Complete your Dive Instructor / Master accreditation and permit.";
       }
 
       return {
