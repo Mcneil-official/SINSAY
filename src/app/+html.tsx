@@ -13,8 +13,10 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
         />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
       </head>
@@ -24,21 +26,29 @@ export default function Root({ children }: PropsWithChildren) {
 }
 
 const responsiveBackground = `
-html,
+html {
+  background-color: #F8FAFC;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+}
+
 body {
-  height: 100%;
-  width: 100%;
+  background-color: #F8FAFC;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: #F8FAFC;
 }
 
 #root {
-  width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
   overflow: hidden;
   background-color: #F8FAFC;
 }

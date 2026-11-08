@@ -8,10 +8,9 @@ import {
 /**
  * Normalizes safe area insets on web platforms.
  *
- * On iOS WebKit (Safari & PWA), viewport-fit=cover causes env(safe-area-inset-bottom)
- * to report 34px for the home indicator. This normalizer preserves insets.top for
- * the notch and status bar, but clamps insets.bottom to 0 so components do not
- * create an unwanted 34px white chin at the bottom of screens, modals, and wizards.
+ * Ensures insets.bottom is always clamped to 0 so components do not
+ * create an unwanted white chin at the bottom of screens, modals, and wizards,
+ * while preserving insets.top for the notch and status bar.
  */
 export function WebSafeInsetsNormalizer({
   children,
