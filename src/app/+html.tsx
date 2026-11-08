@@ -42,7 +42,6 @@ body {
   padding: 0;
   overflow: hidden;
 }
-
 #root {
   display: flex;
   flex-direction: column;

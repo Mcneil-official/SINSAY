@@ -26,10 +26,10 @@ export function registerServiceWorker() {
     const metas = [
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "SINSAY" },
       { name: "application-name", content: "SINSAY" },
-      { name: "theme-color", content: "#005EEC" },
+      { name: "theme-color", content: "#FFFFFF" },
     ];
 
     metas.forEach(({ name, content }) => {
