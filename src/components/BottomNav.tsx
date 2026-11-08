@@ -7,7 +7,7 @@ import { colors } from "../constants/colors";
 import { useLayout } from "../context/LayoutContext";
 
 export const BOTTOM_NAV_HEIGHT = 54;
-export const BOTTOM_NAV_PADDING = 8;
+export const BOTTOM_NAV_PADDING = 0;
 
 const INACTIVE_COLOR = "#657C9B";
 

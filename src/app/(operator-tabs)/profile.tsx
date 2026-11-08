@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { ConfirmModal, ContentContainer } from "../../components";
 import { colors } from "../../constants/colors";
@@ -74,7 +74,6 @@ export default function OperatorProfileScreen() {
   } = useAuth();
   const { isInstalled, promptInstall } = usePWAInstall();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasPcssd = Boolean(
@@ -151,10 +150,10 @@ export default function OperatorProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" />
-      <View style={[styles.headerBackground, { top: -insets.top, height: 260 + insets.top }]} pointerEvents="none">
+      <View style={styles.headerBackground} pointerEvents="none">
         <Svg
           width="100%"
-          height={260 + insets.top}
+          height={260}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -177,7 +176,7 @@ export default function OperatorProfileScreen() {
             x="0"
             y="0"
             width="100%"
-            height={270 + insets.top}
+            height={270}
             fill="url(#operatorProfileTopGrad)"
           />
         </Svg>

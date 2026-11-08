@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { ContentContainer, ManifestSkeleton } from "../../components";
 import { ManifestSnapshotCard, ManifestSnapshotDiver } from "../../components/ManifestSnapshotCard";
@@ -57,7 +57,6 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function ManifestsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { user, operatorApplication } = useAuth();
   const [tab, setTab] = useState<Tab>("upcoming");
   const [manifests, setManifests] = useState<ManifestItem[]>([]);
@@ -297,10 +296,10 @@ export default function ManifestsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" />
-      <View style={[styles.headerBackground, { top: -insets.top, height: 245 + insets.top }]} pointerEvents="none">
+      <View style={styles.headerBackground} pointerEvents="none">
         <Svg
           width="100%"
-          height={245 + insets.top}
+          height={245}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -313,7 +312,7 @@ export default function ManifestsScreen() {
               <Stop offset="1" stopColor="#f1f9ff" />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height={245 + insets.top} fill="url(#screenTopGrad)" />
+          <Rect x="0" y="0" width="100%" height={245} fill="url(#screenTopGrad)" />
         </Svg>
         <Svg
           viewBox="0 0 1024 496"

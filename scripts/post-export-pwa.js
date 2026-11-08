@@ -68,14 +68,10 @@ if (fs.existsSync(indexPath)) {
   // appropriate diving icon. The installed PWA icon is configured in the manifest.
   html = html.replace(/^\s*<link rel="(?:manifest|icon|apple-touch-icon)"[^>]*>\s*$/gim, '');
 
-  // Strip existing theme-color tags and any previous PWA injected blocks so only the canonical one exists
-  html = html.replace(/^\s*<meta name="theme-color"[^>]*>\s*$/gim, '');
-  html = html.replace(/<!-- Disable stale caching on initial HTML load -->[\s\S]*?<\/style>/gi, '');
-
-  // Ensure viewport includes viewport-fit=cover for edge-to-edge rendering behind notch & status bar
+  // Keep the iOS PWA within the browser viewport instead of forcing edge-to-edge layout.
   html = html.replace(
     /<meta\s+name=["']viewport["'][^>]*>/i,
-    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />'
+    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=auto" />'
   );
 
   const pwaTags = `
@@ -107,7 +103,6 @@ if (fs.existsSync(indexPath)) {
         margin: 0 !important;
         padding: 0 !important;
         overflow: hidden !important;
-        background-color: #FFFFFF !important;
       }
       #root {
         position: fixed !important;
@@ -116,12 +111,13 @@ if (fs.existsSync(indexPath)) {
         right: 0 !important;
         bottom: 0 !important;
         width: 100% !important;
-        height: 100% !important;
+        height: auto !important;
+        min-height: 100% !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
         overscroll-behavior: none !important;
-        background-color: #FFFFFF !important;
+        background-color: #F8FAFC !important;
       }
     </style>
   `;

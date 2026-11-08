@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, {
   Circle,
   Defs,
@@ -58,7 +58,6 @@ function formatTxDate(dateStr: string): string {
 
 export default function BuyPassSelectionScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { openNotifications } = useNotificationModal();
   const { user, unreadCount } = useAuth();
 
@@ -187,10 +186,10 @@ export default function BuyPassSelectionScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* Top Ocean Gradient and Wave Background Header */}
-      <View style={[styles.headerBackgroundWrap, { top: -insets.top, height: 240 + insets.top }]} pointerEvents="none">
+      <View style={styles.headerBackgroundWrap} pointerEvents="none">
         <Svg
           width="100%"
-          height={240 + insets.top}
+          height={240}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -203,7 +202,7 @@ export default function BuyPassSelectionScreen() {
               <Stop offset="1" stopColor="#f1f9ff" />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height={240 + insets.top} fill="url(#screenTopGrad)" />
+          <Rect x="0" y="0" width="100%" height={240} fill="url(#screenTopGrad)" />
         </Svg>
 
         <Svg

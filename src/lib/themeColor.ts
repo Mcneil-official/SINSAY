@@ -4,55 +4,45 @@ import { Platform } from "react-native";
  * Dynamically updates the browser / PWA theme color and iOS status bar style.
  * This controls the color of the native Android navigation bar (bottom 3 buttons),
  * the top status bar, and iOS Safari status bar/overscroll background.
- *
- * @param themeColor The system theme color (used for Android status bar and browser chrome)
- * @param appleStatusBarStyle iOS status bar style ("default" for dark icons, "black-translucent" for white icons over dark/blue headers)
- * @param canvasBackground The underlying background color for html, body, and #root. Defaults to "#FFFFFF" so bottom navigation bars are never underlined with mismatched colors.
  */
 export function setSystemThemeColor(
   themeColor: string,
-  appleStatusBarStyle: "default" | "black-translucent" = "default",
-  canvasBackground: string = "#FFFFFF"
+  appleStatusBarStyle: "default" | "black-translucent" = "black-translucent"
 ) {
   if (Platform.OS !== "web") return;
   try {
     if (typeof document === "undefined") return;
 
-    // 1. Update or create all <meta name="theme-color"> tags
-    const metaThemes = document.querySelectorAll('meta[name="theme-color"]');
-    if (metaThemes.length === 0) {
-      const metaTheme = document.createElement("meta");
+    // 1. Update or create <meta name="theme-color">
+    let metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (!metaTheme) {
+      metaTheme = document.createElement("meta");
       metaTheme.setAttribute("name", "theme-color");
-      metaTheme.setAttribute("content", themeColor);
       document.head.appendChild(metaTheme);
-    } else {
-      metaThemes.forEach((el) => el.setAttribute("content", themeColor));
     }
+    metaTheme.setAttribute("content", themeColor);
 
-    // 2. Update or create all <meta name="apple-mobile-web-app-status-bar-style"> tags
-    const metaApples = document.querySelectorAll(
+    // 2. Update or create <meta name="apple-mobile-web-app-status-bar-style"> for iOS
+    let metaApple = document.querySelector(
       'meta[name="apple-mobile-web-app-status-bar-style"]'
     );
-    if (metaApples.length === 0) {
-      const metaApple = document.createElement("meta");
-      metaApple.setAttribute("name", "apple-mobile-web-app-status-bar-style");
-      metaApple.setAttribute("content", appleStatusBarStyle);
+    if (!metaApple) {
+      metaApple = document.createElement("meta");
+      metaApple.setAttribute(
+        "name",
+        "apple-mobile-web-app-status-bar-style"
+      );
       document.head.appendChild(metaApple);
-    } else {
-      metaApples.forEach((el) => el.setAttribute("content", appleStatusBarStyle));
     }
+    metaApple.setAttribute("content", appleStatusBarStyle);
 
-    // 3. Keep body, html, and #root background colors synchronized with canvasBackground
-    // On tab screens, canvasBackground is #FFFFFF so that the area below the white navbar is seamless white
+    // 3. Ensure document body and html background colors match
+    // This prevents overscroll elastic bounce or edge letterboxing from showing mismatched colors on iOS & Android
     if (document.body) {
-      document.body.style.backgroundColor = canvasBackground;
+      document.body.style.backgroundColor = themeColor;
     }
     if (document.documentElement) {
-      document.documentElement.style.backgroundColor = canvasBackground;
-    }
-    const rootEl = document.getElementById("root");
-    if (rootEl) {
-      rootEl.style.setProperty("background-color", canvasBackground, "important");
+      document.documentElement.style.backgroundColor = themeColor;
     }
   } catch {
     // Non-DOM runtimes silently no-op

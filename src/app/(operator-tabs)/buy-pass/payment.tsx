@@ -21,13 +21,11 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { BuyPassProgress, ContentContainer, GCashLogo } from "../../../components";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../../constants/colors";
 import { supabase } from "../../../lib/supabase";
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { passId, passLabel, passCount, quantity, total, unitPrice } =
     useLocalSearchParams<{
       passId?: string;
@@ -98,10 +96,10 @@ export default function PaymentScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* Top Ocean Gradient and Wave Background Header */}
-      <View style={[styles.headerBackgroundWrap, { top: -insets.top, height: 220 + insets.top }]} pointerEvents="none">
+      <View style={styles.headerBackgroundWrap} pointerEvents="none">
         <Svg
           width="100%"
-          height={220 + insets.top}
+          height={220}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -114,7 +112,7 @@ export default function PaymentScreen() {
               <Stop offset="1" stopColor="#f1f9ff" />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height={220 + insets.top} fill="url(#screenTopGrad)" />
+          <Rect x="0" y="0" width="100%" height={220} fill="url(#screenTopGrad)" />
         </Svg>
 
         <Svg
