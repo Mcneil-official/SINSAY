@@ -16,11 +16,13 @@ import AuthWelcome from "../components/AuthWelcome";
 import SplashScreen from "../components/SplashScreen";
 import WaveDivider from "../components/WaveDivider";
 import { ENABLE_DESKTOP_LAYOUT } from "../constants/layout";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Index() {
   const router = useRouter();
   const { isTablet, isDesktop } = useLayout();
   const isWide = ENABLE_DESKTOP_LAYOUT && (isTablet || isDesktop);
+  const { user, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
   const [showSplash, setShowSplash] = useState(() => {
     if (hasSplashBeenShown()) return false;
     const { width } = Dimensions.get("window");
@@ -31,7 +33,28 @@ export default function Index() {
     markSplashShown();
   }, []);
 
+  // When already authenticated and role is resolved:
+  // - On mobile cold start: wait for the brand splash animation to finish cleanly.
+  // - On desktop or session restore without splash: route immediately to Home.
+  useEffect(() => {
+    if (isLoading || !roleReady) return;
+    if (showSplash) return;
+
+    if (user) {
+      router.replace(isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)");
+    }
+  }, [isLoading, roleReady, showSplash, user, isOperator, viewAsTourist, router]);
+
   if (isWide) {
+    if (user && roleReady) {
+      return (
+        <View style={styles.mobileRoot}>
+          <StatusBar style="light" />
+          <Stack.Screen options={{ headerShown: false }} />
+        </View>
+      );
+    }
+
     return (
       <View style={styles.wideRoot}>
         <StatusBar style="dark" />
@@ -73,11 +96,13 @@ export default function Index() {
     );
   }
 
+  const shouldShowWelcome = !showSplash && !user && !isLoading;
+
   return (
     <View style={styles.mobileRoot}>
       <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
-      <AuthWelcome active={!showSplash} />
+      <AuthWelcome active={shouldShowWelcome} />
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
     </View>
   );
