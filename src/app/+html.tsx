@@ -13,7 +13,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=auto"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
         />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
@@ -42,7 +42,7 @@ body {
   padding: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  background-color: #F8FAFC;
+  background-color: transparent;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
@@ -54,12 +54,11 @@ body {
   right: 0 !important;
   bottom: 0 !important;
   width: 100% !important;
-  height: auto !important;
-  min-height: 100% !important;
+  height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
   overscroll-behavior: none !important;
-  background-color: #F8FAFC;
+  background-color: transparent;
 }
 `;

@@ -150,10 +150,16 @@ export default function OperatorProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" />
-      <View style={styles.headerBackground} pointerEvents="none">
+      <View
+        style={[
+          styles.headerBackground,
+          { top: -insets.top, height: 260 + insets.top },
+        ]}
+        pointerEvents="none"
+      >
         <Svg
           width="100%"
-          height={260}
+          height={260 + insets.top}
           preserveAspectRatio="none"
           style={StyleSheet.absoluteFill}
         >
@@ -176,14 +182,14 @@ export default function OperatorProfileScreen() {
             x="0"
             y="0"
             width="100%"
-            height={270}
+            height={270 + insets.top}
             fill="url(#operatorProfileTopGrad)"
           />
         </Svg>
         <Svg
           viewBox="0 0 1024 496"
           preserveAspectRatio="none"
-          style={styles.headerWaveSvg}
+          style={[styles.headerWaveSvg, { height: 220 + insets.top }]}
         >
           <Path
             d="M0 296C170 226 320 396 490 258 C700 86 791 90 878 85C951 77 1000 34 1024 0 V496H0Z"
