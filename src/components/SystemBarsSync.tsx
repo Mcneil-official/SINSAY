@@ -1,4 +1,4 @@
-import { useSegments } from "expo-router";
+import { usePathname, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { colors } from "../constants/colors";
@@ -6,21 +6,17 @@ import { setSystemThemeColor } from "../lib/themeColor";
 
 export function SystemBarsSync() {
   const segments = useSegments() as string[];
+  const pathname = usePathname();
 
   // Route group detection:
-  // - [] -> Root index (src/app/index.tsx, splash / welcome)
-  // - ["(tabs)"] -> Tourist tab screens
-  // - ["(operator-tabs)"] -> Operator tab screens
-  const isRootIndex = segments.length === 0;
+  // - Root index (src/app/index.tsx, splash / welcome) -> pathname === "/" or segments.length === 0
+  const isSplash = pathname === "/" || pathname === "" || segments.length === 0;
   const topSegment = segments[0] ?? "";
   const isOperatorGroup = topSegment === "(operator-tabs)";
 
   // Auth pages with ocean wave top
   const isAuthPage =
     topSegment === "loginpage" || topSegment === "signup";
-
-  // Full-bleed splash / welcome screen (ONLY when on the actual root index screen)
-  const isSplash = isRootIndex;
 
   const isOnboarding =
     typeof topSegment === "string" && topSegment.startsWith("next");

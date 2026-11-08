@@ -94,34 +94,23 @@ if (fs.existsSync(indexPath)) {
     <link rel="apple-touch-icon" href="/pwa-apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="/SINSAY Blue Diving Icon.png" media="(prefers-color-scheme: light)" />
     <link rel="icon" type="image/png" href="/SINSAY White Diving Icon.png" media="(prefers-color-scheme: dark)" />
-    <!-- Enforce physical screen pinning on iOS WebKit -->
+    <!-- Enforce physical screen coverage without position:fixed trapping on iOS WebKit -->
     <style id="sinsay-viewport-pin">
       html, body {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
         width: 100% !important;
         height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow: hidden !important;
-        background-color: transparent !important;
+        overscroll-behavior: none !important;
       }
       #root {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
         width: 100% !important;
         height: 100% !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
         overscroll-behavior: none !important;
-        background-color: transparent !important;
       }
     </style>
   `;
