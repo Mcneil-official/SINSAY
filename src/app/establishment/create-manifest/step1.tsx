@@ -1074,6 +1074,10 @@ export default function CreateManifestStep1() {
             .filter((dm) => dm.trim().length > 0)
             .join(", "),
           crewMembers: validCrewMembers.join(", "),
+          diveMode,
+          diveType,
+          difficulty,
+          diveDate,
         },
       });
     } catch (e) {
