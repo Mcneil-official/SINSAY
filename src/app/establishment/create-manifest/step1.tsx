@@ -2278,7 +2278,12 @@ export default function CreateManifestStep1() {
                 const hasPermit = Boolean(
                   dm.permit_to_operate_url || dm.permit_to_operate_no,
                 );
-                const levelLabel = "Dive Master / Instructor";
+                const levelLabel =
+                  dm.certification_level === "instructor"
+                    ? "Instructor"
+                    : dm.certification_level === "dive-master"
+                      ? "Dive Master"
+                      : "Dive Master / Instructor";
 
                 return (
                   <TouchableOpacity
@@ -2290,26 +2295,18 @@ export default function CreateManifestStep1() {
                     <View style={styles.dmResultAvatar}>
                       <Ionicons name="person" size={20} color="#0066FF" />
                     </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                      >
-                        <Text style={styles.dmResultName} numberOfLines={1}>
-                          {dm.full_name?.trim() || "Accredited Diver"}
-                        </Text>
+                    <View style={{ flex: 1, minWidth: 0, justifyContent: "center" }}>
+                      <Text style={styles.dmResultName}>
+                        {dm.full_name?.trim() || "Accredited Diver"}
+                      </Text>
+
+                      {/* Accreditation & Role Badges */}
+                      <View style={styles.dmBadgesRow}>
                         <View style={styles.dmLevelBadge}>
                           <Text style={styles.dmLevelBadgeText}>
                             {levelLabel}
                           </Text>
                         </View>
-                      </View>
-
-                      {/* Accreditation Badges */}
-                      <View style={styles.dmBadgesRow}>
                         {hasPcssd ? (
                           <View style={styles.dmPcssdBadge}>
                             <Ionicons
@@ -2902,10 +2899,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dmResultName: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: "Quicksand_700Bold",
     color: "#0F172A",
-    flexShrink: 1,
+    lineHeight: 20,
+    marginBottom: 2,
   },
   dmLevelBadge: {
     backgroundColor: "#EFF6FF",
