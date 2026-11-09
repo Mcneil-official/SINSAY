@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -31,6 +31,7 @@ import { supabase } from "../lib/supabase";
 import { pickAvatarImage } from "../lib/pickAvatar";
 import { uploadFile } from "../lib/storage";
 import { deriveEffectiveEcoStatus } from "../lib/ecoIdExpiry";
+import { captureAndDownload } from "../lib/snapshot";
 import ContentContainer from "./ContentContainer";
 import { resolveSiteImage } from "./DiveSiteCard";
 import { ErrorState } from "./ErrorState";
@@ -148,6 +149,8 @@ export function EcoDivePassportView() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [selectedRecap, setSelectedRecap] =
     useState<DiveTimelineActivity | null>(null);
+  const storyCardRef = useRef<View>(null);
+  const [isSavingImage, setIsSavingImage] = useState(false);
   const [showIdCardModal, setShowIdCardModal] = useState(false);
   const [copiedBanner, setCopiedBanner] = useState(false);
   const [toastMessage, setToastMessage] = useState(
@@ -355,61 +358,31 @@ export function EcoDivePassportView() {
     setTimeout(() => setCopiedBanner(false), 2600);
   }, []);
 
-  const handleShareRecap = useCallback(
+  const handleSaveRecapImage = useCallback(
     async (activity: DiveTimelineActivity) => {
-      const summary = [
-        `🤿 SINSAY Eco-Dive Recap — Dive #${String(activity.diveNumber).padStart(2, "0")}`,
-        `📍 Site: ${activity.siteName} (${activity.barangay})`,
-        `🗓️ Date & Time: ${activity.dateTime}`,
-        `🌊 Category: ${activity.diveCategory}`,
-        `🏝️ Dive Center: ${activity.resortOrCenter}`,
-        `📏 Depth: ${activity.depthRange} | Duration: ${activity.duration}`,
-        `Verified via SINSAY Digital Dive Tourism — Mabini, Batangas`,
-      ].join("\n");
-
+      if (!storyCardRef.current || isSavingImage) return;
+      setIsSavingImage(true);
       try {
-        if (
-          Platform.OS === "web" &&
-          typeof navigator !== "undefined" &&
-          navigator.share
-        ) {
-          await navigator.share({
-            title: `Dive #${activity.diveNumber} — ${activity.siteName}`,
-            text: summary,
-          });
-          return;
-        }
-        if (Platform.OS !== "web") {
-          await Share.share({ message: summary });
-          return;
-        }
-      } catch {
-        // Fallback to clipboard copy on web
-      }
-
-      if (
-        Platform.OS === "web" &&
-        typeof navigator !== "undefined" &&
-        navigator.clipboard
-      ) {
-        await navigator.clipboard.writeText(summary);
-        setToastMessage("Dive recap copied to clipboard!");
+        const safeName = (activity.siteName || "mabini")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-");
+        const fileName = `sinsay-recap-dive-${String(activity.diveNumber).padStart(2, "0")}-${safeName}.png`;
+        await captureAndDownload(storyCardRef.current, fileName);
+        setToastMessage("Dive recap image saved to device!");
         setCopiedBanner(true);
         setTimeout(() => setCopiedBanner(false), 2600);
+      } catch (e) {
+        console.warn("Failed to save recap image:", e);
+        setToastMessage(
+          e instanceof Error ? e.message : "Couldn't save image. Try again.",
+        );
+        setCopiedBanner(true);
+        setTimeout(() => setCopiedBanner(false), 2600);
+      } finally {
+        setIsSavingImage(false);
       }
     },
-    [],
-  );
-
-  const handleSaveRecapImage = useCallback(
-    (activity: DiveTimelineActivity) => {
-      setToastMessage(
-        `Dive #${String(activity.diveNumber).padStart(2, "0")} story image saved!`,
-      );
-      setCopiedBanner(true);
-      setTimeout(() => setCopiedBanner(false), 2600);
-    },
-    [],
+    [isSavingImage],
   );
 
   // Effective date-aware status (prevents expired One-Day passes from showing active)
@@ -1238,7 +1211,7 @@ export function EcoDivePassportView() {
                         </TouchableOpacity>
                       </View>
 
-                      {/* View / Share Dive Recap Action */}
+                      {/* View Dive Recap Action */}
                       <View style={styles.cardFooterActions}>
                         <TouchableOpacity
                           style={styles.viewRecapBtn}
@@ -1254,23 +1227,6 @@ export function EcoDivePassportView() {
                           />
                           <Text style={styles.viewRecapBtnText}>
                             View Recap
-                          </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={styles.shareRecapBtn}
-                          onPress={() => handleShareRecap(item)}
-                          activeOpacity={0.85}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Share dive recap for ${item.siteName}`}
-                        >
-                          <Ionicons
-                            name="share-social-outline"
-                            size={14}
-                            color={colors.white}
-                          />
-                          <Text style={styles.shareRecapBtnText}>
-                            Share Recap
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1562,6 +1518,7 @@ export function EcoDivePassportView() {
               {/* Centered 9:16 Vertical Story Card */}
               <View style={styles.storyCardOuterWrap}>
                 <View
+                  ref={storyCardRef}
                   style={[
                     styles.storyCardCanvas,
                     { width: storyCardWidth, height: storyCardHeight },
@@ -1677,18 +1634,28 @@ export function EcoDivePassportView() {
 
               {/* Save Image Action Button */}
               <TouchableOpacity
-                style={styles.saveStoryImageBtn}
+                style={[
+                  styles.saveStoryImageBtn,
+                  isSavingImage && styles.saveStoryImageBtnDisabled,
+                ]}
                 onPress={() => handleSaveRecapImage(selectedRecap)}
                 activeOpacity={0.86}
+                disabled={isSavingImage}
                 accessibilityRole="button"
                 accessibilityLabel="Save dive recap image"
               >
-                <Ionicons
-                  name="download-outline"
-                  size={17}
-                  color="#0D74E7"
-                />
-                <Text style={styles.saveStoryImageBtnText}>Save Image</Text>
+                {isSavingImage ? (
+                  <ActivityIndicator size="small" color="#0D74E7" />
+                ) : (
+                  <Ionicons
+                    name="download-outline"
+                    size={17}
+                    color="#0D74E7"
+                  />
+                )}
+                <Text style={styles.saveStoryImageBtnText}>
+                  {isSavingImage ? "Saving Image..." : "Save Image"}
+                </Text>
               </TouchableOpacity>
             </Pressable>
           )}
@@ -2578,6 +2545,9 @@ const styles = StyleSheet.create({
     borderColor: "#93C5FD",
     borderRadius: 999,
     paddingVertical: 11,
+  },
+  saveStoryImageBtnDisabled: {
+    opacity: 0.65,
   },
   saveStoryImageBtnText: {
     fontSize: 13.5,

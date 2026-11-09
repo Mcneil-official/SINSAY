@@ -279,6 +279,7 @@ export interface DiveManifestRow {
   dive_type: string;
   dive_mode: string;
   location: string;
+  locations?: string[] | null;
   difficulty: string;
   boat_name: string | null;
   captain_name: string | null;
