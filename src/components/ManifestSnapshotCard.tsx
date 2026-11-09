@@ -112,9 +112,9 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
       manifest.location?.trim() ||
       (isBoatDive ? "Anilao Dive Site" : "Anilao Shore Entry");
     const vesselNameDisplay =
-      manifest.boat_name?.trim() || "Official Dive Vessel";
+      manifest.boat_name?.trim() || (isBoatDive ? "Official Dive Vessel" : "Shore Entry / Non-Boat");
     const captainDisplay =
-      manifest.captain_name?.trim() || "Assigned Boat Captain";
+      manifest.captain_name?.trim() || (isBoatDive ? "Assigned Boat Captain" : "N/A (Shore Dive)");
 
     const dms = (manifest.dive_masters || [])
       .map((s) => s.trim())

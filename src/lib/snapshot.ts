@@ -22,14 +22,27 @@ export async function captureNodeToPng(node: unknown): Promise<string> {
     throw new Error("Snapshot card isn't ready yet. Try again.");
   }
   const { toPng } = await import("html-to-image");
-  return toPng(el, {
-    cacheBust: true,
-    pixelRatio: 2,
-    style: {
-      transform: "none",
-      zoom: "1",
-    },
-  });
+  try {
+    return await toPng(el, {
+      cacheBust: true,
+      pixelRatio: 2,
+      style: {
+        transform: "none",
+        zoom: "1",
+      },
+    });
+  } catch (err) {
+    // Fallback skipping external webfonts if stylesheet embedding fails
+    return await toPng(el, {
+      cacheBust: true,
+      pixelRatio: 2,
+      skipFonts: true,
+      style: {
+        transform: "none",
+        zoom: "1",
+      },
+    });
+  }
 }
 
 export async function sharePng(dataUrl: string, fileName: string): Promise<SnapshotResult> {
@@ -70,12 +83,23 @@ export async function captureAndShare(node: unknown, fileName: string): Promise<
 
 export async function captureAndDownload(node: unknown, fileName: string): Promise<void> {
   const png = await captureNodeToPng(node);
+  const [head, body] = png.split(",");
+  const mime = /data:(.*?);/.exec(head)?.[1] ?? "image/png";
+  const bytes = atob(body);
+  const buf = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+  const blob = new Blob([buf], { type: mime });
+  const objectUrl = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
-  a.href = png;
+  a.href = objectUrl;
   a.download = fileName;
   document.body.appendChild(a);
   a.click();
-  a.remove();
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  }, 1000);
 }
 
 // Text sharing (dive plans): system share sheet when available, clipboard
