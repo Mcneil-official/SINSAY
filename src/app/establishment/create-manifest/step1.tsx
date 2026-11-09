@@ -574,7 +574,7 @@ export default function CreateManifestStep1() {
     setDmSearchQuery(text);
     setDmSearchError(false);
     const trimmed = text.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < 1) {
       setDmSearchResults([]);
       setDmSearching(false);
       return;
@@ -587,13 +587,17 @@ export default function CreateManifestStep1() {
           "id, full_name, certification_level, pcssd_accreditation_no, pcssd_url, permit_to_operate_no, permit_to_operate_url",
         )
         .ilike("full_name", `%${trimmed}%`)
+        .not("full_name", "is", null)
         .or(
           "certification_level.in.(dive-master,instructor),pcssd_accreditation_no.not.is.null,pcssd_url.not.is.null,permit_to_operate_no.not.is.null",
         )
         .limit(10);
 
       if (error) throw error;
-      setDmSearchResults(data || []);
+      const valid = (data || []).filter(
+        (d) => d.full_name && d.full_name.trim().length > 0,
+      );
+      setDmSearchResults(valid);
     } catch (e) {
       console.warn("Dive master search failed:", e);
       setDmSearchResults([]);
@@ -637,6 +641,8 @@ export default function CreateManifestStep1() {
         setInstructorName(dm.full_name);
       }
     }
+    setDmSearchQuery("");
+    setDmSearchResults([]);
     setShowDmModal(false);
   };
 
@@ -658,6 +664,7 @@ export default function CreateManifestStep1() {
           .from("tourists")
           .select("id, full_name")
           .ilike("full_name", `%${trimmed}%`)
+        .not("full_name", "is", null)
           .limit(5),
         trimmed.length >= 6
           ? supabase
@@ -2198,7 +2205,13 @@ export default function CreateManifestStep1() {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => setShowDmModal(false)}
+                onPress={() => {
+                  setDmSearchQuery("");
+                  setDmSearchResults([]);
+                  setDmSearching(false);
+                  setDmSearchError(false);
+                  setShowDmModal(false);
+                }}
                 style={{ padding: 4 }}
               >
                 <Ionicons name="close" size={22} color="#64748B" />
@@ -2240,22 +2253,20 @@ export default function CreateManifestStep1() {
                   Failed to load dive masters. Check connection.
                 </Text>
               )}
-              {dmSearchResults.length === 0 && !dmSearching && (
+              {dmSearchQuery.trim().length > 0 && dmSearchResults.length === 0 && !dmSearching && (
                 <View style={styles.dmEmptyBox}>
                   <Ionicons
-                    name={dmSearchQuery.trim().length >= 2 ? "person-circle-outline" : "search-outline"}
+                    name="search-outline"
                     size={44}
                     color="#94A3B8"
                   />
                   <Text style={styles.dmEmptyTitle}>
-                    {dmSearchQuery.trim().length >= 2
-                      ? "No registered dive master found"
-                      : "Search for a Dive Master or Instructor"}
+                    No registered dive master found
                   </Text>
                   <Text style={styles.dmEmptySubtitle}>
-                    {dmSearchQuery.trim().length >= 2
+                    {dmSearchQuery.trim()
                       ? `No registered dive master or instructor matched "${dmSearchQuery.trim()}". Check the spelling or add them manually as a walk-in.`
-                      : "Type the name of the dive master or instructor to search and assign them to this manifest."}
+                      : "Type a name to search for registered Dive Masters or Instructors."}
                   </Text>
                 </View>
               )}
@@ -2288,7 +2299,7 @@ export default function CreateManifestStep1() {
                         }}
                       >
                         <Text style={styles.dmResultName} numberOfLines={1}>
-                          {dm.full_name}
+                          {dm.full_name?.trim() || "Accredited Diver"}
                         </Text>
                         <View style={styles.dmLevelBadge}>
                           <Text style={styles.dmLevelBadgeText}>
