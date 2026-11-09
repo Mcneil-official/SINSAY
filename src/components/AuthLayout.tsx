@@ -69,13 +69,13 @@ export function AuthLayout({
   };
 
   // Status bar safety: guarantee at least 42px clearance on mobile PWA edge-to-edge
-  const safeTop = Math.max(insets.top, 42);
+  const safeTop = Math.max(insets.top, 16);
   const headerHeight = Math.min(Math.max(height * 0.32, 235), 360);
   const blueHeight = headerHeight * (0.28 / 0.3);
   const logoWidth = Math.min(Math.max(width * 0.61, 200), 240);
   const logoHeight = (logoWidth * 306) / 1012;
   const backIconSize = Math.min(Math.max(width * 0.067, 22), 28);
-  const backButtonTop = safeTop + 4;
+  const backButtonTop = safeTop + 2;
   const backButtonLeft = Math.min(Math.max(width * 0.036, 12), 20);
   const backButtonPadding = Math.round(backIconSize * 0.23);
 
@@ -191,8 +191,8 @@ export function AuthLayout({
           style={[
             styles.headerContent,
             {
-              paddingTop: safeTop + 8,
-              paddingBottom: headerHeight * 0.12,
+              paddingTop: safeTop,
+              paddingBottom: 0,
             },
           ]}
         >
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
     zIndex: 1,
-    transform: [{ translateY: 0 }],
+    transform: [{ translateY: -28 }],
   },
   tagline: {
     color: colors.white,

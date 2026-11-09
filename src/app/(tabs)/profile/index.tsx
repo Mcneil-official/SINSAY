@@ -16,6 +16,7 @@ import ConfirmModal from "../../../components/ConfirmModal";
 import ContentContainer from "../../../components/ContentContainer";
 import { colors } from "../../../constants/colors";
 import { usePWAInstall } from "../../../context/PWAContext";
+import { useTutorial } from "../../../context/TutorialContext";
 import { useAuth } from "../../../hooks/useAuth";
 import { Locale, t } from "../../../lib/i18n";
 
@@ -71,6 +72,7 @@ export default function ProfileScreen() {
     viewAsTourist,
   } = useAuth();
   const { isInstalled, promptInstall } = usePWAInstall();
+  const { startTutorial } = useTutorial();
   const locale: Locale = (profile?.language_preference as Locale) || "en";
   const [returnToOperator, setReturnToOperator] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -365,6 +367,16 @@ export default function ProfileScreen() {
           {/* More section */}
           <Text style={styles.sectionLabel}>{t("more", locale)}</Text>
           <View style={styles.sectionCard}>
+            <ProfileRow
+              icon="compass-outline"
+              label="App Navigation Tutorial"
+              subtitle="Interactive guide on how to navigate SINSAY"
+              onPress={() => {
+                router.replace("/(tabs)");
+                startTutorial();
+              }}
+            />
+            <View style={styles.divider} />
             <ProfileRow
               icon="download-outline"
               label={isInstalled ? "App Installed" : "Install SINSAY App"}

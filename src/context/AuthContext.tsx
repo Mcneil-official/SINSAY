@@ -416,6 +416,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isLatest()) return false;
     if (ecoData) {
       setEcoId(ecoData);
+      if (ecoData.status === "active") {
+        // Self-healing synchronization: check if active pass has expired by date
+        Promise.resolve(supabase
+          .rpc("sync_my_eco_dive_id_status"))
+          .then(({ data: syncRes }) => {
+            if (syncRes && typeof syncRes === "object" && (syncRes as any).expired) {
+              setEcoId((prev) => (prev ? { ...prev, status: "expired" } : prev));
+              setProfile((prev) => (prev ? { ...prev, status: "Expired" } : prev));
+            }
+          })
+          .catch(() => {});
+      }
     } else {
       // Auto-provisioning safety net: ensures every tourist account has an Eco-Dive ID
       const year = new Date().getFullYear();

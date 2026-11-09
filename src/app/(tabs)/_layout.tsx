@@ -5,6 +5,8 @@ import { StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
 import SplashScreen from "../../components/SplashScreen";
 import { FloatingAssistant } from "../../components/assistant/FloatingAssistant";
+import { InAppTutorial } from "../../components/InAppTutorial";
+import { TutorialProvider } from "../../context/TutorialContext";
 import WiderScreenNavbar from "../../components/WiderScreenNavbar";
 import { colors } from "../../constants/colors";
 import { ENABLE_DESKTOP_LAYOUT } from "../../constants/layout";
@@ -65,34 +67,37 @@ export default function TabLayout() {
   }
 
   return (
-    <View style={styles.container}>
-      <TouristGate />
-      {isDesktop && ENABLE_DESKTOP_LAYOUT && <WiderScreenNavbar />}
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-        }}
-        tabBar={(props) =>
-          isDesktop && ENABLE_DESKTOP_LAYOUT ? null : (
-            <BottomNav
-              {...props}
-              tabIcons={tabIcons}
-              tabLabels={tabLabels}
-              hiddenRoutes={HIDDEN_ROUTES}
-            />
-          )
-        }
-      >
-        <Tabs.Screen name="index" />
-        <Tabs.Screen name="map" />
-        <Tabs.Screen name="eco-dive-id" />
-        <Tabs.Screen name="dive-assistant" />
-        <Tabs.Screen name="profile" />
-      </Tabs>
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        <FloatingAssistant />
+    <TutorialProvider>
+      <View style={styles.container}>
+        <TouristGate />
+        {isDesktop && ENABLE_DESKTOP_LAYOUT && <WiderScreenNavbar />}
+        <Tabs
+          screenOptions={{
+            headerShown: false,
+          }}
+          tabBar={(props) =>
+            isDesktop && ENABLE_DESKTOP_LAYOUT ? null : (
+              <BottomNav
+                {...props}
+                tabIcons={tabIcons}
+                tabLabels={tabLabels}
+                hiddenRoutes={HIDDEN_ROUTES}
+              />
+            )
+          }
+        >
+          <Tabs.Screen name="index" />
+          <Tabs.Screen name="map" />
+          <Tabs.Screen name="eco-dive-id" />
+          <Tabs.Screen name="dive-assistant" />
+          <Tabs.Screen name="profile" />
+        </Tabs>
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <FloatingAssistant />
+        </View>
+        <InAppTutorial role="tourist" />
       </View>
-    </View>
+    </TutorialProvider>
   );
 }
 

@@ -325,6 +325,7 @@ export default function OperatorDashboardScreen() {
               source={require("../../../assets/sinsay-white-home.webp")}
               style={[styles.logoImage, isCompact && styles.compactLogoImage]}
               contentFit="contain"
+              contentPosition={{ left: 0, top: "50%" }}
               priority="high"
               cachePolicy="memory-disk"
               accessibilityLabel="SINSAY"
@@ -679,7 +680,7 @@ export default function OperatorDashboardScreen() {
                     >
                       <Ionicons
                         name={isBoatDive ? "boat" : m.dive_mode === "Night Dive" ? "moon" : "umbrella"}
-                        size={17}
+                        size={20}
                         color="#006bff"
                       />
                     </View>
@@ -794,12 +795,14 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   logoImage: {
-    width: 152,
+    width: 140,
     height: 42,
+    marginLeft: -1,
   },
   compactLogoImage: {
-    width: 122,
+    width: 113,
     height: 34,
+    marginLeft: -1,
   },
   topBarActions: {
     flexDirection: "row",
@@ -1033,47 +1036,47 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 2,
-    marginBottom: 8,
+    marginTop: 18,
+    marginBottom: 10,
     paddingHorizontal: 2,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: "Quicksand_700Bold",
     color: "#0b206b",
   },
   seeAllLink: {
-    fontSize: 10.5,
+    fontSize: 13,
     fontFamily: "Quicksand_600SemiBold",
     color: "#006bff",
   },
   manifestList: {
-    gap: 6,
+    gap: 8,
   },
   manifestCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    minHeight: 46,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 16,
+    minHeight: 56,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(111, 185, 237, 0.2)",
-    shadowColor: "#6fb9ed",
-    shadowOpacity: 0.12,
+    borderColor: "rgba(111, 185, 237, 0.24)",
+    gap: 12,
+    shadowColor: "#4089dc",
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    elevation: 2,
   },
   manifestSymbol: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#e0efff",
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#e7f3ff",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
   manifestSymbolShore: {
     backgroundColor: "#fee2e2",
@@ -1081,25 +1084,26 @@ const styles = StyleSheet.create({
   manifestInfo: {
     flex: 1,
     minWidth: 0,
+    justifyContent: "center",
   },
   manifestTitle: {
-    fontSize: 11.5,
+    fontSize: 15,
     fontFamily: "Quicksand_700Bold",
-    color: "#0b206b",
+    color: "#0F172A",
     marginBottom: 2,
   },
   manifestMeta: {
-    fontSize: 9.5,
+    fontSize: 12,
     fontFamily: "Quicksand_500Medium",
-    color: "#7290d6",
+    color: "#64748B",
   },
   statusPill: {
-    minWidth: 50,
-    height: 20,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    minHeight: 22,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
   },
   statusPillActive: {
     backgroundColor: "#d4f7ed",
@@ -1114,8 +1118,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#d9eaff",
   },
   statusPillText: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: "Quicksand_700Bold",
+    letterSpacing: 0.1,
   },
   statusTextActive: {
     color: "#00a671",

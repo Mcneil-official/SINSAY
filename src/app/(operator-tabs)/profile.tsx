@@ -17,6 +17,7 @@ import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { ConfirmModal, ContentContainer } from "../../components";
 import { colors } from "../../constants/colors";
 import { usePWAInstall } from "../../context/PWAContext";
+import { useTutorial } from "../../context/TutorialContext";
 import { useAuth } from "../../hooks/useAuth";
 import { showAlert } from "../../lib/confirm";
 import { supabase } from "../../lib/supabase";
@@ -73,6 +74,7 @@ export default function OperatorProfileScreen() {
     viewAsTourist,
   } = useAuth();
   const { isInstalled, promptInstall } = usePWAInstall();
+  const { startTutorial } = useTutorial();
   const router = useRouter();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -391,6 +393,16 @@ export default function OperatorProfileScreen() {
           </View>
 
           <View style={styles.sectionCard}>
+            <ProfileRow
+              icon="compass-outline"
+              label="App Navigation Tutorial"
+              subtitle="Interactive guide on how to navigate SINSAY"
+              onPress={() => {
+                router.replace("/(operator-tabs)");
+                startTutorial();
+              }}
+            />
+            <View style={styles.divider} />
             <ProfileRow
               icon="download-outline"
               label={isInstalled ? "App Installed" : "Install SINSAY App"}

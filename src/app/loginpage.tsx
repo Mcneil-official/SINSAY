@@ -15,6 +15,7 @@ import { AuthLayout } from "../components";
 import AuthFooter from "../components/AuthFooter";
 import { useAuth } from "../hooks/useAuth";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import { checkPasswordRules, validatePasswordForSignup } from "../lib/password";
 
 type AuthMode = "login" | "signup";
 
@@ -42,6 +43,7 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const passwordRules = checkPasswordRules(password);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -163,8 +165,9 @@ export default function LoginPage() {
     }
     if (!password) {
       next.password = "Enter your password";
-    } else if (isSignup && password.length < 6) {
-      next.password = "Min. 6 characters";
+    } else if (isSignup) {
+      const pwErr = validatePasswordForSignup(password);
+      if (pwErr) next.password = pwErr;
     }
     setFieldErrors(next);
     return !next.fullName && !next.email && !next.password;
@@ -361,6 +364,75 @@ export default function LoginPage() {
                   )}
                 </Pressable>
               </View>
+
+              {isSignup && (
+                <View style={styles.passwordRulesContainer}>
+                  <View style={styles.passwordRulesHeader}>
+                    <Text style={styles.passwordRulesHeaderText}>Requirements</Text>
+                    <Text
+                      style={[
+                        styles.passwordRulesCounter,
+                        passwordRules.isValid && styles.passwordRulesCounterComplete,
+                      ]}
+                    >
+                      {[passwordRules.hasMinLength, passwordRules.hasUppercase, passwordRules.hasNumber].filter(Boolean).length}/3 Met
+                    </Text>
+                  </View>
+
+                  <View style={styles.rulesList}>
+                    {/* Rule 1: Min 8 chars */}
+                    <View style={styles.ruleItem}>
+                      {passwordRules.hasMinLength ? (
+                        <CheckCircle size={13} color="#10B981" weight="fill" />
+                      ) : (
+                        <View style={styles.ruleDotUnmet} />
+                      )}
+                      <Text
+                        style={[
+                          styles.ruleText,
+                          passwordRules.hasMinLength && styles.ruleTextMet,
+                        ]}
+                      >
+                        At least 8 characters
+                      </Text>
+                    </View>
+
+                    {/* Rule 2: 1 Capital letter */}
+                    <View style={styles.ruleItem}>
+                      {passwordRules.hasUppercase ? (
+                        <CheckCircle size={13} color="#10B981" weight="fill" />
+                      ) : (
+                        <View style={styles.ruleDotUnmet} />
+                      )}
+                      <Text
+                        style={[
+                          styles.ruleText,
+                          passwordRules.hasUppercase && styles.ruleTextMet,
+                        ]}
+                      >
+                        At least 1 capital letter (A–Z)
+                      </Text>
+                    </View>
+
+                    {/* Rule 3: 1 Number */}
+                    <View style={styles.ruleItem}>
+                      {passwordRules.hasNumber ? (
+                        <CheckCircle size={13} color="#10B981" weight="fill" />
+                      ) : (
+                        <View style={styles.ruleDotUnmet} />
+                      )}
+                      <Text
+                        style={[
+                          styles.ruleText,
+                          passwordRules.hasNumber && styles.ruleTextMet,
+                        ]}
+                      >
+                        At least 1 number (0–9)
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
             </View>
 
             {(error || !isSignup || resetSent || resetLoading) && (
@@ -667,5 +739,60 @@ const styles = StyleSheet.create({
     fontFamily: "Quicksand_400Regular",
     textAlign: "center",
     lineHeight: 18,
+  },
+  passwordRulesContainer: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  passwordRulesHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  passwordRulesHeaderText: {
+    fontSize: 10.5,
+    fontFamily: "Quicksand_700Bold",
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  passwordRulesCounter: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: "#94A3B8",
+  },
+  passwordRulesCounterComplete: {
+    color: "#10B981",
+  },
+  rulesList: {
+    gap: 4,
+  },
+  ruleItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  ruleDotUnmet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#CBD5E1",
+    marginLeft: 3.5,
+    marginRight: 3.5,
+  },
+  ruleText: {
+    fontSize: 11.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
+  },
+  ruleTextMet: {
+    color: "#059669",
+    fontFamily: "Quicksand_700Bold",
   },
 });

@@ -43,3 +43,4 @@ export { NotificationsModal } from "./notifications/NotificationsModal";
 export { NotificationsPanel } from "./notifications/NotificationsPanel";
 export { WebSafeInsetsNormalizer } from "./WebSafeInsetsNormalizer";
 
+export { InAppTutorial } from "./InAppTutorial";
