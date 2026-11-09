@@ -82,7 +82,7 @@ Tourist → Profile → Apply as Operator (establishment details + permits/PCSS 
 ### 3.3 Dive pass purchase (Buy Credits)
 
 ```
-Operator → Buy Pass → pick pass_pricing (One-Day ₱150 / Annual ₱2000), qty 1–50
+Operator → Buy Pass → pick pass_pricing (One-Day ₱150 / Annual ₱2000), qty 1–100
   → payment screen (GCash QR, copy reference)
   → upload receipt → create_buy_pass_order() RPC [atomic: inventory + pending payment]
   → TO verifies payment (service-side) → status='verified'

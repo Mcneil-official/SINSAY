@@ -21,35 +21,47 @@ export function FileUpload({
   accept = ".jpg,.jpeg,.png,.webp,.pdf",
 }: FileUploadProps) {
 
+  const createHiddenInput = (setup: (input: HTMLInputElement) => void) => {
+    if (!onFileSelect || Platform.OS !== "web" || typeof document === "undefined") return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.style.display = "none";
+    setup(input);
+
+    const cleanup = () => {
+      try {
+        if (input.parentNode) {
+          document.body.removeChild(input);
+        }
+      } catch {}
+    };
+
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) onFileSelect(file);
+      cleanup();
+    };
+    input.oncancel = cleanup;
+
+    document.body.appendChild(input);
+    input.click();
+  };
+
   const handleFileInput = () => {
     if (onPress) {
       onPress();
       return;
     }
-    if (onFileSelect && Platform.OS === "web") {
-      const input = document.createElement("input");
-      input.type = "file";
+    createHiddenInput((input) => {
       input.accept = accept;
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) onFileSelect(file);
-      };
-      input.click();
-    }
+    });
   };
 
   const handleCameraInput = () => {
-    if (onFileSelect && Platform.OS === "web") {
-      const input = document.createElement("input");
-      input.type = "file";
+    createHiddenInput((input) => {
       input.accept = "image/*";
       input.setAttribute("capture", "environment");
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) onFileSelect(file);
-      };
-      input.click();
-    }
+    });
   };
 
   const isMobileWeb = Platform.OS === "web" && typeof navigator !== "undefined" && /Mobi|Android|iPhone/i.test(navigator.userAgent);
