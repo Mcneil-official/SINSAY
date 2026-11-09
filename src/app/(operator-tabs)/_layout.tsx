@@ -5,6 +5,8 @@ import { StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
 import SplashScreen from "../../components/SplashScreen";
 import OperatorWiderScreenNavbar from "../../components/OperatorWiderScreenNavbar";
+import { InAppTutorial } from "../../components/InAppTutorial";
+import { TutorialProvider } from "../../context/TutorialContext";
 import { colors } from "../../constants/colors";
 import { ENABLE_DESKTOP_LAYOUT } from "../../constants/layout";
 import { useLayout } from "../../context/LayoutContext";
@@ -61,30 +63,33 @@ export default function OperatorTabLayout() {
   }
 
   return (
-    <View style={styles.container}>
-      <OperatorGate />
-      {isDesktop && ENABLE_DESKTOP_LAYOUT && <OperatorWiderScreenNavbar />}
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-        }}
-        tabBar={(props) =>
-          isDesktop && ENABLE_DESKTOP_LAYOUT ? null : (
-            <BottomNav
-              {...props}
-              tabIcons={tabIcons}
-              tabLabels={tabLabels}
-              allowLabelWrap
-            />
-          )
-        }
-      >
-        <Tabs.Screen name="index" />
-        <Tabs.Screen name="manifests" />
-        <Tabs.Screen name="buy-pass" />
-        <Tabs.Screen name="profile" />
-      </Tabs>
-    </View>
+    <TutorialProvider>
+      <View style={styles.container}>
+        <OperatorGate />
+        {isDesktop && ENABLE_DESKTOP_LAYOUT && <OperatorWiderScreenNavbar />}
+        <Tabs
+          screenOptions={{
+            headerShown: false,
+          }}
+          tabBar={(props) =>
+            isDesktop && ENABLE_DESKTOP_LAYOUT ? null : (
+              <BottomNav
+                {...props}
+                tabIcons={tabIcons}
+                tabLabels={tabLabels}
+                allowLabelWrap
+              />
+            )
+          }
+        >
+          <Tabs.Screen name="index" />
+          <Tabs.Screen name="manifests" />
+          <Tabs.Screen name="buy-pass" />
+          <Tabs.Screen name="profile" />
+        </Tabs>
+        <InAppTutorial role="operator" />
+      </View>
+    </TutorialProvider>
   );
 }
 

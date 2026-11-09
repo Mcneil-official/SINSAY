@@ -367,6 +367,7 @@ export default function HomeScreen() {
                 source={require("../../../assets/sinsay-blue-home.webp")}
                 style={[styles.logoImage, isCompact && styles.compactLogoImage]}
                 contentFit="contain"
+                contentPosition={{ left: 0, top: "50%" }}
                 priority="high"
                 cachePolicy="memory-disk"
                 accessibilityLabel="SINSAY"
@@ -720,11 +721,11 @@ const styles = StyleSheet.create({
     zIndex: 120,
   },
   logoImage: {
-    width: 152,
+    width: 147,
     height: 42,
   },
   compactLogoImage: {
-    width: 122,
+    width: 119,
     height: 34,
   },
   topBarActions: {

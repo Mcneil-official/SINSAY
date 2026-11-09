@@ -30,6 +30,7 @@ import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 import { pickAvatarImage } from "../lib/pickAvatar";
 import { uploadFile } from "../lib/storage";
+import { deriveEffectiveEcoStatus } from "../lib/ecoIdExpiry";
 import ContentContainer from "./ContentContainer";
 import { resolveSiteImage } from "./DiveSiteCard";
 import { ErrorState } from "./ErrorState";
@@ -46,11 +47,6 @@ const NATIONALITY_LABELS: Record<string, string> = {
   australian: "Australian",
   european: "European",
   other: "International",
-};
-
-const PASS_TYPE_LABELS: Record<string, string> = {
-  "one-day": "Tourist Dive Pass",
-  annual: "Annual Dive Pass",
 };
 
 const DIVE_TYPE_LABELS: Record<string, string> = {
@@ -159,6 +155,7 @@ export function EcoDivePassportView() {
   );
 
   const [refreshKey, setRefreshKey] = useState(0);
+  const [latestManifestDiveDate, setLatestManifestDiveDate] = useState<string | null>(null);
 
   const profilePhotoUri = avatarUri;
 
@@ -166,6 +163,15 @@ export function EcoDivePassportView() {
     useCallback(() => {
       refreshProfile();
       setRefreshKey((k) => k + 1);
+      // Self-healing synchronization: check if active pass has expired by date
+      Promise.resolve(supabase
+        .rpc("sync_my_eco_dive_id_status"))
+        .then(({ data }) => {
+          if (data && typeof data === "object" && (data as any).expired) {
+            refreshProfile();
+          }
+        })
+        .catch(() => {});
     }, [refreshProfile])
   );
 
@@ -218,6 +224,15 @@ export function EcoDivePassportView() {
           setActivities([]);
           setHistoryLoading(false);
           return;
+        }
+
+        const dates = manifestRows
+          .map((m) => m.dive_date)
+          .filter(Boolean)
+          .sort()
+          .reverse();
+        if (dates.length > 0) {
+          setLatestManifestDiveDate(dates[0]);
         }
 
         // Sort chronological ascending to assign permanent dive numbers 1..N
@@ -397,6 +412,19 @@ export function EcoDivePassportView() {
     [],
   );
 
+  // Effective date-aware status (prevents expired One-Day passes from showing active)
+  const effectiveStatus = useMemo(() => {
+    return deriveEffectiveEcoStatus({
+      dbStatus: ecoId?.status,
+      passType: profile?.dive_pass_type,
+      latestManifestDiveDate,
+      annualValidUntil: profile?.renewal_date || null,
+    });
+  }, [ecoId?.status, profile?.dive_pass_type, latestManifestDiveDate, profile?.renewal_date]);
+
+  const isIdActive = effectiveStatus === "active";
+  const isIdExpired = effectiveStatus === "expired";
+
   // Dynamic values for the ID card matching the reference layout
   const cardData = useMemo(() => {
     const fullName = profile?.full_name?.trim() || "—";
@@ -405,11 +433,6 @@ export function EcoDivePassportView() {
         NATIONALITY_LABELS[profile.nationality.toLowerCase()]) ||
       profile?.nationality ||
       "—";
-    const passType =
-      (profile?.dive_pass_type &&
-        PASS_TYPE_LABELS[profile.dive_pass_type.toLowerCase()]) ||
-      profile?.dive_pass_type ||
-      (ecoId?.status === "active" ? "Tourist Dive Pass" : "—");
     const typeOfDive =
       (profile?.type_of_dive &&
         DIVE_TYPE_LABELS[profile.type_of_dive.toLowerCase()]) ||
@@ -432,7 +455,6 @@ export function EcoDivePassportView() {
     return {
       fullName,
       nationality,
-      passType,
       typeOfDive,
       certLevel,
       dateAccredited,
@@ -440,7 +462,7 @@ export function EcoDivePassportView() {
       emergencyName,
       emergencyNumber,
     };
-  }, [profile, ecoId?.status]);
+  }, [profile, effectiveStatus]);
 
   // Compute dive profile completion progress (0% - 100%)
   const { completionProgress, isProfileComplete, missingStepHint } =
@@ -536,7 +558,7 @@ export function EcoDivePassportView() {
   const iconBoxW = Math.max(16, Math.round(u * 15));
   const rowGap = Math.max(5, Math.round(cardWidth * 0.016));
   const colPad = Math.max(7, Math.round(cardWidth * 0.022));
-  const midRowVerticalGap = Math.max(3, Math.round(u * 4.2));
+  const midRowVerticalGap = Math.max(4, Math.round(u * 5.4));
   const rightRowVerticalGap = Math.max(2, Math.round(u * 2.8));
 
   // Responsive 9:16 story card size so the View Recap modal never overflows the viewport frame
@@ -545,7 +567,7 @@ export function EcoDivePassportView() {
     Math.min(Math.round(screenHeight * 0.5), 350),
   );
   const storyCardWidth = Math.round(storyCardHeight * 0.6);
-  const isIdActive = ecoId?.status === "active";
+
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -670,6 +692,8 @@ export function EcoDivePassportView() {
                       styles.portraitBottomStatusPill,
                       isIdActive
                         ? styles.portraitBottomStatusPillActive
+                        : isIdExpired
+                        ? styles.portraitBottomStatusPillExpired
                         : styles.portraitBottomStatusPillInactive,
                       {
                         marginTop: Math.max(2.5, Math.round(u * 2.2)),
@@ -680,19 +704,21 @@ export function EcoDivePassportView() {
                     ]}
                   >
                     <Ionicons
-                      name={isIdActive ? "checkmark-circle" : "ellipse"}
+                      name={isIdActive ? "checkmark-circle" : isIdExpired ? "time-outline" : "ellipse"}
                       size={
                         isIdActive
                           ? Math.max(6.5, Math.round(u * 6.2))
                           : Math.max(4.5, Math.round(u * 4.5))
                       }
-                      color={isIdActive ? "#059669" : "#64748B"}
+                      color={isIdActive ? "#059669" : isIdExpired ? "#DC2626" : "#64748B"}
                     />
                     <Text
                       style={[
                         styles.portraitBottomStatusText,
                         isIdActive
                           ? styles.portraitBottomStatusTextActive
+                          : isIdExpired
+                          ? styles.portraitBottomStatusTextExpired
                           : styles.portraitBottomStatusTextInactive,
                         {
                           fontSize: Math.max(5.2, Math.round(u * 3.8 * 10) / 10),
@@ -700,7 +726,7 @@ export function EcoDivePassportView() {
                         },
                       ]}
                     >
-                      {isIdActive ? "ACTIVE" : "INACTIVE"}
+                      {isIdActive ? "ACTIVE" : isIdExpired ? "EXPIRED" : effectiveStatus === "complete" ? "READY" : "INACTIVE"}
                     </Text>
                   </View>
                 </View>
@@ -774,38 +800,7 @@ export function EcoDivePassportView() {
                     </View>
                   </View>
 
-                  {/* Row 3: DIVE PASS TYPE */}
-                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
-                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
-                      <Ionicons
-                        name="card-outline"
-                        size={iconSz}
-                        color="#0D74E7"
-                      />
-                    </View>
-                    <View style={styles.cardFieldTextCol}>
-                      <Text
-                        style={[
-                          styles.cardFieldLabel,
-                          { fontSize: labelFs, lineHeight: labelLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        DIVE PASS TYPE
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cardFieldValue,
-                          { fontSize: valFs, lineHeight: valLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {cardData.passType}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Row 4: TYPE OF DIVE */}
+                  {/* Row 3: TYPE OF DIVE */}
                   <View style={[styles.cardFieldRow, { gap: rowGap }]}>
                     <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
                       <DiveMaskIcon size={iconSz} color="#0D74E7" />
@@ -1383,14 +1378,20 @@ export function EcoDivePassportView() {
                   <Text style={styles.idFullPrimaryName}>
                     {cardData.fullName}
                   </Text>
-                  <View style={styles.idFullPassBadge}>
+                  <View style={[
+                    styles.idFullPassBadge,
+                    isIdActive ? styles.idFullPassBadgeActive : (isIdExpired ? styles.idFullPassBadgeExpired : null),
+                  ]}>
                     <Ionicons
-                      name="shield-checkmark"
+                      name={isIdActive ? "shield-checkmark" : isIdExpired ? "time-outline" : "ellipse"}
                       size={12}
                       color={colors.primaryBlue}
                     />
-                    <Text style={styles.idFullPassBadgeText}>
-                      {cardData.passType}
+                    <Text style={[
+                      styles.idFullPassBadgeText,
+                      isIdActive ? styles.idFullPassBadgeTextActive : (isIdExpired ? styles.idFullPassBadgeTextExpired : null),
+                    ]}>
+                      {isIdActive ? "Active" : isIdExpired ? "Expired" : "Pending"}
                     </Text>
                   </View>
                 </View>
@@ -1438,19 +1439,7 @@ export function EcoDivePassportView() {
                   </View>
                 </View>
 
-                <View style={styles.idFullDivider} />
 
-                <View style={styles.idFullDetailItem}>
-                  <Ionicons
-                    name="card-outline"
-                    size={16}
-                    color={colors.primaryBlue}
-                  />
-                  <View style={styles.idFullDetailTextCol}>
-                    <Text style={styles.idFullLabel}>DIVE PASS TYPE</Text>
-                    <Text style={styles.idFullValue}>{cardData.passType}</Text>
-                  </View>
-                </View>
 
                 <View style={styles.idFullDivider} />
 
@@ -1833,6 +1822,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(16, 185, 129, 0.4)",
   },
+  portraitBottomStatusPillExpired: {
+    backgroundColor: "rgba(254, 242, 242, 0.95)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.4)",
+  },
   portraitBottomStatusPillInactive: {
     backgroundColor: "rgba(241, 245, 249, 0.95)",
     borderWidth: 1,
@@ -1845,6 +1839,9 @@ const styles = StyleSheet.create({
   },
   portraitBottomStatusTextActive: {
     color: "#059669",
+  },
+  portraitBottomStatusTextExpired: {
+    color: "#DC2626",
   },
   portraitBottomStatusTextInactive: {
     color: "#475569",
@@ -2063,6 +2060,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 3,
     marginTop: 2,
+  },
+  idFullPassBadgeActive: {
+    backgroundColor: "#ECFDF5",
+  },
+  idFullPassBadgeExpired: {
+    backgroundColor: "#FEF2F2",
+  },
+  idFullPassBadgeTextActive: {
+    color: "#059669",
+  },
+  idFullPassBadgeTextExpired: {
+    color: "#DC2626",
   },
   idFullPassBadgeText: {
     fontSize: 11,
