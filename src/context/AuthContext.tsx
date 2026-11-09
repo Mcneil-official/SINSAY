@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // INITIAL_SESSION + signIn) race and last-writer-wins with stale nulls.
   // Only the latest request may apply operatorApplication / profile state.
   const fetchSeqRef = useRef(0);
+  const currentUserIdRef = useRef<string | null>(null);
   const fetchNotifsRef = useRef<{ fetchNotifications?: () => Promise<void>; fetchUnreadCount?: () => Promise<void> }>({});
 
   const clearLocalAuthState = useCallback(() => {
@@ -129,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // calls it on refresh failure, so it must be initialized before the
     // effect dependency arrays are evaluated (TDZ).
     fetchSeqRef.current += 1;
+    currentUserIdRef.current = null;
     setUser(null);
     setSession(null);
     clearLocalAuthState();
@@ -477,6 +479,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      currentUserIdRef.current = session?.user?.id ?? null;
       if (session?.user) {
         await fetchProfile(session.user.id);
       } else {
@@ -491,17 +494,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      const incomingUser = session?.user ?? null;
       setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        // New identity arriving: role is stale until fetchProfile lands.
-        setRoleReady(false);
-    setAvatarOverrides({});
-        fetchProfile(session.user.id);
+      setUser(incomingUser);
+      if (incomingUser) {
+        const isIdentityChange = incomingUser.id !== currentUserIdRef.current;
+        currentUserIdRef.current = incomingUser.id;
+
+        // Only mark roleReady false if a completely new identity arrived.
+        // Same-user token refreshes on window focus must preserve roleReady
+        // so active forms and navigation stacks do not unmount.
+        if (isIdentityChange) {
+          setRoleReady(false);
+          setAvatarOverrides({});
+        }
+        fetchProfile(incomingUser.id);
         supabase
           .from("notifications")
           .select("*", { count: "exact", head: true })
-          .eq("tourist_id", session.user.id)
+          .eq("tourist_id", incomingUser.id)
           .eq("is_read", false)
           .then(({ count }) => setUnreadCount(count ?? 0), () => setUnreadCount(0));
       } else {
@@ -509,6 +520,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // synchronously so gates never see user=null + isOperator=true stale.
         // Logged-out is a definitive state — mark ready so gates redirect now.
         fetchSeqRef.current += 1;
+        currentUserIdRef.current = null;
         setSession(null);
         setUser(null);
         clearLocalAuthState();

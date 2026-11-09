@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
 import SplashScreen from "../../components/SplashScreen";
@@ -53,7 +53,15 @@ export default function OperatorTabLayout() {
   const { isLoading, roleReady } = useAuth();
 
   const ready = !isLoading && roleReady;
-  if (!ready) {
+  const [hasInitialized, setHasInitialized] = useState(ready);
+
+  useEffect(() => {
+    if (ready && !hasInitialized) {
+      setHasInitialized(true);
+    }
+  }, [ready, hasInitialized]);
+
+  if (!hasInitialized) {
     return (
       <>
         <OperatorGate />
