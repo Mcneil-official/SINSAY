@@ -31,7 +31,7 @@ const BUTTON_HEIGHT = 52;
 const ART_MAX_HEIGHT = 300; // artwork cap: max-h-[300px]
 const ART_MAX_VH = 0.35; // artwork cap: max-h-[35vh]
 const ART_MIN_ZONE = 160; // never shrink the art zone below this — scroll instead
-const TEXT_ART_GAP = 16; // gap-4: minimum gap between body text and artwork
+const TEXT_ART_GAP = 40; // gap between body text and artwork (AC min 16px)
 
 type WaveVariant = "marine-life" | "protect" | "control";
 
@@ -90,6 +90,10 @@ export default function EcoOnboarding({
   // Actual frame height, re-measured on layout so URL-bar / PWA-banner
   // viewport changes are picked up without stale window math.
   const [measuredFrameHeight, setMeasuredFrameHeight] = useState(height);
+  // Measured middle-zone height: the artwork height is set in plain px from
+  // this so it can never exceed the zone (a parent-relative "100%" can fail
+  // to resolve and let the image overflow into the text).
+  const [artZoneHeight, setArtZoneHeight] = useState<number | null>(null);
 
   const isWide = width > WIDE_BREAKPOINT;
   const frameWidth = isWide ? DESIGN_WIDTH : width;
@@ -125,6 +129,13 @@ export default function EcoOnboarding({
     const nextHeight = e.nativeEvent.layout.height;
     if (nextHeight > 0) {
       setMeasuredFrameHeight(nextHeight);
+    }
+  }, []);
+
+  const handleArtZoneLayout = useCallback((e: LayoutChangeEvent) => {
+    const nextHeight = e.nativeEvent.layout.height;
+    if (nextHeight > 0) {
+      setArtZoneHeight(nextHeight);
     }
   }, []);
 
@@ -371,12 +382,15 @@ export default function EcoOnboarding({
               </View>
 
               {/* Middle zone: artwork scales proportionally, never overlaps text */}
-              <View style={styles.middleZone}>
+              <View style={styles.middleZone} onLayout={handleArtZoneLayout}>
                 <Image
                   source={illustration}
                   style={{
                     width: "100%",
-                    height: "100%",
+                    height:
+                      artZoneHeight != null
+                        ? Math.min(artMaxHeight, artZoneHeight)
+                        : "100%",
                     maxHeight: artMaxHeight,
                   }}
                   contentFit="contain"
@@ -468,6 +482,7 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1,
+    zIndex: 2,
   },
   scroll: {
     flex: 1,
@@ -484,6 +499,7 @@ const styles = StyleSheet.create({
     minHeight: ART_MIN_ZONE,
     marginTop: TEXT_ART_GAP,
     justifyContent: "center",
+    overflow: "hidden",
   },
   bottomZone: {
     flexGrow: 0,
