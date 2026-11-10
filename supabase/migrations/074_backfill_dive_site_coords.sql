@@ -11,14 +11,14 @@
 -- Deliberately NOT touched:
 --   * Twin Rocks Sanctuary  — DB value already matches boat GPS within ~170m
 --     (kept as-is; catalog copy was the wrong one).
--- Unverified catalog-only sites (Mermaid Rock, Diver's Sanctuary,
--- Anilao Cove) were removed from the client catalog entirely rather than
--- given invented coordinates.
+-- Unverified sites (Mermaid Rock, Diver's Sanctuary, Anilao Cove) are not
+-- in dive_sites at all — the map renders only registered DB rows.
 
 update public.dive_sites set lat = 13.7608,  lng = 120.9271 where name = 'Anilao Pier';
 -- was 13.75 / 120.92 (~1.4 km SW of the town pier)
 
-update public.dive_sites set lat = 13.7039,  lng = 120.8728 where name = 'Arthur''s Rock';
+update public.dive_sites set lat = 13.7039,  lng = 120.8728
+where name in ('Arthur''s Rock', 'Arthur’s Rock'); -- DB name uses U+2019 (’)
 -- was 13.731 / 120.881 (~3 km NE; Sitio Balagbag, Brgy Bagalangit per LGU)
 
 update public.dive_sites set lat = 13.72,    lng = 120.874  where name = 'Batong Buhay';
