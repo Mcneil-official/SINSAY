@@ -11,7 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Svg, {
   Circle,
   Defs,
@@ -54,7 +57,13 @@ export default function OperatorDashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { openNotifications } = useNotificationModal();
-  const { user, operatorApplication, avatarUri, isLoading: authLoading, unreadCount } = useAuth();
+  const {
+    user,
+    operatorApplication,
+    avatarUri,
+    isLoading: authLoading,
+    unreadCount,
+  } = useAuth();
   const { isDesktop, isTablet, isCompact } = useLayout();
   const isWide = isDesktop || isTablet;
 
@@ -187,7 +196,9 @@ export default function OperatorDashboardScreen() {
     try {
       const { data: mfData, error: mfErr } = await supabase
         .from("dive_manifests")
-        .select("id, boat_name, dive_mode, location, dive_date, manifest_divers(count)")
+        .select(
+          "id, boat_name, dive_mode, location, dive_date, manifest_divers(count)",
+        )
         .eq("operator_id", user!.id)
         .order("dive_date", { ascending: false })
         .limit(10);
@@ -205,8 +216,8 @@ export default function OperatorDashboardScreen() {
           }) => {
             const dc = m.manifest_divers;
             const diver_count = Array.isArray(dc)
-              ? dc[0]?.count ?? 0
-              : dc?.count ?? 0;
+              ? (dc[0]?.count ?? 0)
+              : (dc?.count ?? 0);
             return {
               id: m.id,
               boat_name: m.boat_name,
@@ -406,14 +417,22 @@ export default function OperatorDashboardScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={[styles.statsRow, isCompact && styles.compactStatsRow]}>
+            <View
+              style={[styles.statsRow, isCompact && styles.compactStatsRow]}
+              nativeID="tutorial-kpi-stats"
+              testID="tutorial-kpi-stats"
+            >
               {/* Card 1: Today's Divers */}
-              <View style={[styles.statCard, isCompact && styles.compactStatCard]}>
+              <View
+                style={[styles.statCard, isCompact && styles.compactStatCard]}
+              >
                 <View style={styles.statHeadingRow}>
                   <View style={styles.statIconBubble}>
                     <Ionicons name="calendar" size={12} color="#006bff" />
                   </View>
-                  <Text style={styles.statHeadingText}>TODAY&apos;S DIVERS</Text>
+                  <Text style={styles.statHeadingText}>
+                    TODAY&apos;S DIVERS
+                  </Text>
                 </View>
 
                 <AnimatedKpiValue
@@ -467,7 +486,9 @@ export default function OperatorDashboardScreen() {
               </View>
 
               {/* Card 2: Remaining Passes */}
-              <View style={[styles.statCard, isCompact && styles.compactStatCard]}>
+              <View
+                style={[styles.statCard, isCompact && styles.compactStatCard]}
+              >
                 <View style={styles.statHeadingRow}>
                   <View style={styles.statIconBubble}>
                     <Ionicons name="ticket" size={12} color="#006bff" />
@@ -523,7 +544,9 @@ export default function OperatorDashboardScreen() {
               </View>
 
               {/* Card 3: Manifesto Sent */}
-              <View style={[styles.statCard, isCompact && styles.compactStatCard]}>
+              <View
+                style={[styles.statCard, isCompact && styles.compactStatCard]}
+              >
                 <View style={styles.statHeadingRow}>
                   <View style={styles.statIconBubble}>
                     <Ionicons name="paper-plane" size={11} color="#006bff" />
@@ -539,10 +562,30 @@ export default function OperatorDashboardScreen() {
 
                 {/* Top-Right 4 Ascending Mini Bars */}
                 <View style={styles.barsContainer} pointerEvents="none">
-                  <View style={[styles.miniBar, { height: 10, backgroundColor: "#b7deff" }]} />
-                  <View style={[styles.miniBar, { height: 18, backgroundColor: "#86d7ff" }]} />
-                  <View style={[styles.miniBar, { height: 25, backgroundColor: "#62cefc" }]} />
-                  <View style={[styles.miniBar, { height: 33, backgroundColor: "#78dfd8" }]} />
+                  <View
+                    style={[
+                      styles.miniBar,
+                      { height: 10, backgroundColor: "#b7deff" },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.miniBar,
+                      { height: 18, backgroundColor: "#86d7ff" },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.miniBar,
+                      { height: 25, backgroundColor: "#62cefc" },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.miniBar,
+                      { height: 33, backgroundColor: "#78dfd8" },
+                    ]}
+                  />
                 </View>
 
                 <Text style={styles.statMutedNote} numberOfLines={1}>
@@ -558,7 +601,9 @@ export default function OperatorDashboardScreen() {
             <TouchableOpacity
               style={styles.actionBtn}
               activeOpacity={0.88}
-              onPress={() => router.push("/establishment/create-manifest/step1")}
+              onPress={() =>
+                router.push("/establishment/create-manifest/step1")
+              }
               accessibilityRole="button"
               accessibilityLabel="Create Dive Manifest"
             >
@@ -573,7 +618,12 @@ export default function OperatorDashboardScreen() {
                     <Stop offset="1" stopColor="#2d8dff" />
                   </LinearGradient>
                 </Defs>
-                <Rect width="100%" height="100%" rx={10} fill="url(#ctaGrad1)" />
+                <Rect
+                  width="100%"
+                  height="100%"
+                  rx={10}
+                  fill="url(#ctaGrad1)"
+                />
               </Svg>
               <View style={styles.actionSymbol}>
                 <Ionicons name="add" size={15} color="#0061f6" />
@@ -606,7 +656,12 @@ export default function OperatorDashboardScreen() {
                     <Stop offset="1" stopColor="#409dff" />
                   </LinearGradient>
                 </Defs>
-                <Rect width="100%" height="100%" rx={10} fill="url(#ctaGrad2)" />
+                <Rect
+                  width="100%"
+                  height="100%"
+                  rx={10}
+                  fill="url(#ctaGrad2)"
+                />
               </Svg>
               <View style={styles.actionSymbol}>
                 <Ionicons name="card" size={13} color="#0061f6" />
@@ -659,7 +714,12 @@ export default function OperatorDashboardScreen() {
             <View style={styles.manifestList}>
               {manifests.slice(0, 5).map((m) => {
                 const realStatus = deriveManifestStatus(m.dive_date);
-                const statusLabel = realStatus === "active" ? "Active" : realStatus === "upcoming" ? "Upcoming" : "Completed";
+                const statusLabel =
+                  realStatus === "active"
+                    ? "Active"
+                    : realStatus === "upcoming"
+                      ? "Upcoming"
+                      : "Completed";
                 const isBoatDive = m.dive_mode === "Boat Dive";
                 const title = m.boat_name || m.dive_mode || "Dive Group";
 
@@ -679,7 +739,13 @@ export default function OperatorDashboardScreen() {
                       ]}
                     >
                       <Ionicons
-                        name={isBoatDive ? "boat" : m.dive_mode === "Night Dive" ? "moon" : "umbrella"}
+                        name={
+                          isBoatDive
+                            ? "boat"
+                            : m.dive_mode === "Night Dive"
+                              ? "moon"
+                              : "umbrella"
+                        }
                         size={20}
                         color="#006bff"
                       />
@@ -701,8 +767,8 @@ export default function OperatorDashboardScreen() {
                         realStatus === "active"
                           ? styles.statusPillActive
                           : realStatus === "upcoming"
-                          ? styles.statusPillUpcoming
-                          : styles.statusPillDone,
+                            ? styles.statusPillUpcoming
+                            : styles.statusPillDone,
                       ]}
                     >
                       <Text
@@ -711,8 +777,8 @@ export default function OperatorDashboardScreen() {
                           realStatus === "active"
                             ? styles.statusTextActive
                             : realStatus === "upcoming"
-                            ? styles.statusTextUpcoming
-                            : styles.statusTextDone,
+                              ? styles.statusTextUpcoming
+                              : styles.statusTextDone,
                         ]}
                       >
                         {statusLabel}

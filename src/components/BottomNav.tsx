@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors } from "../constants/colors";
 import { useLayout } from "../context/LayoutContext";
@@ -90,7 +89,6 @@ export default function BottomNav({
   hiddenRoutes,
   allowLabelWrap = false,
 }: BottomNavProps) {
-  const insets = useSafeAreaInsets();
   const { isCompact } = useLayout();
   const activeKey = state.routes[state.index]?.key;
   const visibleRoutes = hiddenRoutes?.length
@@ -103,7 +101,7 @@ export default function BottomNav({
     const icon = tabIcons[name];
     const label = tabLabels[name] || name;
     const iconColor = isFocused ? colors.white : INACTIVE_COLOR;
-    const iconSize = isFocused ? (isCompact ? 16 : 18) : (isCompact ? 18 : 20);
+    const iconSize = isFocused ? (isCompact ? 16 : 18) : isCompact ? 18 : 20;
 
     const onPress = () => {
       const event = navigation.emit({
@@ -118,13 +116,29 @@ export default function BottomNav({
 
     const refSvg = renderReferenceNavIcon(name, iconColor, iconSize);
 
+    const tutorialId = (() => {
+      if (name === "map") return "tutorial-map-tab";
+      if (name === "eco-dive-id") return "tutorial-eco-tab";
+      if (name === "manifests") return "tutorial-manifests-tab";
+      if (name === "buy-pass") return "tutorial-buy-pass-tab";
+      if (name === "profile") {
+        return allowLabelWrap
+          ? "tutorial-op-profile-tab"
+          : "tutorial-profile-tab";
+      }
+      return undefined;
+    })();
+
     return (
       <TouchableOpacity
         key={route.key}
+        nativeID={tutorialId}
+        testID={tutorialId}
         onPress={onPress}
         style={[
           isFocused ? styles.activeTab : styles.inactiveTab,
-          isCompact && (isFocused ? styles.compactActiveTab : styles.compactInactiveTab),
+          isCompact &&
+            (isFocused ? styles.compactActiveTab : styles.compactInactiveTab),
           allowLabelWrap &&
             (isFocused ? styles.operatorActiveTab : styles.operatorInactiveTab),
         ]}
@@ -147,7 +161,10 @@ export default function BottomNav({
         <Text
           style={[
             isFocused ? styles.activeText : styles.inactiveText,
-            isCompact && (isFocused ? styles.compactActiveText : styles.compactInactiveText),
+            isCompact &&
+              (isFocused
+                ? styles.compactActiveText
+                : styles.compactInactiveText),
             allowLabelWrap &&
               (isFocused
                 ? styles.operatorActiveText

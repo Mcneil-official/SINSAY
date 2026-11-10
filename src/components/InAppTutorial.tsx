@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -16,7 +16,16 @@ export interface TutorialStep {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  target: "top-bar" | "map-tab" | "eco-tab" | "assistant-btn" | "profile-tab" | "kpi-stats" | "manifests-tab" | "buy-pass-tab" | "op-profile-tab";
+  target:
+    | "top-bar"
+    | "map-tab"
+    | "eco-tab"
+    | "assistant-btn"
+    | "profile-tab"
+    | "kpi-stats"
+    | "manifests-tab"
+    | "buy-pass-tab"
+    | "op-profile-tab";
   caretPosition: "top" | "bottom";
 }
 
@@ -102,6 +111,29 @@ interface InAppTutorialProps {
   role?: "tourist" | "operator";
 }
 
+interface TargetRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+function getElementViewportRect(targetId: string): TargetRect | null {
+  if (typeof document === "undefined") return null;
+  const el =
+    document.getElementById(targetId) ||
+    document.querySelector(`[data-testid="${targetId}"]`);
+  if (!el) return null;
+  const rect = el.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
 export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
   const { isTutorialActive, dismissTutorial } = useTutorial();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -119,92 +151,231 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
   const containerWidth = Math.min(width, 480);
   const containerLeft = Math.max(0, (width - containerWidth) / 2);
   const safeTop = Math.max(insets.top, 16);
-  const safeBottom = Math.max(insets.bottom, 12);
 
-  // Calculate geometry for spotlight based on target
+  const [targetRect, setTargetRect] = useState<TargetRect | null>(() =>
+    getElementViewportRect(`tutorial-${currentStep.target}`),
+  );
+
+  useEffect(() => {
+    if (!isTutorialActive) return;
+
+    if (typeof window !== "undefined") {
+      if (
+        currentStep.target === "top-bar" ||
+        currentStep.target === "kpi-stats"
+      ) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+
+    const measure = () => {
+      const rect = getElementViewportRect(`tutorial-${currentStep.target}`);
+      if (rect) {
+        setTargetRect((prev) => {
+          if (
+            prev &&
+            Math.abs(prev.left - rect.left) < 1 &&
+            Math.abs(prev.top - rect.top) < 1 &&
+            Math.abs(prev.width - rect.width) < 1 &&
+            Math.abs(prev.height - rect.height) < 1
+          ) {
+            return prev;
+          }
+          return rect;
+        });
+      }
+    };
+
+    measure();
+    const raf = requestAnimationFrame(measure);
+    const timer = setTimeout(measure, 50);
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", measure);
+      window.addEventListener("scroll", measure, true);
+    }
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", measure);
+        window.removeEventListener("scroll", measure, true);
+      }
+    };
+  }, [isTutorialActive, currentStepIndex, currentStep.target, width, height]);
+
+  // Calculate geometry for spotlight based on live measured target or calibrated fallback
   const spotlight = useMemo(() => {
     const tabWidth = containerWidth / 4;
+    const targetId = `tutorial-${currentStep.target}`;
+    const rect = targetRect || getElementViewportRect(targetId);
+
+    if (rect) {
+      if (currentStep.target === "assistant-btn") {
+        const pad = 4;
+        const size = Math.max(rect.width, rect.height) + pad * 2;
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        return {
+          left: centerX - size / 2,
+          top: centerY - size / 2,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          caretX: centerX,
+        };
+      }
+
+      if (
+        currentStep.target === "map-tab" ||
+        currentStep.target === "eco-tab" ||
+        currentStep.target === "profile-tab" ||
+        currentStep.target === "manifests-tab" ||
+        currentStep.target === "buy-pass-tab" ||
+        currentStep.target === "op-profile-tab"
+      ) {
+        const padX = 6;
+        const padY = 4;
+        const w = rect.width + padX * 2;
+        const h = rect.height + padY * 2;
+        return {
+          left: rect.left - padX,
+          top: rect.top - padY,
+          width: w,
+          height: h,
+          borderRadius: Math.min(24, h / 2),
+          caretX: rect.left + rect.width / 2,
+        };
+      }
+
+      if (currentStep.target === "top-bar") {
+        const pad = 6;
+        return {
+          left: rect.left - pad,
+          top: rect.top - pad,
+          width: rect.width + pad * 2,
+          height: rect.height + pad * 2,
+          borderRadius: 18,
+          caretX: rect.left + rect.width - 44,
+        };
+      }
+
+      if (currentStep.target === "kpi-stats") {
+        const pad = 6;
+        return {
+          left: rect.left - pad,
+          top: rect.top - pad,
+          width: rect.width + pad * 2,
+          height: rect.height + pad * 2,
+          borderRadius: 18,
+          caretX: rect.left + rect.width / 2,
+        };
+      }
+
+      const pad = 6;
+      return {
+        left: rect.left - pad,
+        top: rect.top - pad,
+        width: rect.width + pad * 2,
+        height: rect.height + pad * 2,
+        borderRadius: 14,
+        caretX: rect.left + rect.width / 2,
+      };
+    }
+
+    // Static fallback calculations when element is not measured yet
+    const bottomNavHeight = 54;
+    const bottomNavPadding = 8;
+    const tabY = height - bottomNavHeight - bottomNavPadding;
 
     switch (currentStep.target) {
       case "top-bar":
         return {
           left: containerLeft + 14,
-          top: safeTop + 6,
+          top: safeTop + 8,
           width: containerWidth - 28,
           height: 52,
-          borderRadius: 26,
-          caretX: containerLeft + 36,
+          borderRadius: 18,
+          caretX: containerLeft + containerWidth - 44,
         };
       case "kpi-stats":
         return {
           left: containerLeft + 14,
-          top: safeTop + 12,
+          top: safeTop + 140,
           width: containerWidth - 28,
           height: 105,
           borderRadius: 18,
-          caretX: containerLeft + 60,
+          caretX: containerLeft + containerWidth / 2,
         };
       case "map-tab":
         return {
           left: containerLeft + tabWidth * 1 + (tabWidth - 64) / 2,
-          top: height - safeBottom - 56,
+          top: tabY + 4,
           width: 64,
-          height: 48,
-          borderRadius: 24,
+          height: 44,
+          borderRadius: 22,
           caretX: containerLeft + tabWidth * 1 + tabWidth / 2,
         };
       case "eco-tab":
         return {
           left: containerLeft + tabWidth * 2 + (tabWidth - 80) / 2,
-          top: height - safeBottom - 56,
+          top: tabY + 4,
           width: 80,
-          height: 48,
-          borderRadius: 24,
+          height: 44,
+          borderRadius: 22,
           caretX: containerLeft + tabWidth * 2 + tabWidth / 2,
         };
-      case "assistant-btn":
+      case "assistant-btn": {
+        const fabBottom = bottomNavPadding + bottomNavHeight + 12; // 74
+        const fabSize = 48;
+        const spotSize = 56;
+        const fabRight = 16;
+        const fabLeft = width - fabRight - fabSize;
+        const fabTop = height - fabBottom - fabSize;
         return {
-          left: containerLeft + containerWidth - 70,
-          top: height - safeBottom - 128,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          caretX: containerLeft + containerWidth - 42,
+          left: fabLeft - (spotSize - fabSize) / 2,
+          top: fabTop - (spotSize - fabSize) / 2,
+          width: spotSize,
+          height: spotSize,
+          borderRadius: spotSize / 2,
+          caretX: fabLeft + fabSize / 2,
         };
+      }
       case "profile-tab":
         return {
           left: containerLeft + tabWidth * 3 + (tabWidth - 64) / 2,
-          top: height - safeBottom - 56,
+          top: tabY + 4,
           width: 64,
-          height: 48,
-          borderRadius: 24,
+          height: 44,
+          borderRadius: 22,
           caretX: containerLeft + tabWidth * 3 + tabWidth / 2,
         };
       case "manifests-tab":
         return {
           left: containerLeft + tabWidth * 1 + (tabWidth - 76) / 2,
-          top: height - safeBottom - 56,
+          top: tabY + 4,
           width: 76,
-          height: 48,
-          borderRadius: 24,
+          height: 44,
+          borderRadius: 22,
           caretX: containerLeft + tabWidth * 1 + tabWidth / 2,
-        };
-      case "op-profile-tab":
-        return {
-          left: containerLeft + tabWidth * 2 + (tabWidth - 68) / 2,
-          top: height - safeBottom - 56,
-          width: 68,
-          height: 48,
-          borderRadius: 24,
-          caretX: containerLeft + tabWidth * 2 + tabWidth / 2,
         };
       case "buy-pass-tab":
         return {
-          left: containerLeft + tabWidth * 3 + (tabWidth - 76) / 2,
-          top: height - safeBottom - 56,
+          left: containerLeft + tabWidth * 2 + (tabWidth - 76) / 2,
+          top: tabY + 4,
           width: 76,
-          height: 48,
-          borderRadius: 24,
+          height: 44,
+          borderRadius: 22,
+          caretX: containerLeft + tabWidth * 2 + tabWidth / 2,
+        };
+      case "op-profile-tab":
+        return {
+          left: containerLeft + tabWidth * 3 + (tabWidth - 68) / 2,
+          top: tabY + 4,
+          width: 68,
+          height: 44,
+          borderRadius: 22,
           caretX: containerLeft + tabWidth * 3 + tabWidth / 2,
         };
       default:
@@ -214,27 +385,54 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
           width: containerWidth - 40,
           height: 50,
           borderRadius: 12,
-          caretX: containerLeft + 50,
+          caretX: containerLeft + containerWidth / 2,
         };
     }
-  }, [currentStep.target, containerWidth, containerLeft, safeTop, safeBottom, height]);
+  }, [
+    currentStep.target,
+    targetRect,
+    containerWidth,
+    containerLeft,
+    safeTop,
+    height,
+    width,
+  ]);
 
   // Card position calculations
   const cardWidth = Math.min(containerWidth - 36, 335);
-  const cardLeft = Math.max(containerLeft + 18, Math.min(containerLeft + containerWidth - cardWidth - 18, spotlight.caretX - cardWidth / 2));
-  const caretRelativeX = Math.max(22, Math.min(cardWidth - 22, spotlight.caretX - cardLeft));
+  const cardLeft = Math.max(
+    containerLeft + 18,
+    Math.min(
+      containerLeft + containerWidth - cardWidth - 18,
+      spotlight.caretX - cardWidth / 2,
+    ),
+  );
+  const caretRelativeX = Math.max(
+    22,
+    Math.min(cardWidth - 22, spotlight.caretX - cardLeft),
+  );
 
   const handleNext = () => {
     if (isLastStep) {
       handleClose();
     } else {
-      setCurrentStepIndex((prev) => prev + 1);
+      const nextIndex = currentStepIndex + 1;
+      const nextStep = steps[nextIndex];
+      if (nextStep) {
+        setTargetRect(getElementViewportRect(`tutorial-${nextStep.target}`));
+      }
+      setCurrentStepIndex(nextIndex);
     }
   };
 
   const handleBack = () => {
     if (!isFirstStep) {
-      setCurrentStepIndex((prev) => prev - 1);
+      const prevIndex = currentStepIndex - 1;
+      const prevStep = steps[prevIndex];
+      if (prevStep) {
+        setTargetRect(getElementViewportRect(`tutorial-${prevStep.target}`));
+      }
+      setCurrentStepIndex(prevIndex);
     }
   };
 
@@ -298,19 +496,9 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
         >
           {/* Caret Arrow pointing at spotlight */}
           {currentStep.caretPosition === "top" ? (
-            <View
-              style={[
-                styles.caretUp,
-                { left: caretRelativeX - 9 },
-              ]}
-            />
+            <View style={[styles.caretUp, { left: caretRelativeX - 9 }]} />
           ) : (
-            <View
-              style={[
-                styles.caretDown,
-                { left: caretRelativeX - 9 },
-              ]}
-            />
+            <View style={[styles.caretDown, { left: caretRelativeX - 9 }]} />
           )}
 
           {/* Card Header: Title + Close Button */}
@@ -347,10 +535,7 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
               <TouchableOpacity
                 onPress={handleBack}
                 disabled={isFirstStep}
-                style={[
-                  styles.backBtn,
-                  isFirstStep && styles.backBtnDisabled,
-                ]}
+                style={[styles.backBtn, isFirstStep && styles.backBtnDisabled]}
                 accessibilityRole="button"
                 accessibilityLabel="Previous step"
               >
@@ -367,7 +552,9 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
                 style={styles.nextBtn}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel={isLastStep ? "Finish tutorial" : "Next step"}
+                accessibilityLabel={
+                  isLastStep ? "Finish tutorial" : "Next step"
+                }
               >
                 <Text style={styles.nextBtnText}>
                   {isLastStep ? "Done" : "Next"}
@@ -383,7 +570,11 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
 
 const styles = StyleSheet.create({
   backdrop: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "rgba(11, 24, 48, 0.65)",
     zIndex: 999999,
   },
@@ -399,7 +590,11 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   spotlightInner: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderWidth: 1,
     borderColor: "rgba(0, 107, 255, 0.5)",
   },
