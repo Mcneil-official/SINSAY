@@ -16,6 +16,11 @@ import { DidYouKnowCard, ErrorState, resolveSiteImage } from "../../components";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
+import {
+  canonicalSiteKey,
+  isSameSite,
+  resolveSiteCoords,
+} from "../../lib/diveSiteCatalog";
 import { supabase } from "../../lib/supabase";
 import { DiveSiteRow } from "../../types/supabase";
 
@@ -53,8 +58,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Iconic marine sanctuary featuring two submerged volcanic rock pinnacles framing a cross-adorned cavern at 15 meters, surrounded by vibrant soft corals and dense schools of reef fish.",
     image_url: null,
     photo_url: null,
-    lat: 13.7225,
-    lng: 120.8758,
+    lat: 13.7241,
+    lng: 120.8769,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -71,8 +76,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "A protected coral slope descending from a shallow boulder reef into rich crinoid and soft-coral gardens, prized by underwater photographers for rare critters and vibrant reef life.",
     image_url: null,
     photo_url: null,
-    lat: 13.7142,
-    lng: 120.8878,
+    lat: 13.7039,
+    lng: 120.8728,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -89,8 +94,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "A premier marine sanctuary off Barangay Solo where twin submerged barges and thriving hard-coral slopes host giant trevallies, resident turtles, and clouds of damselfish.",
     image_url: null,
     photo_url: null,
-    lat: 13.7025,
-    lng: 120.8992,
+    lat: 13.6906,
+    lng: 120.8893,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -125,8 +130,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Hat-shaped offshore island encircled by steep drop-offs, vibrant sea fan gardens, schooling jacks, and occasional reef sharks in brisk currents.",
     image_url: null,
     photo_url: null,
-    lat: 13.6960,
-    lng: 120.8285,
+    lat: 13.698,
+    lng: 120.8282,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -143,8 +148,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Dynamic current-swept pinnacle swarming with thousands of orange and purple anthias, fusiliers, and hunting bluefin trevallies.",
     image_url: null,
     photo_url: null,
-    lat: 13.6890,
-    lng: 120.8190,
+    lat: 13.7022,
+    lng: 120.8279,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -161,8 +166,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Gentle vertical wall with coral crevices, barrel sponges, and friendly sea turtles basking along sunny reef flats.",
     image_url: null,
     photo_url: null,
-    lat: 13.6950,
-    lng: 120.8140,
+    lat: 13.6878,
+    lng: 120.8271,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -179,8 +184,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Vibrant ridge formation with thriving staghorn thickets, colorful nudibranchs, and schools of yellowtail snappers.",
     image_url: null,
     photo_url: null,
-    lat: 13.7120,
-    lng: 120.8400,
+    lat: 13.6918,
+    lng: 120.8413,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -197,8 +202,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Dramatic wall drop-off favored by macro photographers for pygmy seahorses, ornate ghost pipefish, and rare nudibranchs.",
     image_url: null,
     photo_url: null,
-    lat: 13.7160,
-    lng: 120.8480,
+    lat: 13.6917,
+    lng: 120.843,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -215,8 +220,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "House reef with easy boat access, healthy hard-coral bommies, clownfish colonies, and moray eels in shallow crevices.",
     image_url: null,
     photo_url: null,
-    lat: 13.7175,
-    lng: 120.8710,
+    lat: 13.7223,
+    lng: 120.8759,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -251,8 +256,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Legendary night and twilight critter diving directly beneath the public pier pilings; famed for bobtail squids, stargazers, and frogfish.",
     image_url: null,
     photo_url: null,
-    lat: 13.7580,
-    lng: 120.8950,
+    lat: 13.7608,
+    lng: 120.9271,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -269,8 +274,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Warm hydrothermal springs bubbling up through dark volcanic sand, creating unique habitats for mimic octopuses, wonderpus, and dragonets.",
     image_url: null,
     photo_url: null,
-    lat: 13.6900,
-    lng: 120.8950,
+    lat: 13.6865,
+    lng: 120.8958,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -287,8 +292,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Current-swept open-water pinnacle ('Shark Rock') attracting whitetip and grey reef sharks, giant trevallies, and schooling tuna.",
     image_url: null,
     photo_url: null,
-    lat: 13.6820,
-    lng: 120.8250,
+    lat: 13.6759,
+    lng: 120.8135,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -305,8 +310,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Named after reddish volcanic shoreline cliffs, offering terraced coral gardens with sea anemones, porcelain crabs, and pipefish.",
     image_url: null,
     photo_url: null,
-    lat: 13.7080,
-    lng: 120.8860,
+    lat: 13.7078,
+    lng: 120.9213,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -331,7 +336,7 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
     id: "landmark-koala",
     site_code: "DS-017",
     name: "Koala",
-    barangay: "San Teodoro",
+    barangay: "Bagalangit",
     depth_range: "9–26m",
     difficulty: "Intermediate",
     site_type: "Wall",
@@ -341,8 +346,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "A scenic drift dive along lush sloping drop-offs with crinoid-covered boulders, triggerfish, and hunting sweetlips.",
     image_url: null,
     photo_url: null,
-    lat: 13.7050,
-    lng: 120.8920,
+    lat: 13.7165,
+    lng: 120.8722,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -359,15 +364,15 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Protected reef garden known for nudibranch biodiversity, painted frogfish, and dense schooling fusiliers.",
     image_url: null,
     photo_url: null,
-    lat: 13.7010,
-    lng: 120.9010,
+    lat: 13.6729,
+    lng: 120.8414,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "landmark-secret-bay",
     site_code: "DS-019",
-    name: "Secret Bay (Basura)",
-    barangay: "Mainaga",
+    name: "Basura",
+    barangay: "San Jose",
     depth_range: "5–18m",
     difficulty: "Beginner",
     site_type: "Reef",
@@ -377,15 +382,15 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "World-renowned black-sand muck diving amphitheater famous for mimic octopuses, wonderpus, flamboyant cuttlefish, and frogfish.",
     image_url: null,
     photo_url: null,
-    lat: 13.7345,
-    lng: 120.8710,
+    lat: 13.7582,
+    lng: 120.9167,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "landmark-dead-palm",
     site_code: "DS-020",
     name: "Dead Palm",
-    barangay: "Bagalangit",
+    barangay: "San Teodoro",
     depth_range: "7–22m",
     difficulty: "Intermediate",
     site_type: "Reef",
@@ -395,8 +400,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Rich macro slope named after an old shoreline landmark, home to pygmy seahorses, banded sea kraits, and mantis shrimps.",
     image_url: null,
     photo_url: null,
-    lat: 13.7240,
-    lng: 120.8750,
+    lat: 13.6952,
+    lng: 120.8847,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -431,8 +436,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Sunken floating casino timber wreck now encrusted with hard and soft corals, serving as an artificial reef haven for sweetlips and moray eels.",
     image_url: null,
     photo_url: null,
-    lat: 13.7080,
-    lng: 120.8860,
+    lat: 13.6786,
+    lng: 120.8405,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -449,8 +454,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Dramatic offshore rocky islet with steep coral drop-offs, gorgonian sea fans, and frequent sightings of schooling barracudas.",
     image_url: null,
     photo_url: null,
-    lat: 13.7885,
-    lng: 120.8988,
+    lat: 13.8209,
+    lng: 120.9009,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -467,8 +472,8 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "High-energy tip of the peninsula featuring roaring currents, schooling jacks, dogtooth tuna, and pristine gorgonian seafans.",
     image_url: null,
     photo_url: null,
-    lat: 13.6850,
-    lng: 120.8900,
+    lat: 13.6823,
+    lng: 120.8932,
     created_at: "2026-01-01T00:00:00.000Z",
   },
   {
@@ -485,16 +490,14 @@ export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
       "Exhilarating deep drift along underwater ravines, hosting black coral forests, stingrays, and cruising trevallies.",
     image_url: null,
     photo_url: null,
-    lat: 13.6780,
-    lng: 120.8450,
+    lat: 13.6503,
+    lng: 120.8415,
     created_at: "2026-01-01T00:00:00.000Z",
   },
 ];
 
 const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
   "Cathedral Rock": {
-    lat: 13.7225,
-    lng: 120.8758,
     barangay: "Bagalangit, Mabini",
     depthRange: "12–28m",
     featureTag: "Cavern & Coral Sanctuary",
@@ -515,8 +518,6 @@ const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
     ],
   },
   "Arthur's Rock": {
-    lat: 13.7142,
-    lng: 120.8878,
     barangay: "Bagalangit, Mabini",
     depthRange: "8–26m",
     featureTag: "Macro Pinnacle & Sanctuary",
@@ -535,8 +536,6 @@ const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
     ],
   },
   "Twin Rocks Sanctuary": {
-    lat: 13.7025,
-    lng: 120.8992,
     barangay: "Solo, Mabini",
     depthRange: "5–22m",
     featureTag: "Core Marine Sanctuary",
@@ -555,8 +554,6 @@ const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
     ],
   },
   "Sombrero Island": {
-    lat: 13.6960,
-    lng: 120.8285,
     barangay: "Maricaban Strait",
     depthRange: "10–35m",
     featureTag: "Offshore Island Sanctuary",
@@ -587,8 +584,9 @@ function getDifficultyColor(diff?: string | null): string {
 
 function getEnrichment(site: DiveSiteRow): SiteEnrichment {
   const known = SITE_ENRICHMENTS[site.name];
-  const lat = site.lat ?? known?.lat ?? 13.722;
-  const lng = site.lng ?? known?.lng ?? 120.875;
+  const coords = resolveSiteCoords(site.name, site.lat, site.lng);
+  const lat = coords?.lat ?? 13.722;
+  const lng = coords?.lng ?? 120.875;
 
   return {
     lat,
@@ -758,12 +756,13 @@ function generateLeafletMapHtml(
       fillOpacity: 0.18
     }).addTo(map);
 
-    // Twin Rocks Core Sanctuary
+    // Twin Rocks Core Sanctuary (Sitio Balanoy, Brgy. San Teodoro;
+    // ~22.9 ha per Mabini CDP — redrawn around the LGU/boat-GPS pin 13.6906/120.8893)
     L.polygon([
-      [13.706, 120.893],
-      [13.706, 120.903],
-      [13.698, 120.903],
-      [13.698, 120.893]
+      [13.6930, 120.8865],
+      [13.6930, 120.8920],
+      [13.6895, 120.8920],
+      [13.6895, 120.8865]
     ], {
       color: '#059669',
       weight: 1.5,
@@ -903,6 +902,11 @@ function generateLeafletMapHtml(
         }
       }
     });
+
+    // Keep tiles and markers aligned if the iframe size changes after init
+    // (safe-area insets, drawer layout, orientation).
+    setTimeout(() => map.invalidateSize(), 200);
+    window.addEventListener('resize', () => map.invalidateSize());
   </script>
 </body>
 </html>`;
@@ -949,10 +953,14 @@ export default function MapScreen() {
             const rawRows = (data ?? []).filter(
               (r) => !r.status || r.status !== "Restricted",
             );
-            // Combine with catalog to ensure all 25 sites are present
-            const dbNames = new Set(rawRows.map((r) => r.name.toLowerCase()));
+            // Combine with catalog to ensure all 25 sites are present.
+            // Alias-aware: catalog "Mainit Muck" is skipped when the DB has
+            // "Secret Bay (Mainit Muck)", so the two never stack.
+            const dbKeys = new Set(
+              rawRows.map((r) => canonicalSiteKey(r.name)),
+            );
             const missingDefaults = ALL_DEFAULT_SITES.filter(
-              (d) => !dbNames.has(d.name.toLowerCase()),
+              (d) => !dbKeys.has(canonicalSiteKey(d.name)),
             );
             const merged = [...rawRows, ...missingDefaults];
             setSites(merged);
@@ -1082,9 +1090,7 @@ export default function MapScreen() {
 
   useEffect(() => {
     if (!requestedSite || sites.length === 0 || selectedSiteId) return;
-    const requested = sites.find(
-      (site) => site.name.toLowerCase() === requestedSite.toLowerCase(),
-    );
+    const requested = sites.find((site) => isSameSite(site.name, requestedSite));
     if (requested) handleSelectPin(requested.id);
   }, [requestedSite, sites, selectedSiteId, handleSelectPin]);
 
@@ -1117,17 +1123,22 @@ export default function MapScreen() {
     }
   }, []);
 
-  // Format sites payload for Leaflet
+  // Format sites payload for Leaflet. Sites with no trustworthy position
+  // (no verified fix and no DB coordinates) are dropped instead of being
+  // stacked at a fake default center.
   const sitesForMap = useMemo(() => {
-    return sites.map((s) => {
-      const enrichment = getEnrichment(s);
-      return {
-        id: s.id,
-        name: s.name,
-        difficulty: s.difficulty || enrichment.difficulty,
-        lat: enrichment.lat,
-        lng: enrichment.lng,
-      };
+    return sites.flatMap((s) => {
+      const coords = resolveSiteCoords(s.name, s.lat, s.lng);
+      if (!coords) return [];
+      return [
+        {
+          id: s.id,
+          name: s.name,
+          difficulty: s.difficulty || getEnrichment(s).difficulty,
+          lat: coords.lat,
+          lng: coords.lng,
+        },
+      ];
     });
   }, [sites]);
 
