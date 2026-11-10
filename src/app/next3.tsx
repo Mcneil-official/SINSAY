@@ -22,8 +22,9 @@ export default function Next3Page() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <EcoOnboarding
-        illustration={require("../../assets/onboarding/maintain-control transparent.png")}
+        illustration={require("../../assets/onboarding/maintain-control transparent (2).png")}
         illustrationAlt="Illustration for maintaining control underwater"
+        artContentPosition="top"
         title={"Maintain\nControl"}
         description={
           "Master your neutral buoyancy. Keep gauges clipped and never ground your fins on silt beds or fragile reefs."

@@ -61,6 +61,7 @@ interface EcoOnboardingProps {
   index: number;
   total?: number;
   wave: WaveVariant;
+  artContentPosition?: "center" | "top";
   onNext?: () => void;
   onBack?: () => void;
   onSkip?: () => void;
@@ -75,6 +76,7 @@ export default function EcoOnboarding({
   index,
   total = 3,
   wave,
+  artContentPosition = "center",
   onNext,
   onBack,
   onSkip,
@@ -384,6 +386,7 @@ export default function EcoOnboarding({
                   source={illustration}
                   style={styles.artImage}
                   contentFit="cover"
+                  contentPosition={artContentPosition}
                   accessibilityLabel={illustrationAlt}
                 />
               </View>
