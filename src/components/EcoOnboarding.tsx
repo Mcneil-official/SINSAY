@@ -62,6 +62,7 @@ interface EcoOnboardingProps {
   total?: number;
   wave: WaveVariant;
   artContentPosition?: "center" | "top";
+  illustrationOffsetY?: number;
   onNext?: () => void;
   onBack?: () => void;
   onSkip?: () => void;
@@ -77,6 +78,7 @@ export default function EcoOnboarding({
   total = 3,
   wave,
   artContentPosition = "center",
+  illustrationOffsetY = -160,
   onNext,
   onBack,
   onSkip,
@@ -251,7 +253,10 @@ export default function EcoOnboarding({
               styles.wave,
               {
                 height: (frameWidth * WAVE_HEIGHT) / DESIGN_WIDTH,
-                transform: [{ scale: waveScale }],
+                transform: [
+                  { translateY: wave === "protect" ? -18 * scale : 0 },
+                  { scale: waveScale },
+                ],
               },
             ]}
             pointerEvents="none"
@@ -384,8 +389,14 @@ export default function EcoOnboarding({
               <View style={styles.middleZone}>
                 <Image
                   source={illustration}
-                  style={styles.artImage}
-                  contentFit="cover"
+                  style={[
+                    styles.artImage,
+                    { height: frameWidth * 1.5 },
+                    illustrationOffsetY !== 0 && {
+                      transform: [{ translateY: illustrationOffsetY * scale }],
+                    },
+                  ]}
+                  contentFit="contain"
                   contentPosition={artContentPosition}
                   accessibilityLabel={illustrationAlt}
                 />
@@ -487,16 +498,18 @@ const styles = StyleSheet.create({
   topZone: {
     flexGrow: 0,
     flexShrink: 0,
+    position: "relative",
+    zIndex: 2,
   },
   middleZone: {
     flex: 1,
     minHeight: ART_MIN_ZONE,
     marginTop: TEXT_ART_GAP,
-    overflow: "hidden",
+    overflow: "visible",
   },
   artImage: {
     width: "100%",
-    height: "100%",
+    alignSelf: "stretch",
   },
   bottomZone: {
     position: "absolute",

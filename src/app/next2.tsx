@@ -24,6 +24,7 @@ export default function Next2Page() {
       <EcoOnboarding
         illustration={require("../../assets/onboarding/protect-the-ocean transparent.png")}
         illustrationAlt="Illustration for protecting the ocean"
+        artContentPosition="top"
         title={"Protect the\nOcean"}
         description={
           "Keep the Verde Island Passage clean. Strictly no single-use plastics on dive boats and only use reef-safe sunscreen."

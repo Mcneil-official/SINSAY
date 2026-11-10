@@ -34,6 +34,7 @@ export default function NextPage() {
       <EcoOnboarding
         illustration={require("../../assets/onboarding/marine-life transparent.png")}
         illustrationAlt="A diver observing a sea turtle and fish underwater"
+        artContentPosition="top"
         title={"Respect\nMarine Life"}
         description={
           "Look, don't touch. Mabini enforces a strict no-touch and no-take policy for all corals and marine life under Municipal Ordinance No. 031-2023."
