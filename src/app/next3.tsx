@@ -30,7 +30,6 @@ export default function Next3Page() {
         }
         index={2}
         wave="control"
-        illustrationAspect={960 / 1280}
         onBack={() => safeBack(router, "/next2")}
         onFinish={handleFinish}
       />

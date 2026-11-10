@@ -7,9 +7,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Animated,
   Easing,
+  LayoutChangeEvent,
   PanResponder,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -26,6 +28,10 @@ const WAVE_HEIGHT = 170;
 const CONTENT_SIDE = 30;
 const FOOTER_SIDE = 24;
 const BUTTON_HEIGHT = 52;
+const ART_MAX_HEIGHT = 300; // artwork cap: max-h-[300px]
+const ART_MAX_VH = 0.35; // artwork cap: max-h-[35vh]
+const ART_MIN_ZONE = 160; // never shrink the art zone below this — scroll instead
+const TEXT_ART_GAP = 16; // gap-4: minimum gap between body text and artwork
 
 type WaveVariant = "marine-life" | "protect" | "control";
 
@@ -56,16 +62,10 @@ interface EcoOnboardingProps {
   index: number;
   total?: number;
   wave: WaveVariant;
-  illustrationOffsetY?: number;
-  illustrationAspect?: number;
-  illustrationTopLimit?: number;
-  titleGap?: number;
-  headerOffsetY?: number;
   onNext?: () => void;
   onBack?: () => void;
   onSkip?: () => void;
   onFinish?: () => void;
-  onReviewTips?: () => void;
 }
 
 export default function EcoOnboarding({
@@ -76,16 +76,10 @@ export default function EcoOnboarding({
   index,
   total = 3,
   wave,
-  illustrationOffsetY = 0,
-  illustrationAspect,
-  illustrationTopLimit: _illustrationTopLimit,
-  titleGap = 24,
-  headerOffsetY = 0,
   onNext,
   onBack,
   onSkip,
   onFinish,
-  onReviewTips: _onReviewTips,
 }: EcoOnboardingProps) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -93,39 +87,32 @@ export default function EcoOnboarding({
   const [slideOpacity] = useState(() => new Animated.Value(0));
   const [slideTranslateX] = useState(() => new Animated.Value(18));
   const [waveScale] = useState(() => new Animated.Value(0.98));
+  // Actual frame height, re-measured on layout so URL-bar / PWA-banner
+  // viewport changes are picked up without stale window math.
+  const [measuredFrameHeight, setMeasuredFrameHeight] = useState(height);
 
   const isWide = width > WIDE_BREAKPOINT;
   const frameWidth = isWide ? DESIGN_WIDTH : width;
   const scale = frameWidth / DESIGN_WIDTH;
-  const frameHeight = isWide ? Math.min(DESIGN_HEIGHT, height) : height;
+  const frameHeight = isWide
+    ? Math.min(DESIGN_HEIGHT, height)
+    : measuredFrameHeight;
 
   const safeTop = insets.top;
   const safeBottom =
     insets.bottom > 0 ? Math.max(insets.bottom, 16) : 16;
   const isCompact = frameHeight < 740;
 
+  // Top-zone clearance so the progress row and title clear the wave header
+  // exactly where the previous absolute layout placed them.
   const contentTop = Math.max(
     safeTop + (isCompact ? 104 : 116),
     (isCompact ? 154 : 168) * scale,
   );
   const footerBottom = safeBottom + (isCompact ? 10 : 14);
-  const resolvedTitleGap = titleGap ?? (isCompact ? 14 : 18);
-  const titleHeight = (isCompact ? 38 * 2 : 42 * 2) * scale;
-  const descHeight = (isCompact ? 20 * 3 : 22 * 3) * scale;
-  const textEstHeight =
-    (4 + resolvedTitleGap) * scale +
-    titleHeight +
-    (isCompact ? 12 : 14) * scale +
-    descHeight;
-  const textBottom = contentTop + textEstHeight;
-
-  const aspect = illustrationAspect ?? 853 / 1280;
-  const imageHeight = Math.round(frameWidth / aspect);
-  const imageTop = Math.round(
-    Math.max(
-      textBottom + (isCompact ? 10 : 16) * scale,
-      frameHeight - imageHeight + illustrationOffsetY * scale,
-    ),
+  const artMaxHeight = Math.min(
+    ART_MAX_HEIGHT,
+    Math.round(frameHeight * ART_MAX_VH),
   );
 
   const safeTotal = Math.max(total, 1);
@@ -133,6 +120,13 @@ export default function EcoOnboarding({
   const isLast = activeIndex >= safeTotal - 1;
   const steps = Array.from({ length: safeTotal }, (_, step) => step);
   const wavePaths = WAVE_PATHS[wave];
+
+  const handleFrameLayout = useCallback((e: LayoutChangeEvent) => {
+    const nextHeight = e.nativeEvent.layout.height;
+    if (nextHeight > 0) {
+      setMeasuredFrameHeight(nextHeight);
+    }
+  }, []);
 
   const animateTransition = useCallback(
     (direction: number, onComplete?: () => void) => {
@@ -218,7 +212,6 @@ export default function EcoOnboarding({
     [advance, goBack],
   );
 
-  const contentWidth = frameWidth - CONTENT_SIDE * 2 * scale;
   const nextLabel = isLast ? "Done" : "Next";
 
   return (
@@ -242,6 +235,7 @@ export default function EcoOnboarding({
               ? { width: frameWidth, height: frameHeight }
               : styles.mobileFrameFill,
           ]}
+          onLayout={handleFrameLayout}
           {...panResponder.panHandlers}
         >
           <Animated.View
@@ -249,7 +243,6 @@ export default function EcoOnboarding({
               styles.wave,
               {
                 height: (frameWidth * WAVE_HEIGHT) / DESIGN_WIDTH,
-                top: headerOffsetY,
                 transform: [{ scale: waveScale }],
               },
             ]}
@@ -279,167 +272,169 @@ export default function EcoOnboarding({
             </Svg>
           </Animated.View>
 
-          <Image
-            source={illustration}
-            style={{
-              position: "absolute",
-              zIndex: 0,
-              left: 0,
-              bottom: isWide ? undefined : 0,
-              top: isWide ? imageTop : undefined,
-              width: frameWidth,
-              height: imageHeight,
-              opacity: slideOpacity,
-              transform: [
-                {
-                  translateY: slideTranslateX.interpolate({
-                    inputRange: [0, 18],
-                    outputRange: [0, 8],
-                  }),
-                },
-              ],
-            }}
-            contentFit="cover"
-            accessibilityLabel={illustrationAlt}
-          />
-
           <Animated.View
             style={[
-              styles.content,
+              styles.page,
               {
-                top: contentTop,
-                left: CONTENT_SIDE * scale,
-                width: contentWidth,
                 opacity: slideOpacity,
                 transform: [{ translateX: slideTranslateX }],
               },
             ]}
           >
-            <View
-              style={[styles.progressRow, { gap: 7 * scale }]}
-              accessible
-              accessibilityRole="text"
-              accessibilityLabel={`Step ${activeIndex + 1} of ${safeTotal}`}
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
             >
-              {steps.map((step) => (
+              {/* Top zone: progress bar, Skip, title, description */}
+              <View
+                style={[
+                  styles.topZone,
+                  {
+                    paddingTop: contentTop,
+                    paddingHorizontal: CONTENT_SIDE * scale,
+                  },
+                ]}
+              >
                 <View
-                  key={step}
+                  style={[styles.progressRow, { gap: 7 * scale }]}
+                  accessible
+                  accessibilityRole="text"
+                  accessibilityLabel={`Step ${activeIndex + 1} of ${safeTotal}`}
+                >
+                  {steps.map((step) => (
+                    <View
+                      key={step}
+                      style={{
+                        width: 28 * scale,
+                        height: 4 * scale,
+                        borderRadius: 999,
+                        backgroundColor:
+                          step === activeIndex ? "#005EEC" : "#c8d8ee",
+                      }}
+                    />
+                  ))}
+                  {onSkip && !isLast ? (
+                    <Pressable
+                      onPress={onSkip}
+                      accessibilityRole="button"
+                      accessibilityLabel="Skip onboarding"
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      style={({ pressed }) => [
+                        styles.skip,
+                        { top: -8 * scale, opacity: pressed ? 0.6 : 1 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.skipLabel,
+                          fontsLoaded && styles.skipFont,
+                          { fontSize: 15 * scale, lineHeight: 20 * scale },
+                        ]}
+                      >
+                        Skip
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                <Text
+                  accessibilityRole="header"
+                  style={[
+                    styles.title,
+                    fontsLoaded && styles.titleFont,
+                    {
+                      marginTop: 24 * scale,
+                      fontSize: (isCompact ? 38 : 42) * scale,
+                      lineHeight: (isCompact ? 42 : 46) * scale,
+                      letterSpacing: -0.8 * scale,
+                    },
+                  ]}
+                >
+                  {title}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.description,
+                    fontsLoaded && styles.descriptionFont,
+                    {
+                      marginTop: (isCompact ? 12 : 14) * scale,
+                      maxWidth: 330 * scale,
+                      fontSize: 15 * scale,
+                      lineHeight: 22 * scale,
+                    },
+                  ]}
+                >
+                  {description}
+                </Text>
+              </View>
+
+              {/* Middle zone: artwork scales proportionally, never overlaps text */}
+              <View style={styles.middleZone}>
+                <Image
+                  source={illustration}
                   style={{
-                    width: 28 * scale,
-                    height: 4 * scale,
-                    borderRadius: 999,
-                    backgroundColor:
-                      step === activeIndex ? "#005EEC" : "#c8d8ee",
+                    width: "100%",
+                    height: "100%",
+                    maxHeight: artMaxHeight,
                   }}
+                  contentFit="contain"
+                  accessibilityLabel={illustrationAlt}
                 />
-              ))}
-              {onSkip && !isLast ? (
+              </View>
+
+              {/* Bottom zone: CTA with bottom safe-area inset */}
+              <View
+                style={[
+                  styles.bottomZone,
+                  {
+                    paddingHorizontal: FOOTER_SIDE * scale,
+                    paddingTop: 8 * scale,
+                    paddingBottom: footerBottom,
+                  },
+                ]}
+              >
                 <Pressable
-                  onPress={onSkip}
+                  onPress={advance}
                   accessibilityRole="button"
-                  accessibilityLabel="Skip onboarding"
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityLabel={
+                    isLast ? "Finish onboarding" : "Continue to next tip"
+                  }
+                  accessibilityHint="Or swipe left to continue, right to go back."
                   style={({ pressed }) => [
-                    styles.skip,
-                    { top: -8 * scale, opacity: pressed ? 0.6 : 1 },
+                    styles.button,
+                    styles.buttonPrimary,
+                    {
+                      minHeight: BUTTON_HEIGHT * scale,
+                      borderRadius: 16 * scale,
+                      backgroundColor: pressed ? "#164e9b" : "#1c5eb9",
+                      shadowColor: "#1c5eb9",
+                      shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 10,
+                      elevation: 6,
+                    },
                   ]}
                 >
                   <Text
                     style={[
-                      styles.skipLabel,
-                      fontsLoaded && styles.skipFont,
-                      { fontSize: 15 * scale, lineHeight: 20 * scale },
+                      styles.buttonLabel,
+                      styles.buttonPrimaryLabel,
+                      { fontSize: 15 * scale },
                     ]}
                   >
-                    Skip
+                    {nextLabel}
+                  </Text>
+                  <Text
+                    style={[styles.buttonArrow, { fontSize: 15 * scale }]}
+                    accessible={false}
+                  >
+                    →
                   </Text>
                 </Pressable>
-              ) : null}
-            </View>
-
-            <Text
-              accessibilityRole="header"
-              style={[
-                styles.title,
-                fontsLoaded && styles.titleFont,
-                {
-                  marginTop: resolvedTitleGap * scale,
-                  width: contentWidth,
-                  fontSize: (isCompact ? 38 : 42) * scale,
-                  lineHeight: (isCompact ? 42 : 46) * scale,
-                  letterSpacing: -0.8 * scale,
-                },
-              ]}
-            >
-              {title}
-            </Text>
-
-            <Text
-              style={[
-                styles.description,
-                fontsLoaded && styles.descriptionFont,
-                {
-                  marginTop: (isCompact ? 12 : 14) * scale,
-                  maxWidth: 330 * scale,
-                  fontSize: 15 * scale,
-                  lineHeight: 22 * scale,
-                },
-              ]}
-            >
-              {description}
-            </Text>
-          </Animated.View>
-
-          <Animated.View
-            style={[
-              styles.footer,
-              {
-                bottom: footerBottom,
-                left: FOOTER_SIDE * scale,
-                right: FOOTER_SIDE * scale,
-                opacity: slideOpacity,
-                transform: [{ translateX: slideTranslateX }],
-              },
-            ]}
-          >
-            <Pressable
-              onPress={advance}
-              accessibilityRole="button"
-              accessibilityLabel={
-                isLast ? "Finish onboarding" : "Continue to next tip"
-              }
-              accessibilityHint="Or swipe left to continue, right to go back."
-              style={({ pressed }) => [
-                styles.button,
-                styles.buttonPrimary,
-                {
-                  minHeight: BUTTON_HEIGHT * scale,
-                  borderRadius: 16 * scale,
-                  backgroundColor: pressed ? "#164e9b" : "#1c5eb9",
-                  shadowColor: "#1c5eb9",
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 10,
-                  elevation: 6,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.buttonLabel,
-                  styles.buttonPrimaryLabel,
-                  { fontSize: 15 * scale },
-                ]}
-              >
-                {nextLabel}
-              </Text>
-              <Text
-                style={[styles.buttonArrow, { fontSize: 15 * scale }]}
-                accessible={false}
-              >
-                →
-              </Text>
-            </Pressable>
+              </View>
+            </ScrollView>
           </Animated.View>
         </View>
       </View>
@@ -471,9 +466,28 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 1,
   },
-  content: {
-    position: "absolute",
-    zIndex: 2,
+  page: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  topZone: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  middleZone: {
+    flex: 1,
+    minHeight: ART_MIN_ZONE,
+    marginTop: TEXT_ART_GAP,
+    justifyContent: "center",
+  },
+  bottomZone: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
   progressRow: {
     flexDirection: "row",
@@ -505,10 +519,6 @@ const styles = StyleSheet.create({
   descriptionFont: {
     fontFamily: "Jost_400Regular",
   },
-  footer: {
-    position: "absolute",
-    zIndex: 3,
-  },
   button: {
     flexDirection: "row",
     alignItems: "center",
@@ -523,15 +533,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
-  buttonSecondary: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  buttonSecondaryLabel: {
-    color: "#1c5eb9",
-    fontWeight: "600",
-  },
   buttonLabel: {
     fontSize: 15,
     includeFontPadding: false,
@@ -540,14 +541,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     includeFontPadding: false,
-  },
-  completion: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 4,
-    justifyContent: "center",
   },
 });

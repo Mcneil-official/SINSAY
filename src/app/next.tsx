@@ -40,7 +40,6 @@ export default function NextPage() {
         }
         index={0}
         wave="marine-life"
-        illustrationAspect={853 / 1280}
         onNext={() => router.push("/next2")}
         onSkip={handleSkip}
       />

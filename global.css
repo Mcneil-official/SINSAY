@@ -11,6 +11,9 @@ body {
   bottom: 0;
   width: 100%;
   height: 100%;
+  /* Dynamic viewport height: tracks mobile URL bars / PWA chrome.
+     Browsers without dvh support keep the 100% fallback above. */
+  height: 100dvh;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -30,6 +33,7 @@ body {
   width: 100% !important;
   height: auto !important;
   min-height: 100% !important;
+  min-height: 100dvh !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
