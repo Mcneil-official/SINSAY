@@ -177,7 +177,12 @@ export default function HomeScreen() {
       .limit(10)
       .then(({ data, error }) => {
         if (!active) return;
-        setEstablishments(data ?? []);
+        const uniqueList = Array.from(
+          new Map(
+            (data ?? []).map((item) => [item.name.trim().toLowerCase(), item])
+          ).values()
+        );
+        setEstablishments(uniqueList);
         setEstablishmentsError(!!error);
         setEstablishmentsLoading(false);
       },
@@ -645,12 +650,12 @@ export default function HomeScreen() {
               ) : establishments.length === 0 ? (
                 <EmptyState
                   icon="business-outline"
-                  message="No accredited dive resorts yet."
+                  message="No dive resorts yet."
                 />
               ) : (
                 <View style={styles.resortsGrid}>
                   {establishments.slice(0, 6).map((item, idx) => {
-                    const { imageUrl } = resolveEstablishmentMedia(item);
+                    const { imageUrl, logoUrl } = resolveEstablishmentMedia(item);
                     return (
                       <View key={item.id} style={styles.resortsGridCol}>
                         <EstablishmentCard
@@ -662,6 +667,7 @@ export default function HomeScreen() {
                           isPcssdAccredited={Boolean(item.pcssd_url && item.pcssd_url.trim().length > 0)}
                           isDotAccredited={Boolean(item.dot_url && item.dot_url.trim().length > 0)}
                           imageUrl={imageUrl}
+                          logoUrl={logoUrl}
                           index={idx}
                           onPress={() =>
                             router.push({
