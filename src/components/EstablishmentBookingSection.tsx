@@ -24,6 +24,7 @@ export interface EstablishmentBookingSectionProps {
   websiteUrl?: string | null;
   facebookUrl?: string | null;
   establishmentName?: string;
+  hideHeader?: boolean;
 }
 
 interface BookingChannel {
@@ -104,6 +105,7 @@ export function EstablishmentBookingSection({
   websiteUrl,
   facebookUrl,
   establishmentName = "Establishment",
+  hideHeader = false,
 }: EstablishmentBookingSectionProps) {
   const channels: BookingChannel[] = [];
 
@@ -326,14 +328,16 @@ export function EstablishmentBookingSection({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, hideHeader && styles.containerHeaderless]}>
       {/* Section Header */}
-      <View style={styles.headerRow}>
-        <View style={styles.headerTextWrap}>
-          <Text style={styles.title}>Book Here</Text>
-          <Text style={styles.subtitle}>Book your dive in this links.</Text>
+      {!hideHeader && (
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.title}>Book Here</Text>
+            <Text style={styles.subtitle}>Book your dive in this links.</Text>
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Booking Platforms & Channels Single Horizontal Scroll Row */}
       <ScrollView
@@ -365,6 +369,10 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 22,
     marginBottom: 8,
+  },
+  containerHeaderless: {
+    marginTop: 0,
+    marginBottom: 0,
   },
   headerRow: {
     marginBottom: 14,

@@ -44,3 +44,5 @@ export { NotificationsPanel } from "./notifications/NotificationsPanel";
 export { WebSafeInsetsNormalizer } from "./WebSafeInsetsNormalizer";
 
 export { InAppTutorial } from "./InAppTutorial";
+export { ResortLogoBadge, getResortInitials } from "./ResortLogoBadge";
+export { ResortProfileHero } from "./ResortProfileHero";

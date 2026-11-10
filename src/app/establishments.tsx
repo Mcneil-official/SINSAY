@@ -71,7 +71,15 @@ export default function EstablishmentsScreen() {
           if (fetchError) {
             setError(true);
           } else {
-            setEstablishments(data ?? []);
+            const uniqueList = Array.from(
+              new Map(
+                (data ?? []).map((item) => [
+                  item.name.trim().toLowerCase(),
+                  item,
+                ])
+              ).values()
+            );
+            setEstablishments(uniqueList);
             setError(false);
           }
           setLoading(false);
@@ -182,7 +190,7 @@ export default function EstablishmentsScreen() {
             onRetry={handleRetry}
           />
         ) : (
-          <EmptyState icon="business-outline" message="No accredited dive resorts found" />
+          <EmptyState icon="business-outline" message="No dive resorts found" />
         )}
       </SafeAreaView>
     );
@@ -234,7 +242,6 @@ export default function EstablishmentsScreen() {
                   const hasPcssd = Boolean(resort.pcssd_url && resort.pcssd_url.trim().length > 0);
                   const hasDot = Boolean(resort.dot_url && resort.dot_url.trim().length > 0);
                   const displayLocation = resort.location?.trim() || "Mabini, Batangas";
-                  const badgeLabel = resort.accreditation?.trim() || "DOT Verified";
 
                   return (
                     <TouchableOpacity
@@ -322,7 +329,7 @@ export default function EstablishmentsScreen() {
                               ]}
                             >
                               <Text style={styles.heroDiffText}>
-                                {hasDot ? "DOT Verified" : "Verified"}
+                                {hasDot ? "DOT Verified" : "Directory"}
                               </Text>
                             </View>
                           </View>
@@ -467,7 +474,7 @@ export default function EstablishmentsScreen() {
         {/* 3. Dive Resorts Listing Section */}
         <ContentContainer maxWidth={900}>
           <View style={styles.listSectionHeader}>
-            <Text style={styles.sectionTitle}>All Accredited Resorts</Text>
+            <Text style={styles.sectionTitle}>All Dive Resorts</Text>
             <View style={styles.countPill}>
               <Text style={styles.countPillText}>
                 {filteredEstablishments.length}{" "}
@@ -492,7 +499,7 @@ export default function EstablishmentsScreen() {
           ) : (
             <View style={styles.cardsList}>
               {filteredEstablishments.map((est, idx) => {
-                const { imageUrl } = resolveEstablishmentMedia(est);
+                const { imageUrl, logoUrl } = resolveEstablishmentMedia(est);
                 const hasPcssd = Boolean(est.pcssd_url && est.pcssd_url.trim().length > 0);
                 const hasDot = Boolean(est.dot_url && est.dot_url.trim().length > 0);
 
@@ -507,6 +514,7 @@ export default function EstablishmentsScreen() {
                     isPcssdAccredited={hasPcssd}
                     isDotAccredited={hasDot}
                     imageUrl={imageUrl}
+                    logoUrl={logoUrl}
                     index={idx}
                     onPress={() =>
                       router.push({

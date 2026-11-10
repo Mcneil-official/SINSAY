@@ -1,10 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { ResortLogoBadge } from "./ResortLogoBadge";
 
-type Props = { coverImageUrls: string[]; avatarUrl?: string | null; fallbackImageUrl?: string | null };
+type Props = {
+  coverImageUrls: string[];
+  avatarUrl?: string | null;
+  fallbackImageUrl?: string | null;
+  resortName?: string;
+};
 
-export function ResortProfileHero({ coverImageUrls, avatarUrl, fallbackImageUrl }: Props) {
+export function ResortProfileHero({ coverImageUrls, avatarUrl, fallbackImageUrl, resortName = "Resort" }: Props) {
   const { width } = useWindowDimensions();
   const [active, setActive] = useState(0);
   const carouselRef = useRef<ScrollView>(null);
@@ -23,7 +29,15 @@ export function ResortProfileHero({ coverImageUrls, avatarUrl, fallbackImageUrl 
       </ScrollView> : <View style={styles.empty}><Ionicons name="business-outline" size={45} color="#78A8D8" /><Text style={styles.emptyText}>Add resort photos to showcase your place</Text></View>}
       {slides.length > 1 && <><TouchableOpacity accessibilityLabel="Previous cover photo" style={[styles.arrow, styles.left]} onPress={() => go(-1)}><Ionicons name="chevron-back" size={20} color="#fff" /></TouchableOpacity><TouchableOpacity accessibilityLabel="Next cover photo" style={[styles.arrow, styles.right]} onPress={() => go(1)}><Ionicons name="chevron-forward" size={20} color="#fff" /></TouchableOpacity><View style={styles.dots}>{slides.map((_, i) => <View key={i} style={[styles.dot, active === i && styles.activeDot]} />)}</View></>}
     </View>
-    <View style={styles.avatar}>{avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Ionicons name="person" size={34} color="#fff" />}</View>
+    <View style={styles.avatar}>
+      <ResortLogoBadge
+        name={resortName}
+        logoUrl={avatarUrl}
+        size={84}
+        borderRadius={42}
+        fontSize={32}
+      />
+    </View>
   </View>;
 }
 

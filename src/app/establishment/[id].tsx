@@ -13,7 +13,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { ContentContainer, ErrorState, EstablishmentBookingSection } from "../../components";
+import { ContentContainer, ErrorState, EstablishmentBookingSection, resolveEstablishmentMedia } from "../../components";
 import { ResortProfileHero } from "../../components/ResortProfileHero";
 import { colors } from "../../constants/colors";
 import { safeBack } from "../../lib/navigation";
@@ -42,15 +42,45 @@ export default function EstablishmentDetailScreen() {
     });
   }, [id]);
 
+  const hasBookingChannels = Boolean(
+    est &&
+      ((est.booking_links && est.booking_links.length > 0) ||
+        est.booking_url?.trim() ||
+        est.website?.trim() ||
+        est.facebook?.trim())
+  );
+
+  const openWebsite = () => {
+    if (est?.website?.trim()) {
+      Linking.openURL(est.website.trim()).catch(() => {});
+    }
+  };
+
+  const openPhone = () => {
+    if (est?.phone?.trim()) {
+      Linking.openURL(`tel:${est.phone.trim()}`).catch(() => {});
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
+
+      {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeBack(router, "/establishments")} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={colors.darkText} />
+        <TouchableOpacity
+          onPress={() => safeBack(router, "/establishments")}
+          hitSlop={12}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.darkText} />
         </TouchableOpacity>
-        <Text style={styles.title}>Establishment</Text>
-        <View style={{ width: 24 }} />
+
+        <Text style={styles.title}>Resort Details</Text>
+
+        <View style={styles.headerSpacer} />
       </View>
 
       {loading ? (
@@ -59,7 +89,7 @@ export default function EstablishmentDetailScreen() {
         </View>
       ) : !est ? (
         <ErrorState
-          message="Establishment not found"
+          message="Resort not found"
           onRetry={() => safeBack(router, "/establishments")}
           retryLabel="Go Back"
         />
@@ -67,87 +97,150 @@ export default function EstablishmentDetailScreen() {
         <ScrollView
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
           <ContentContainer maxWidth={720} paddingH={16}>
-          <>
-            <ResortProfileHero
-              coverImageUrls={(est.cover_image_paths || []).map((path) => supabase.storage.from("operator_media").getPublicUrl(path).data.publicUrl)}
-              avatarUrl={est.operator_avatar_path ? supabase.storage.from("operator_media").getPublicUrl(est.operator_avatar_path).data.publicUrl : null}
-              fallbackImageUrl={est.image_url}
-            />
+            {(() => {
+              const { imageUrl, logoUrl } = resolveEstablishmentMedia(est);
+              return (
+                <ResortProfileHero
+                  coverImageUrls={
+                    est.cover_image_paths?.length
+                      ? est.cover_image_paths.map((path) => supabase.storage.from("operator_media").getPublicUrl(path).data.publicUrl)
+                      : imageUrl
+                      ? [imageUrl]
+                      : []
+                  }
+                  avatarUrl={logoUrl}
+                  fallbackImageUrl={imageUrl}
+                  resortName={est.name}
+                />
+              );
+            })()}
 
             <View style={styles.contentSection}>
-              {(() => {
-                const hasPcssd = Boolean(est.pcssd_url && est.pcssd_url.trim().length > 0);
-                const hasDot = Boolean(est.dot_url && est.dot_url.trim().length > 0);
-                const hasAnyBadge = Boolean(est.accreditation || hasPcssd || hasDot);
+              {/* Title & Location */}
+              <View style={styles.titleRow}>
+                <View style={styles.titleCol}>
+                  <Text style={styles.estName}>{est.name}</Text>
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-sharp" size={13} color="#005EEC" />
+                    <Text style={styles.locationText}>
+                      {est.location?.trim() || "Mabini, Batangas"}
+                    </Text>
+                  </View>
+                </View>
 
-                return (
-                  <View style={styles.titleBadgeRow}>
-                    <View style={styles.titleCol}>
-                      <Text style={styles.estName}>{est.name}</Text>
-                      {est.location && (
-                        <View style={styles.locationRow}>
-                          <Ionicons name="location-outline" size={16} color={colors.gray} />
-                          <Text style={styles.locationText}>{est.location}</Text>
+                {(() => {
+                  const hasPcssd = Boolean(est.pcssd_url && est.pcssd_url.trim().length > 0);
+                  const hasDot = Boolean(est.dot_url && est.dot_url.trim().length > 0);
+                  const hasAnyBadge = Boolean(est.accreditation || hasPcssd || hasDot);
+
+                  if (!hasAnyBadge) return null;
+
+                  return (
+                    <View style={styles.badgesCol}>
+                      {est.accreditation && (
+                        <View style={styles.accreditationBadge}>
+                          <Ionicons name="checkmark-circle" size={13} color={colors.white} />
+                          <Text style={styles.accreditationText}>{est.accreditation}</Text>
+                        </View>
+                      )}
+                      {hasPcssd && (
+                        <View style={styles.officialBadge} accessibilityLabel="PCSSD Accredited">
+                          <Image source={PCSSD_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
+                          <Text style={styles.officialBadgeText}>PCSSD Accredited</Text>
+                        </View>
+                      )}
+                      {hasDot && (
+                        <View style={styles.officialBadge} accessibilityLabel="DOT Accredited">
+                          <Image source={DOT_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
+                          <Text style={styles.officialBadgeText}>DOT Accredited</Text>
                         </View>
                       )}
                     </View>
+                  );
+                })()}
+              </View>
 
-                    {hasAnyBadge && (
-                      <View style={styles.badgesCol}>
-                        {est.accreditation && (
-                          <View style={styles.accreditationBadge}>
-                            <Ionicons name="checkmark-circle" size={13} color={colors.white} />
-                            <Text style={styles.accreditationText}>{est.accreditation}</Text>
-                          </View>
-                        )}
-                        {hasPcssd && (
-                          <View style={styles.officialBadge} accessibilityLabel="PCSSD Accredited">
-                            <Image source={PCSSD_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
-                            <Text style={styles.officialBadgeText}>PCSSD Accredited</Text>
-                          </View>
-                        )}
-                        {hasDot && (
-                          <View style={styles.officialBadge} accessibilityLabel="DOT Accredited">
-                            <Image source={DOT_LOGO} style={styles.officialBadgeLogo} resizeMode="contain" />
-                            <Text style={styles.officialBadgeText}>DOT Accredited</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                );
-              })()}
+              {/* Quick Info Pills */}
+              <View style={styles.quickPillsRow}>
+                <View
+                  style={styles.statusPill}
+                  accessibilityLabel="Public directory listing"
+                >
+                  <Ionicons name="business-outline" size={13} color={colors.primaryBlue} />
+                  <Text style={styles.pillText}>Directory Listing</Text>
+                </View>
 
+                {est.website?.trim() && (
+                  <TouchableOpacity
+                    style={styles.actionPill}
+                    onPress={openWebsite}
+                    activeOpacity={0.75}
+                    hitSlop={6}
+                    accessibilityRole="link"
+                    accessibilityLabel={`Open website of ${est.name}`}
+                  >
+                    <Ionicons name="globe-outline" size={13} color={colors.primaryBlue} />
+                    <Text style={styles.pillText}>Website</Text>
+                  </TouchableOpacity>
+                )}
+
+                {est.phone?.trim() && (
+                  <TouchableOpacity
+                    style={styles.actionPill}
+                    onPress={openPhone}
+                    activeOpacity={0.75}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Call ${est.phone}`}
+                  >
+                    <Ionicons name="call-outline" size={13} color={colors.primaryBlue} />
+                    <Text style={styles.pillText}>Call</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Resort Overview */}
               {est.description && (
-                <Text style={styles.description}>{est.description}</Text>
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>Resort Overview</Text>
+                  <Text style={styles.description}>{est.description}</Text>
+                </View>
               )}
 
-              {/* Dedicated Booking / Book Here UI Section */}
-              <EstablishmentBookingSection
-                bookingLinks={est.booking_links}
-                bookingUrl={est.booking_url}
-                websiteUrl={est.website}
-                facebookUrl={est.facebook}
-                establishmentName={est.name}
-              />
+              {/* Booking & Social Links */}
+              {hasBookingChannels && (
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>Booking & Social Links</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    Bookings, website and social channels
+                  </Text>
+                  <EstablishmentBookingSection
+                    bookingLinks={est.booking_links}
+                    bookingUrl={est.booking_url}
+                    websiteUrl={est.website}
+                    facebookUrl={est.facebook}
+                    establishmentName={est.name}
+                    hideHeader
+                  />
+                </View>
+              )}
 
-              {/* Segregated Contact Information Section (Phone & Email Only) */}
+              {/* Direct Contact */}
               {(est.phone || est.email) && (
-                <View style={styles.contactSection}>
+                <View style={styles.sectionCard}>
                   <View style={styles.sectionHeaderRow}>
-                    <View style={styles.headerTextWrap}>
-                      <Text style={styles.sectionTitle}>Contact Information</Text>
-                      <Text style={styles.sectionSubtitle}>Direct lines and inquiries</Text>
-                    </View>
+                    <Text style={styles.sectionTitle}>Direct Contact</Text>
+                    <Text style={styles.sectionSubtitle}>Direct lines and inquiries</Text>
                   </View>
 
                   <View style={styles.contactList}>
                     {est.phone && (
                       <TouchableOpacity
                         style={styles.contactCard}
-                        onPress={() => Linking.openURL(`tel:${est.phone}`)}
+                        onPress={openPhone}
                         activeOpacity={0.8}
                         accessibilityRole="button"
                         accessibilityLabel={`Call ${est.phone}`}
@@ -191,7 +284,6 @@ export default function EstablishmentDetailScreen() {
                 </View>
               )}
             </View>
-          </>
           </ContentContainer>
         </ScrollView>
       )}
@@ -204,26 +296,57 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingBottom: 24 },
   header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
-  title: { fontSize: 17, fontWeight: "600", color: colors.darkText },
-  hero: {
-    height: 180,
-    backgroundColor: colors.navy,
-    borderRadius: 20,
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
   },
-  heroOverlay: { opacity: 0.6 },
-  titleBadgeRow: {
+  title: {
+    fontSize: 17,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.darkText,
+  },
+  headerSpacer: {
+    width: 36,
+    height: 36,
+  },
+  contentSection: {
+    paddingTop: 12,
+    gap: 16,
+  },
+  titleRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
     justifyContent: "space-between",
+    alignItems: "flex-start",
     gap: 12,
   },
   titleCol: {
+    flex: 1,
+    gap: 3,
+  },
+  estName: {
+    fontSize: 22,
+    fontFamily: "Quicksand_700Bold",
+    color: "#1E293B",
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  locationText: {
+    fontSize: 12.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#64748B",
     flex: 1,
   },
   badgesCol: {
@@ -261,44 +384,76 @@ const styles = StyleSheet.create({
     paddingVertical: 4.5,
     gap: 4.5,
   },
-  accreditationText: { fontSize: 11, fontWeight: "700", color: colors.white },
-  contentSection: { paddingTop: 20 },
-  estName: { fontSize: 22, fontWeight: "700", color: colors.darkText },
-  locationRow: {
+  accreditationText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.white,
+  },
+  quickPillsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  statusPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginTop: 6,
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
   },
-  locationText: { fontSize: 13, color: colors.gray, flex: 1 },
-  description: {
-    fontSize: 14,
-    color: colors.gray,
-    lineHeight: 22,
-    marginTop: 16,
+  actionPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#DBE8F4",
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
   },
-  contactSection: {
-    marginTop: 20,
-    marginBottom: 10,
+  pillText: {
+    fontSize: 12,
+    fontFamily: "Quicksand_700Bold",
+    color: colors.darkText,
+  },
+  sectionCard: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   sectionHeaderRow: {
-    marginBottom: 12,
-  },
-  headerTextWrap: {
-    flex: 1,
+    gap: 2,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontFamily: "Quicksand_700Bold",
-    color: "#07156C",
-    letterSpacing: -0.2,
+    color: colors.darkText,
   },
   sectionSubtitle: {
     fontSize: 12,
     fontFamily: "Quicksand_500Medium",
     color: "#64748B",
-    marginTop: 2,
     lineHeight: 16,
+  },
+  description: {
+    fontSize: 13.5,
+    fontFamily: "Quicksand_500Medium",
+    color: "#475569",
+    lineHeight: 22,
   },
   contactList: { gap: 10 },
   contactCard: {

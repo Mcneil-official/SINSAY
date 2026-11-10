@@ -3,6 +3,7 @@ import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "../constants/colors";
 import { supabase } from "../lib/supabase";
+import { ResortLogoBadge } from "./ResortLogoBadge";
 
 const PCSSD_LOGO = require("../../assets/logo-pcssd.png");
 const DOT_LOGO = require("../../assets/logo-dot.png");
@@ -10,12 +11,18 @@ const DOT_LOGO = require("../../assets/logo-dot.png");
 export function resolveEstablishmentMedia(est: {
   cover_image_paths?: string[] | null;
   image_url?: string | null;
-}): { imageUrl: string | null } {
+  operator_avatar_path?: string | null;
+  logo_url?: string | null;
+}): { imageUrl: string | null; logoUrl: string | null } {
   const imageUrl = est.cover_image_paths?.[0]
     ? supabase.storage.from("operator_media").getPublicUrl(est.cover_image_paths[0]).data.publicUrl
     : est.image_url || null;
 
-  return { imageUrl };
+  const logoUrl = est.operator_avatar_path
+    ? supabase.storage.from("operator_media").getPublicUrl(est.operator_avatar_path).data.publicUrl
+    : est.logo_url || null;
+
+  return { imageUrl, logoUrl };
 }
 
 const FALLBACK_RESORT_IMAGES = [
@@ -31,6 +38,7 @@ export interface EstablishmentCardProps {
   isPcssdAccredited?: boolean;
   isDotAccredited?: boolean;
   imageUrl?: string | null;
+  logoUrl?: string | null;
   phone?: string | null;
   index?: number;
   variant?: "row" | "grid";
@@ -41,16 +49,15 @@ export function EstablishmentCard({
   name,
   location,
   accreditation,
-  accredited = true,
   isPcssdAccredited = false,
   isDotAccredited = false,
   imageUrl,
+  logoUrl,
   index = 0,
   variant = "row",
   onPress,
 }: EstablishmentCardProps) {
-  const badgeLabel =
-    accreditation?.trim() || (accredited ? "DOT Verified" : null);
+  const badgeLabel = accreditation?.trim() || null;
   const photoSource = imageUrl
     ? { uri: imageUrl }
     : FALLBACK_RESORT_IMAGES[index % FALLBACK_RESORT_IMAGES.length];
@@ -93,9 +100,18 @@ export function EstablishmentCard({
               </View>
             ) : null}
 
-            <Text style={styles.gridName} numberOfLines={2}>
-              {name}
-            </Text>
+            <View style={styles.nameRow}>
+              <ResortLogoBadge
+                name={name}
+                logoUrl={logoUrl}
+                size={20}
+                borderRadius={10}
+                fontSize={8}
+              />
+              <Text style={[styles.gridName, { flex: 1 }]} numberOfLines={2}>
+                {name}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.gridLocationRow}>
@@ -151,9 +167,18 @@ export function EstablishmentCard({
           ) : null}
         </View>
 
-        <Text style={styles.name} numberOfLines={1}>
-          {name}
-        </Text>
+        <View style={styles.nameRow}>
+          <ResortLogoBadge
+            name={name}
+            logoUrl={logoUrl}
+            size={20}
+            borderRadius={10}
+            fontSize={8}
+          />
+          <Text style={[styles.name, { flex: 1 }]} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
 
         <View style={styles.locationRow}>
           <Ionicons name="location-outline" size={13} color="#657C9B" />
@@ -364,5 +389,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Quicksand_500Medium",
     color: "#657C9B",
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  logoThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
   },
 });
