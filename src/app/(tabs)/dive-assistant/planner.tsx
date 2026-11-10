@@ -208,7 +208,6 @@ export default function PlannerScreen() {
   const [planError, setPlanError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [sharedNote, setSharedNote] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [structuredPlan, setStructuredPlan] = useState<StructuredPlan | null>(
     null
@@ -324,10 +323,17 @@ export default function PlannerScreen() {
 
   const handleCopy = async () => {
     if (!plan || planError) return;
-    await Clipboard.setStringAsync(stripMarkdown(plan));
-    setCopied(true);
-    setSharedNote("");
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await Clipboard.setStringAsync(stripMarkdown(plan));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      showToast("Itinerary copied to clipboard!", { tone: "success" });
+    } catch (e) {
+      console.warn("Failed to copy dive itinerary:", e);
+      showToast("Couldn't copy the itinerary. Please try again.", {
+        tone: "error",
+      });
+    }
   };
 
   const handleShare = async () => {
@@ -352,14 +358,11 @@ export default function PlannerScreen() {
       );
       setCopied(false);
       if (result === "shared") {
-        setSharedNote("Itinerary shared.");
         showToast("Itinerary shared successfully!", { tone: "success" });
       } else if (result === "copied") {
-        setSharedNote("Itinerary copied to clipboard ✓");
         showToast("Itinerary copied to clipboard!", { tone: "success" });
       } else {
         await Clipboard.setStringAsync(shareBody);
-        setSharedNote("Itinerary copied to clipboard ✓");
         showToast("Itinerary copied to clipboard!", { tone: "success" });
       }
     } catch {
@@ -399,7 +402,6 @@ export default function PlannerScreen() {
       const msg = res.syncedToCloud
         ? "Itinerary saved to your profile!"
         : "Itinerary saved to this device!";
-      setSharedNote(msg);
       showToast(msg, {
         tone: "success",
         action: {
@@ -418,7 +420,6 @@ export default function PlannerScreen() {
     setPlan(null);
     setStructuredPlan(null);
     setCopied(false);
-    setSharedNote("");
     setIsSaved(false);
   };
 
@@ -602,12 +603,6 @@ export default function PlannerScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-              {copied && (
-                <Text style={styles.copiedNote}>Copied to clipboard ✓</Text>
-              )}
-              {sharedNote ? (
-                <Text style={styles.copiedNote}>{sharedNote}</Text>
-              ) : null}
               <View style={styles.contextPill}>
                 <Text style={styles.contextPillText}>
                   ₱{Number(budget).toLocaleString()} Budget ·{" "}
@@ -806,9 +801,6 @@ export default function PlannerScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-              {sharedNote ? (
-                <Text style={styles.copiedNote}>{sharedNote}</Text>
-              ) : null}
               <TouchableOpacity
                 onPress={handleStartOver}
                 style={styles.startOver}
@@ -985,12 +977,6 @@ const styles = StyleSheet.create({
     borderColor: colors.grayBorder,
     alignItems: "center",
     justifyContent: "center",
-  },
-  copiedNote: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.green,
-    marginBottom: 8,
   },
   resultText: {
     fontSize: 13,

@@ -18,6 +18,7 @@ import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { ContentContainer, ManifestSkeleton } from "../../components";
 import { ManifestSnapshotCard, ManifestSnapshotDiver } from "../../components/ManifestSnapshotCard";
 import { colors } from "../../constants/colors";
+import { useLanguage } from "../../context/LanguageContext";
 import { useAuth } from "../../hooks/useAuth";
 import { deriveManifestStatus, formatDiveDate, toLocalDateString } from "../../lib/diveDate";
 import {
@@ -49,14 +50,15 @@ interface ManifestItem {
   crew_count?: number | null;
 }
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "upcoming", label: "Upcoming" },
-  { key: "completed", label: "Completed" },
-  { key: "drafts", label: "Drafts" },
+const TABS: { key: Tab; labelKey: string }[] = [
+  { key: "upcoming", labelKey: "tab_upcoming" },
+  { key: "completed", labelKey: "tab_completed" },
+  { key: "drafts", labelKey: "tab_drafts" },
 ];
 
 export default function ManifestsScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { user, operatorApplication } = useAuth();
   const [tab, setTab] = useState<Tab>("upcoming");
   const [manifests, setManifests] = useState<ManifestItem[]>([]);
@@ -254,9 +256,9 @@ export default function ManifestsScreen() {
     setSnapshotMsg("");
     try {
       await captureAndDownload(cardRef.current, snapshotFile(selected));
-      setSnapshotMsg("Snapshot downloaded.");
+      setSnapshotMsg(t("snapshot_downloaded"));
     } catch (e) {
-      setSnapshotMsg(e instanceof Error ? e.message : "Couldn't create the snapshot.");
+      setSnapshotMsg(e instanceof Error ? e.message : t("snapshot_created_error"));
     }
     setSnapshotBusy(false);
   };
@@ -267,9 +269,9 @@ export default function ManifestsScreen() {
     setSnapshotMsg("");
     try {
       const result = await captureAndShare(cardRef.current, snapshotFile(selected));
-      setSnapshotMsg(result === "shared" ? "Snapshot shared." : "Snapshot downloaded (sharing unavailable).");
+      setSnapshotMsg(result === "shared" ? t("snapshot_shared") : t("snapshot_share_unavailable"));
     } catch (e) {
-      setSnapshotMsg(e instanceof Error ? e.message : "Couldn't share the snapshot.");
+      setSnapshotMsg(e instanceof Error ? e.message : t("snapshot_share_error"));
     }
     setSnapshotBusy(false);
   };
@@ -334,19 +336,19 @@ export default function ManifestsScreen() {
         <ContentContainer maxWidth={480} paddingH={14}>
           <View style={styles.heroHeader}>
             <View style={styles.heroCopy}>
-              <Text style={styles.eyebrow}>OPERATOR TOOLS</Text>
-              <Text style={styles.title}>Dive Manifests</Text>
-              <Text style={styles.subtitle}>Plan and manage your dive trips</Text>
+              <Text style={styles.eyebrow}>{t("manifests_eyebrow")}</Text>
+              <Text style={styles.title}>{t("manifests_title")}</Text>
+              <Text style={styles.subtitle}>{t("manifests_subtitle")}</Text>
             </View>
             <TouchableOpacity
               style={styles.newManifestButton}
               onPress={openCreateManifest}
               activeOpacity={0.86}
               accessibilityRole="button"
-              accessibilityLabel="Create a new dive manifest"
+              accessibilityLabel={t("new_manifest")}
             >
               <Ionicons name="add" size={19} color="#006bff" />
-              <Text style={styles.newManifestText}>New Manifest</Text>
+              <Text style={styles.newManifestText}>{t("new_manifest")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -355,20 +357,20 @@ export default function ManifestsScreen() {
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder={tab === "drafts" ? "Search drafts" : "Search boat or location"}
+              placeholder={tab === "drafts" ? t("search_drafts") : t("search_boat_location")}
               placeholderTextColor="#8293b0"
               style={styles.searchInput}
               returnKeyType="search"
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
-              accessibilityLabel="Search manifests by boat or location"
+              accessibilityLabel={t("a11y_search_manifests")}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity
                 style={styles.clearSearchButton}
                 onPress={() => setSearchQuery("")}
                 accessibilityRole="button"
-                accessibilityLabel="Clear search"
+                accessibilityLabel={t("a11y_clear_search")}
               >
                 <Ionicons name="close-circle" size={19} color="#8293b0" />
               </TouchableOpacity>
@@ -376,23 +378,24 @@ export default function ManifestsScreen() {
           </View>
 
           <View style={styles.tabRow} accessibilityRole="tablist">
-            {TABS.map((t) => {
-              const active = tab === t.key;
+            {TABS.map((tabItem) => {
+              const active = tab === tabItem.key;
+              const label = t(tabItem.labelKey);
               return (
                 <TouchableOpacity
-                  key={t.key}
+                  key={tabItem.key}
                   style={[styles.tabBtn, active && styles.tabBtnActive]}
-                  onPress={() => setTab(t.key)}
+                  onPress={() => setTab(tabItem.key)}
                   activeOpacity={0.85}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
-                  accessibilityLabel={`${t.label}, ${counts[t.key]} items`}
+                  accessibilityLabel={`${label}, ${counts[tabItem.key]} items`}
                 >
                   <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
-                    {t.label}
+                    {label}
                   </Text>
                   <View style={[styles.countBadge, active && styles.countBadgeActive]}>
-                    <Text style={[styles.countText, active && styles.countTextActive]}>{counts[t.key]}</Text>
+                    <Text style={[styles.countText, active && styles.countTextActive]}>{counts[tabItem.key]}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -411,10 +414,17 @@ export default function ManifestsScreen() {
           {!loading && !loadError && (
             <View style={styles.resultsHeading}>
               <Text style={styles.resultsTitle}>
-                {tab === "upcoming" ? "Upcoming dives" : tab === "completed" ? "Completed dives" : "Saved drafts"}
+                {tab === "upcoming" ? t("results_upcoming") : tab === "completed" ? t("results_completed") : t("results_drafts")}
               </Text>
               <Text style={styles.resultsCount}>
-                {tab === "upcoming" ? filteredUpcoming.length : tab === "completed" ? filteredCompleted.length : filteredDrafts.length} shown
+                {t("results_shown", {
+                  count:
+                    tab === "upcoming"
+                      ? filteredUpcoming.length
+                      : tab === "completed"
+                        ? filteredCompleted.length
+                        : filteredDrafts.length,
+                })}
               </Text>
             </View>
           )}
@@ -428,33 +438,33 @@ export default function ManifestsScreen() {
           ) : loadError ? (
             <View style={styles.stateCard}>
               <View style={styles.stateIcon}><Ionicons name="cloud-offline-outline" size={25} color="#006bff" /></View>
-              <Text style={styles.stateTitle}>{"Couldn't load manifests"}</Text>
-              <Text style={styles.stateMessage}>Check your connection and try again.</Text>
+              <Text style={styles.stateTitle}>{t("manifests_load_error")}</Text>
+              <Text style={styles.stateMessage}>{t("manifests_load_error_desc")}</Text>
               <TouchableOpacity
                 style={styles.stateAction}
                 onPress={() => { void loadManifests(); void loadLocalDrafts(); }}
                 accessibilityRole="button"
               >
                 <Ionicons name="refresh" size={16} color="#FFFFFF" />
-                <Text style={styles.stateActionText}>Try again</Text>
+                <Text style={styles.stateActionText}>{t("try_again")}</Text>
               </TouchableOpacity>
             </View>
           ) : tab === "drafts" ? (
             filteredDrafts.length === 0 ? (
               <View style={styles.stateCard}>
                 <View style={styles.stateIcon}><Ionicons name={query ? "search-outline" : "document-text-outline"} size={25} color="#006bff" /></View>
-                <Text style={styles.stateTitle}>{query ? "No matching drafts" : "No saved drafts"}</Text>
+                <Text style={styles.stateTitle}>{query ? t("no_matching_drafts") : t("no_saved_drafts")}</Text>
                 <Text style={styles.stateMessage}>
-                  {query ? "Try another boat name or location." : "Unsubmitted forms save on this device and won't use passes until submitted."}
+                  {query ? t("drafts_try_other") : t("drafts_empty_desc")}
                 </Text>
                 {query ? (
                   <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.textAction}>
-                    <Text style={styles.textActionLabel}>Clear search</Text>
+                    <Text style={styles.textActionLabel}>{t("clear_search")}</Text>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={styles.stateAction} onPress={openCreateManifest}>
                     <Ionicons name="add" size={17} color="#FFFFFF" />
-                    <Text style={styles.stateActionText}>Create manifest</Text>
+                    <Text style={styles.stateActionText}>{t("create_manifest_lower")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -462,7 +472,7 @@ export default function ManifestsScreen() {
               <View style={styles.list}>
                 <View style={styles.draftNote}>
                   <Ionicons name="information-circle" size={18} color="#006bff" />
-                  <Text style={styles.draftNoteText}>Drafts are saved on this device and do not consume passes.</Text>
+                  <Text style={styles.draftNoteText}>{t("drafts_note")}</Text>
                 </View>
                 {filteredDrafts.map((d) => (
                   <View key={d.id} style={styles.draftCard}>
@@ -478,7 +488,7 @@ export default function ManifestsScreen() {
                         style={styles.deleteBtn}
                         onPress={() => removeDraft(d)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Delete draft ${draftTitle(d)}`}
+                        accessibilityLabel={`${t("a11y_delete_draft")} ${draftTitle(d)}`}
                       >
                         <Ionicons name="trash-outline" size={18} color="#7385a6" />
                       </TouchableOpacity>
@@ -488,9 +498,9 @@ export default function ManifestsScreen() {
                       onPress={() => resumeDraft(d)}
                       activeOpacity={0.86}
                       accessibilityRole="button"
-                      accessibilityLabel={`Resume draft ${draftTitle(d)}`}
+                      accessibilityLabel={`${t("a11y_resume_draft")} ${draftTitle(d)}`}
                     >
-                      <Text style={styles.resumeText}>Continue draft</Text>
+                      <Text style={styles.resumeText}>{t("continue_draft")}</Text>
                       <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                     </TouchableOpacity>
                   </View>
@@ -502,10 +512,10 @@ export default function ManifestsScreen() {
               const rows = tab === "upcoming" ? filteredUpcoming : filteredCompleted;
               if (rows.length === 0) {
                 const empty = query
-                  ? { title: "No matching manifests", message: "Try a different boat name or location." }
+                  ? { title: t("no_matching_manifests"), message: t("try_different_boat") }
                   : tab === "upcoming"
-                    ? { title: "No upcoming dives", message: "Create a manifest to organize your next trip." }
-                    : { title: "No completed dives yet", message: "Completed manifests will appear here." };
+                    ? { title: t("no_upcoming_dives"), message: t("create_manifest_prompt") }
+                    : { title: t("no_completed_dives"), message: t("completed_manifests_here") };
                 return (
                   <View style={styles.stateCard}>
                     <View style={styles.stateIcon}><Ionicons name={query ? "search-outline" : "boat-outline"} size={25} color="#006bff" /></View>
@@ -513,12 +523,12 @@ export default function ManifestsScreen() {
                     <Text style={styles.stateMessage}>{empty.message}</Text>
                     {query ? (
                       <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.textAction}>
-                        <Text style={styles.textActionLabel}>Clear search</Text>
+                        <Text style={styles.textActionLabel}>{t("clear_search")}</Text>
                       </TouchableOpacity>
                     ) : tab === "upcoming" ? (
                       <TouchableOpacity style={styles.stateAction} onPress={openCreateManifest}>
                         <Ionicons name="add" size={17} color="#FFFFFF" />
-                        <Text style={styles.stateActionText}>New Manifest</Text>
+                        <Text style={styles.stateActionText}>{t("new_manifest")}</Text>
                       </TouchableOpacity>
                     ) : null}
                   </View>
@@ -530,10 +540,10 @@ export default function ManifestsScreen() {
                     const realStatus = deriveManifestStatus(m.dive_date);
                     const statusLabel =
                       realStatus === "active"
-                        ? "Active"
+                        ? t("status_active")
                         : realStatus === "upcoming"
-                        ? "Upcoming"
-                        : "Completed";
+                        ? t("status_upcoming")
+                        : t("status_completed");
                     return (
                       <TouchableOpacity
                         key={m.id}
@@ -585,7 +595,7 @@ export default function ManifestsScreen() {
                           </View>
                           <View style={styles.metaItem}>
                             <Ionicons name="people-outline" size={15} color="#006bff" />
-                            <Text style={styles.footerMetaText}>{m.diver_count} divers</Text>
+                            <Text style={styles.footerMetaText}>{t("diver_count", { count: m.diver_count })}</Text>
                           </View>
                           <Ionicons name="chevron-forward" size={17} color="#8ba0c2" />
                         </View>
@@ -611,14 +621,14 @@ export default function ManifestsScreen() {
             {/* Header Row */}
             <View style={styles.sheetHeader}>
               <View style={styles.sheetTitleWrap}>
-                <Text style={styles.sheetEyebrow}>OFFICIAL MARITIME MANIFEST</Text>
-                <Text style={styles.sheetTitle}>Manifest Preview</Text>
+                <Text style={styles.sheetEyebrow}>{t("official_maritime_manifest")}</Text>
+                <Text style={styles.sheetTitle}>{t("manifest_preview")}</Text>
               </View>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setSelected(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Close snapshot"
+                accessibilityLabel={t("a11y_close_snapshot")}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Ionicons name="close" size={22} color="#0B2545" />
@@ -631,7 +641,7 @@ export default function ManifestsScreen() {
                 <TouchableOpacity
                   style={styles.zoomIconBtn}
                   onPress={() => setCustomZoom(Math.max(0.25, Number(((currentZoom) - 0.1).toFixed(2))))}
-                  accessibilityLabel="Zoom out"
+                  accessibilityLabel={t("zoom_out")}
                   accessibilityRole="button"
                 >
                   <Ionicons name="remove" size={17} color="#0B2545" />
@@ -640,7 +650,7 @@ export default function ManifestsScreen() {
                 <TouchableOpacity
                   style={styles.zoomIconBtn}
                   onPress={() => setCustomZoom(Math.min(1.5, Number(((currentZoom) + 0.1).toFixed(2))))}
-                  accessibilityLabel="Zoom in"
+                  accessibilityLabel={t("zoom_in")}
                   accessibilityRole="button"
                 >
                   <Ionicons name="add" size={17} color="#0B2545" />
@@ -651,11 +661,11 @@ export default function ManifestsScreen() {
                 <TouchableOpacity
                   style={[styles.quickBtn, customZoom === fitScale && styles.quickBtnActive]}
                   onPress={() => setCustomZoom(fitScale)}
-                  accessibilityLabel="Fit to width"
+                  accessibilityLabel={t("fit_to_width")}
                   accessibilityRole="button"
                 >
                   <Ionicons name="scan-outline" size={14} color={customZoom === fitScale ? "#FFFFFF" : "#0B2545"} />
-                  <Text style={[styles.quickBtnText, customZoom === fitScale && styles.quickBtnTextActive]}>Fit Width</Text>
+                  <Text style={[styles.quickBtnText, customZoom === fitScale && styles.quickBtnTextActive]}>{t("fit_width")}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -684,7 +694,7 @@ export default function ManifestsScreen() {
                   {diversLoading ? (
                     <View style={styles.previewLoadingWrap}>
                       <ActivityIndicator size="small" color={colors.primaryBlue} />
-                      <Text style={styles.loadingText}>Loading manifest details…</Text>
+                      <Text style={styles.loadingText}>{t("loading_manifest_details")}</Text>
                     </View>
                   ) : (
                     <ScrollView
@@ -762,14 +772,14 @@ export default function ManifestsScreen() {
                     disabled={snapshotBusy || diversLoading}
                     activeOpacity={0.85}
                     accessibilityRole="button"
-                    accessibilityLabel="Download snapshot image"
+                    accessibilityLabel={t("a11y_download_snapshot")}
                   >
                     {snapshotBusy ? (
                       <ActivityIndicator size="small" color={colors.primaryBlue} />
                     ) : (
                       <>
                         <Ionicons name="download-outline" size={18} color="#006bff" />
-                        <Text style={styles.sheetBtnOutlineText}>Download</Text>
+                        <Text style={styles.sheetBtnOutlineText}>{t("download")}</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -779,14 +789,14 @@ export default function ManifestsScreen() {
                     disabled={snapshotBusy || diversLoading}
                     activeOpacity={0.88}
                     accessibilityRole="button"
-                    accessibilityLabel="Share snapshot image"
+                    accessibilityLabel={t("a11y_share_snapshot")}
                   >
                     {snapshotBusy ? (
                       <ActivityIndicator size="small" color={colors.white} />
                     ) : (
                       <>
                         <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
-                        <Text style={styles.sheetBtnPrimaryText}>Share</Text>
+                        <Text style={styles.sheetBtnPrimaryText}>{t("share")}</Text>
                       </>
                     )}
                   </TouchableOpacity>

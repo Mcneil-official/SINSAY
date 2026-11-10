@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -40,43 +40,6 @@ import {
   EstablishmentRow,
 } from "../../types/supabase";
 
-const categoryOptions: {
-  key: string;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  matches: (site: DiveSiteRow) => boolean;
-}[] = [
-  {
-    key: "all",
-    label: "All Dives",
-    icon: "compass-outline",
-    matches: () => true,
-  },
-  {
-    key: "Beginner",
-    label: "Beginner",
-    icon: "sunny-outline",
-    matches: (s) =>
-      s.difficulty === "Beginner" || s.difficulty === "Open Water",
-  },
-  {
-    key: "Intermediate",
-    label: "Intermediate",
-    icon: "water-outline",
-    matches: (s) =>
-      s.difficulty === "Intermediate" || s.difficulty === "Rescue",
-  },
-  {
-    key: "Advanced",
-    label: "Advanced",
-    icon: "flash-outline",
-    matches: (s) =>
-      s.difficulty === "Advanced" ||
-      s.difficulty === "Divemaster" ||
-      s.difficulty === "Instructor",
-  },
-];
-
 export default function HomeScreen() {
   const router = useRouter();
   const { openNotifications } = useNotificationModal();
@@ -100,21 +63,21 @@ export default function HomeScreen() {
       },
       {
         key: "Beginner",
-        label: locale === "fil" ? "Nagsisimula" : "Beginner",
+        label: t("category_beginner"),
         icon: "sunny-outline" as const,
         matches: (s: DiveSiteRow) =>
           s.difficulty === "Beginner" || s.difficulty === "Open Water",
       },
       {
         key: "Intermediate",
-        label: locale === "fil" ? "Katamtaman" : "Intermediate",
+        label: t("category_intermediate"),
         icon: "water-outline" as const,
         matches: (s: DiveSiteRow) =>
           s.difficulty === "Intermediate" || s.difficulty === "Rescue",
       },
       {
         key: "Advanced",
-        label: locale === "fil" ? "Mataas" : "Advanced",
+        label: t("category_advanced"),
         icon: "flash-outline" as const,
         matches: (s: DiveSiteRow) =>
           s.difficulty === "Advanced" ||
@@ -451,7 +414,7 @@ export default function HomeScreen() {
                   onPress={() => router.push("/(tabs)/profile")}
                   activeOpacity={0.85}
                   accessibilityRole="button"
-                  accessibilityLabel="User profile"
+                  accessibilityLabel={t("profile_title")}
                 >
                   {avatarUri ? (
                     <Image
@@ -474,12 +437,10 @@ export default function HomeScreen() {
           {/* Greeting Section */}
           <View style={styles.greetingBlock}>
             <Text style={styles.greetingTitle}>
-              {locale === "fil" ? `Kumusta, ${firstName}!` : `Hi ${firstName}!`}
+              {t("home_greeting", { name: firstName })}
             </Text>
             <Text style={styles.greetingSubtitle}>
-              {locale === "fil"
-                ? "Maligayang pagdating sa Mabini, Batangas"
-                : "Welcome to Mabini, Batangas"}
+              {t("home_welcome_subtitle")}
             </Text>
           </View>
 
@@ -536,7 +497,7 @@ export default function HomeScreen() {
             style={styles.categoryScroll}
             contentContainerStyle={styles.categoryRow}
           >
-            {categoryOptions.map((cat) => {
+            {categories.map((cat) => {
               const isActive = activeCategory === cat.key;
               return (
                 <TouchableOpacity
@@ -636,7 +597,7 @@ export default function HomeScreen() {
                 </View>
               ) : diveSitesError ? (
                 <ErrorState
-                  message={locale === "fil" ? "Hindi ma-load ang mga dive site." : "Failed to load dive sites."}
+                  message={t("home_error_dive_sites")}
                   onRetry={handleRetryDiveSites}
                 />
               ) : diveSites.length === 0 ? (
@@ -647,7 +608,7 @@ export default function HomeScreen() {
               ) : filteredDiveSites.length === 0 ? (
                 <EmptyState
                   icon="funnel-outline"
-                  message={locale === "fil" ? "Walang dive site na tumutugma sa filter." : "No dive sites match this filter."}
+                  message={t("home_no_filter_match")}
                 />
               ) : (
                 <ScrollView
@@ -698,13 +659,13 @@ export default function HomeScreen() {
                 </View>
               ) : establishmentsError ? (
                 <ErrorState
-                  message="Failed to load dive resorts."
+                  message={t("home_error_resorts")}
                   onRetry={handleRetryEstablishments}
                 />
               ) : establishments.length === 0 ? (
                 <EmptyState
                   icon="business-outline"
-                  message="No accredited dive resorts yet."
+                  message={t("home_no_resorts")}
                 />
               ) : (
                 <View style={styles.resortsGrid}>

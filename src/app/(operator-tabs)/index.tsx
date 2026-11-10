@@ -27,11 +27,10 @@ import Svg, {
 import { ContentContainer, ManifestSkeleton, Skeleton } from "../../components";
 import AnimatedKpiValue from "../../components/AnimatedKpiValue";
 import { colors } from "../../constants/colors";
+import { useLanguage } from "../../context/LanguageContext";
 import { useLayout } from "../../context/LayoutContext";
 import { useNotificationModal } from "../../context/NotificationModalContext";
 import { useAuth } from "../../hooks/useAuth";
-import { useLanguage } from "../../context/LanguageContext";
-import { HeaderLanguageToggle } from "../../components/HeaderLanguageToggle";
 import { deriveManifestStatus, formatDiveDate } from "../../lib/diveDate";
 import { supabase } from "../../lib/supabase";
 
@@ -67,7 +66,7 @@ export default function OperatorDashboardScreen() {
     unreadCount,
   } = useAuth();
   const { isDesktop, isTablet, isCompact } = useLayout();
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
   const isWide = isDesktop || isTablet;
 
   const establishmentName =
@@ -268,11 +267,11 @@ export default function OperatorDashboardScreen() {
 
   const deltaDivers = todayDivers - yesterdayDivers;
   const deltaText =
-    deltaDivers > 0
-      ? `+${deltaDivers} from yesterday`
-      : deltaDivers < 0
-        ? `${deltaDivers} from yesterday`
-        : "Equal to yesterday";
+    deltaDivers !== 0
+      ? t("stat_from_yesterday", {
+          delta: `${deltaDivers > 0 ? "+" : ""}${deltaDivers}`,
+        })
+      : t("stat_equal_yesterday");
 
   // Remaining passes ring ratio
   const totalPurchased = purchasedPasses > 0 ? purchasedPasses : 100;
@@ -346,7 +345,6 @@ export default function OperatorDashboardScreen() {
             />
 
             <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
-              <HeaderLanguageToggle />
               <TouchableOpacity
                 style={styles.notificationBtn}
                 onPress={openNotifications}
@@ -387,12 +385,12 @@ export default function OperatorDashboardScreen() {
           {/* Greeting Section below Logo */}
           <View style={styles.greetingBlock}>
             <Text style={styles.greetingTitle} numberOfLines={1}>
-              {locale === "fil"
-                ? `Kumusta, ${establishmentName || "Operator"}!`
-                : `Hi, ${establishmentName || "Operator"}!`}
+              {t("operator_greeting", {
+                name: establishmentName || "Operator",
+              })}
             </Text>
             <Text style={styles.greetingSubtitle}>
-              {locale === "fil" ? "Naka-log in bilang Operator" : "Logged in as Operator"}
+              {t("operator_logged_in_as")}
             </Text>
           </View>
 
@@ -404,14 +402,14 @@ export default function OperatorDashboardScreen() {
               <View style={styles.warningBanner}>
                 <Ionicons name="alert-circle" size={16} color="#D97706" />
                 <Text style={styles.warningText}>
-                  No remaining passes.{" "}
+                  {t("operator_no_passes_prefix")}{" "}
                   <Text
                     style={styles.warningLink}
                     onPress={() => router.push("/(operator-tabs)/buy-pass")}
                   >
-                    Purchase more
+                    {t("operator_purchase_more")}
                   </Text>{" "}
-                  to create manifests.
+                  {t("operator_no_passes_suffix")}
                 </Text>
               </View>
             )}
@@ -419,9 +417,9 @@ export default function OperatorDashboardScreen() {
           {/* 3 Overview Stat Cards */}
           {statError ? (
             <View style={styles.retrySection}>
-              <Text style={styles.retryText}>Failed to load statistics</Text>
+              <Text style={styles.retryText}>{t("stat_error")}</Text>
               <TouchableOpacity style={styles.retryBtn} onPress={loadStats}>
-                <Text style={styles.retryBtnText}>Retry</Text>
+                <Text style={styles.retryBtnText}>{t("retry")}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -439,7 +437,7 @@ export default function OperatorDashboardScreen() {
                     <Ionicons name="calendar" size={12} color="#006bff" />
                   </View>
                   <Text style={styles.statHeadingText}>
-                    TODAY&apos;S DIVERS
+                    {t("stat_today_divers")}
                   </Text>
                 </View>
 
@@ -501,7 +499,9 @@ export default function OperatorDashboardScreen() {
                   <View style={styles.statIconBubble}>
                     <Ionicons name="ticket" size={12} color="#006bff" />
                   </View>
-                  <Text style={styles.statHeadingText}>REMAINING PASSES</Text>
+                  <Text style={styles.statHeadingText}>
+                    {t("stat_remaining_passes")}
+                  </Text>
                 </View>
 
                 <AnimatedKpiValue
@@ -547,7 +547,7 @@ export default function OperatorDashboardScreen() {
                 </Svg>
 
                 <Text style={styles.statMutedNote} numberOfLines={1}>
-                  of {totalPurchased} purchased
+                  {t("stat_of_purchased", { count: totalPurchased })}
                 </Text>
               </View>
 
@@ -559,7 +559,9 @@ export default function OperatorDashboardScreen() {
                   <View style={styles.statIconBubble}>
                     <Ionicons name="paper-plane" size={11} color="#006bff" />
                   </View>
-                  <Text style={styles.statHeadingText}>MANIFESTO SENT</Text>
+                  <Text style={styles.statHeadingText}>
+                    {t("stat_manifest_sent")}
+                  </Text>
                 </View>
 
                 <AnimatedKpiValue
@@ -597,7 +599,7 @@ export default function OperatorDashboardScreen() {
                 </View>
 
                 <Text style={styles.statMutedNote} numberOfLines={1}>
-                  This week
+                  {t("stat_this_week")}
                 </Text>
               </View>
             </View>
@@ -613,7 +615,7 @@ export default function OperatorDashboardScreen() {
                 router.push("/establishment/create-manifest/step1")
               }
               accessibilityRole="button"
-              accessibilityLabel="Create Dive Manifest"
+              accessibilityLabel={t("action_create_manifest")}
             >
               <Svg
                 style={StyleSheet.absoluteFill}
@@ -629,20 +631,17 @@ export default function OperatorDashboardScreen() {
                 <Rect
                   width="100%"
                   height="100%"
-                  rx={10}
+                  rx={12}
                   fill="url(#ctaGrad1)"
                 />
               </Svg>
               <View style={styles.actionSymbol}>
-                <Ionicons name="add" size={15} color="#0061f6" />
+                <Ionicons name="add" size={18} color="#0061f6" />
               </View>
-              <Text style={styles.actionBtnText}>Create Dive Manifest</Text>
-              <Ionicons
-                name="arrow-forward"
-                size={11}
-                color="#FFFFFF"
-                style={{ marginLeft: "auto" }}
-              />
+              <Text style={styles.actionBtnText} numberOfLines={2}>
+                {t("action_create_manifest")}
+              </Text>
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
             </TouchableOpacity>
 
             {/* Action 2: Buy Dive Credits */}
@@ -651,7 +650,7 @@ export default function OperatorDashboardScreen() {
               activeOpacity={0.88}
               onPress={() => router.push("/(operator-tabs)/buy-pass")}
               accessibilityRole="button"
-              accessibilityLabel="Buy Dive Credits"
+              accessibilityLabel={t("action_buy_credits")}
             >
               <Svg
                 style={StyleSheet.absoluteFill}
@@ -667,20 +666,17 @@ export default function OperatorDashboardScreen() {
                 <Rect
                   width="100%"
                   height="100%"
-                  rx={10}
+                  rx={12}
                   fill="url(#ctaGrad2)"
                 />
               </Svg>
               <View style={styles.actionSymbol}>
-                <Ionicons name="card" size={13} color="#0061f6" />
+                <Ionicons name="card" size={16} color="#0061f6" />
               </View>
-              <Text style={styles.actionBtnText}>Buy Dive Credits</Text>
-              <Ionicons
-                name="arrow-forward"
-                size={11}
-                color="#FFFFFF"
-                style={{ marginLeft: "auto" }}
-              />
+              <Text style={styles.actionBtnText} numberOfLines={2}>
+                {t("action_buy_credits")}
+              </Text>
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </ContentContainer>
@@ -694,22 +690,24 @@ export default function OperatorDashboardScreen() {
         <ContentContainer maxWidth={isWide ? 900 : 480} paddingH={18}>
           {/* Recent Manifests Section */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Manifests</Text>
+            <Text style={styles.sectionTitle}>{t("recent_manifests")}</Text>
             <TouchableOpacity
               onPress={() => router.push("/(operator-tabs)/manifests")}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="See all manifests"
+              accessibilityLabel={t("see_all")}
             >
-              <Text style={styles.seeAllLink}>See all ›</Text>
+              <Text style={styles.seeAllLink}>{t("see_all")} ›</Text>
             </TouchableOpacity>
           </View>
 
           {manifestError ? (
             <View style={styles.retrySection}>
-              <Text style={styles.retryText}>Failed to load manifests</Text>
+              <Text style={styles.retryText}>
+                {t("operator_manifests_error")}
+              </Text>
               <TouchableOpacity style={styles.retryBtn} onPress={loadManifests}>
-                <Text style={styles.retryBtnText}>Retry</Text>
+                <Text style={styles.retryBtnText}>{t("retry")}</Text>
               </TouchableOpacity>
             </View>
           ) : manifestLoading ? (
@@ -724,10 +722,10 @@ export default function OperatorDashboardScreen() {
                 const realStatus = deriveManifestStatus(m.dive_date);
                 const statusLabel =
                   realStatus === "active"
-                    ? "Active"
+                    ? t("status_active")
                     : realStatus === "upcoming"
-                      ? "Upcoming"
-                      : "Completed";
+                      ? t("status_upcoming")
+                      : t("status_completed");
                 const isBoatDive = m.dive_mode === "Boat Dive";
                 const title = m.boat_name || m.dive_mode || "Dive Group";
 
@@ -764,7 +762,8 @@ export default function OperatorDashboardScreen() {
                         {title}
                       </Text>
                       <Text style={styles.manifestMeta} numberOfLines={1}>
-                        {formatDiveDate(m.dive_date)} · {m.diver_count} divers ·{" "}
+                        {formatDiveDate(m.dive_date)} ·{" "}
+                        {t("diver_count", { count: m.diver_count })} ·{" "}
                         {m.location}
                       </Text>
                     </View>
@@ -804,7 +803,7 @@ export default function OperatorDashboardScreen() {
                 color="#94A3B8"
               />
               <Text style={styles.emptyText}>
-                No manifests yet. Create your first one!
+                {t("operator_no_manifests_yet")}
               </Text>
             </View>
           )}
@@ -1080,13 +1079,14 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    height: 48,
-    borderRadius: 10,
+    minHeight: 60,
+    borderRadius: 12,
     overflow: "hidden",
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    justifyContent: "space-between",
+    gap: 6,
     shadowColor: "#6fb9ed",
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1094,17 +1094,20 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   actionSymbol: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   actionBtnText: {
-    fontSize: 9.8,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 16,
     fontFamily: "Quicksand_700Bold",
     color: "#FFFFFF",
+    textAlign: "center",
   },
   sectionHeader: {
     flexDirection: "row",

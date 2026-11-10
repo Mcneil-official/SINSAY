@@ -102,6 +102,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     [locale, setLocale, toggleLocale, t]
   );
 
+  // Hold the first paint until the stored preference is known so the app
+  // never flashes English before switching to the saved locale.
+  if (!hasLoadedStorage) {
+    return null;
+  }
+
   return (
     <LanguageContext.Provider value={value}>
       {children}
