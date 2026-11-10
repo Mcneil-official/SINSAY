@@ -232,6 +232,7 @@ export interface OperatorApplicationRow {
   permit_to_operate_url?: string | null;
   permit_to_operate_no?: string | null;
   dot_url?: string | null;
+  establishment_id?: string | null;
   status: "pending" | "approved" | "rejected";
   rejection_reason: string | null;
   created_at: string;
@@ -428,6 +429,8 @@ export interface EstablishmentRow {
   is_dot_accredited?: boolean | null;
   pcssd_url?: string | null;
   dot_url?: string | null;
+  logo_url?: string | null;
+  is_claimed?: boolean;
   created_at: string;
 }
 

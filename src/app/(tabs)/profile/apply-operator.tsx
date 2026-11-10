@@ -1,12 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import {
@@ -15,6 +17,7 @@ import {
   Dropdown,
   FileUpload,
   ProgressiveWizardShell,
+  ResortLogoBadge,
   TextInput,
 } from "../../../components";
 import { colors } from "../../../constants/colors";
@@ -37,6 +40,18 @@ export default function ApplyOperatorScreen() {
   const { user, operatorApplication, isLoading: authLoading } = useAuth();
   const [resortName, setResortName] = useState("");
   const [resortLocation, setResortLocation] = useState("");
+  const [unclaimedEstablishments, setUnclaimedEstablishments] = useState<{
+    id: string;
+    name: string;
+    location: string | null;
+    phone: string | null;
+    website: string | null;
+    facebook: string | null;
+    description: string | null;
+    logo_url?: string | null;
+  }[]>([]);
+  const [selectedEstablishmentId, setSelectedEstablishmentId] = useState<string | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [role, setRole] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [facebook, setFacebook] = useState("");
@@ -53,7 +68,7 @@ export default function ApplyOperatorScreen() {
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [agreed, setAgreed] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -69,6 +84,69 @@ export default function ApplyOperatorScreen() {
       router.replace("/(operator-tabs)");
     }
   }, [authLoading, operatorApplication, router]);
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from("establishments")
+      .select("id, name, location, phone, website, facebook, description, logo_url")
+      .eq("accredited", true)
+      .eq("is_claimed", false)
+      .order("name", { ascending: true })
+      .then(({ data }) => {
+        if (active && data) {
+          setUnclaimedEstablishments(data);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const matchingSuggestions = useMemo(() => {
+    const q = resortName.trim().toLowerCase();
+    if (!q || !showSuggestions) return [];
+    return unclaimedEstablishments
+      .filter((est) => est.name.toLowerCase().includes(q))
+      .slice(0, 5);
+  }, [resortName, showSuggestions, unclaimedEstablishments]);
+
+  const handleResortNameChange = (val: string) => {
+    setResortName(val);
+    setShowSuggestions(true);
+    if (errors.resortName) {
+      setErrors((prev) => ({ ...prev, resortName: undefined }));
+    }
+    if (selectedEstablishmentId) {
+      const match = unclaimedEstablishments.find((e) => e.id === selectedEstablishmentId);
+      if (!match || match.name.trim().toLowerCase() !== val.trim().toLowerCase()) {
+        setSelectedEstablishmentId(null);
+      }
+    }
+  };
+
+  const handleSelectSuggestion = (est: {
+    id: string;
+    name: string;
+    location: string | null;
+    phone: string | null;
+    website: string | null;
+    facebook: string | null;
+    description: string | null;
+    logo_url?: string | null;
+  }) => {
+    setResortName(est.name);
+    if (est.location) setResortLocation(est.location);
+    if (!facebook && est.facebook) setFacebook(est.facebook);
+    if (!website && est.website) setWebsite(est.website);
+    setSelectedEstablishmentId(est.id);
+    setShowSuggestions(false);
+    setErrors((prev) => ({
+      ...prev,
+      resortName: undefined,
+      resortLocation: undefined,
+    }));
+  };
 
   const validateCurrentStep = () => {
     const errs: Record<string, string> = {};
@@ -192,6 +270,7 @@ export default function ApplyOperatorScreen() {
       pcss_url: pcssdUrl,
       pcssd_url: pcssdUrl,
       dot_url: dotUrl,
+      establishment_id: selectedEstablishmentId,
     });
 
     setSaving(false);
@@ -352,18 +431,86 @@ export default function ApplyOperatorScreen() {
 
         {currentStep === 0 ? (
           <View style={styles.fieldsGroup}>
-            <TextInput
-              label="Resort Name"
-              placeholder="e.g. Anilao Beach Club"
-              value={resortName}
-              onChangeText={setResortName}
-              error={errors.resortName}
-            />
+            <View style={styles.resortInputWrapper}>
+              <TextInput
+                label="Resort Name"
+                placeholder="Type your resort name..."
+                value={resortName}
+                onChangeText={handleResortNameChange}
+                error={errors.resortName}
+              />
+              {selectedEstablishmentId ? (
+                <View style={styles.verifiedClaimBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color="#059669" />
+                  <Text style={styles.verifiedClaimText}>
+                    Matched with directory listing
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setSelectedEstablishmentId(null)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    accessibilityLabel="Unlink directory listing"
+                  >
+                    <Ionicons name="close-circle" size={14} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {matchingSuggestions.length > 0 && (
+                <View style={styles.suggestionsContainer}>
+                  <View style={styles.suggestionsHeader}>
+                    <Ionicons name="sparkles" size={12} color="#087bff" />
+                    <Text style={styles.suggestionsHeaderText}>
+                      Directory Matches · Tap to select
+                    </Text>
+                  </View>
+                  {matchingSuggestions.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.suggestionItem}
+                      onPress={() => handleSelectSuggestion(item)}
+                      activeOpacity={0.7}
+                    >
+                      <ResortLogoBadge
+                        name={item.name}
+                        logoUrl={item.logo_url}
+                        size={30}
+                        borderRadius={8}
+                        fontSize={11}
+                      />
+                      <View style={styles.suggestionTextWrap}>
+                        <Text style={styles.suggestionName} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        {item.location ? (
+                          <Text
+                            style={styles.suggestionLocation}
+                            numberOfLines={1}
+                          >
+                            {item.location}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={14}
+                        color="#94A3B8"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
             <TextInput
               label="Resort Location"
-              placeholder="Anilao, Mabini, Batangas"
+              placeholder="e.g. San Teodoro, Mabini, Batangas"
               value={resortLocation}
-              onChangeText={setResortLocation}
+              onChangeText={(val) => {
+                setResortLocation(val);
+                if (errors.resortLocation) {
+                  setErrors((prev) => ({ ...prev, resortLocation: undefined }));
+                }
+              }}
               error={errors.resortLocation}
             />
           </View>
@@ -408,6 +555,21 @@ export default function ApplyOperatorScreen() {
               <Text style={styles.reviewValue}>
                 {resortName || "Not provided"}
               </Text>
+              {selectedEstablishmentId ? (
+                <View style={styles.reviewClaimTag}>
+                  <Ionicons name="shield-checkmark" size={12} color="#059669" />
+                  <Text style={styles.reviewClaimTagText}>
+                    Claiming verified directory listing
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.reviewNewTag}>
+                  <Ionicons name="add-circle" size={12} color="#2563EB" />
+                  <Text style={styles.reviewNewTagText}>
+                    New resort registration
+                  </Text>
+                </View>
+              )}
               <Text style={styles.reviewLabel}>LOCATION</Text>
               <Text style={styles.reviewValue}>
                 {resortLocation || "Not provided"}
@@ -734,5 +896,124 @@ const styles = StyleSheet.create({
   confirmButtonWrap: {
     width: "100%",
     maxWidth: 280,
+  },
+  resortInputWrapper: {
+    position: "relative",
+    gap: 6,
+  },
+  verifiedClaimBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  verifiedClaimText: {
+    fontSize: 11,
+    fontFamily: "Quicksand_700Bold",
+    color: "#065F46",
+  },
+  suggestionsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DCEAF8",
+    borderRadius: 14,
+    paddingVertical: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    gap: 2,
+  },
+  suggestionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  suggestionsHeaderText: {
+    fontSize: 10,
+    fontFamily: "Quicksand_700Bold",
+    color: "#087bff",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  suggestionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    gap: 10,
+  },
+  suggestionIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: "#F0F7FF",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  suggestionLogo: {
+    width: "100%",
+    height: "100%",
+  },
+  suggestionTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  suggestionName: {
+    fontSize: 13,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156C",
+  },
+  suggestionLocation: {
+    fontSize: 11,
+    fontFamily: "Quicksand_500Medium",
+    color: "#647797",
+    marginTop: 1,
+  },
+  reviewClaimTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 3,
+    marginBottom: 4,
+  },
+  reviewClaimTagText: {
+    fontSize: 10,
+    fontFamily: "Quicksand_700Bold",
+    color: "#065F46",
+  },
+  reviewNewTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 3,
+    marginBottom: 4,
+  },
+  reviewNewTagText: {
+    fontSize: 10,
+    fontFamily: "Quicksand_700Bold",
+    color: "#1D4ED8",
   },
 });
