@@ -19,6 +19,8 @@ import { colors } from "../../constants/colors";
 import { usePWAInstall } from "../../context/PWAContext";
 import { useTutorial } from "../../context/TutorialContext";
 import { useAuth } from "../../hooks/useAuth";
+import { useLanguage } from "../../context/LanguageContext";
+import { HeaderLanguageToggle } from "../../components/HeaderLanguageToggle";
 import { showAlert } from "../../lib/confirm";
 import { supabase } from "../../lib/supabase";
 
@@ -75,6 +77,7 @@ export default function OperatorProfileScreen() {
   } = useAuth();
   const { isInstalled, promptInstall } = usePWAInstall();
   const { startTutorial } = useTutorial();
+  const { locale, toggleLocale, t } = useLanguage();
   const router = useRouter();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -197,9 +200,14 @@ export default function OperatorProfileScreen() {
       <View style={styles.fixedProfileHeader}>
         <ContentContainer maxWidth={720}>
           <View style={styles.profileTopSection}>
-            <View style={styles.pageHeading}>
-              <Text style={styles.eyebrow}>OPERATOR ACCOUNT</Text>
-              <Text style={styles.headerTitle}>Profile</Text>
+            <View style={[styles.pageHeading, { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }]}>
+              <View>
+                <Text style={styles.eyebrow}>
+                  {locale === "fil" ? "OPERATOR ACCOUNT" : "OPERATOR ACCOUNT"}
+                </Text>
+                <Text style={styles.headerTitle}>{t("profile_title")}</Text>
+              </View>
+              <HeaderLanguageToggle />
             </View>
             <View style={styles.identityCard}>
               <View style={styles.identityTitleRow}>
@@ -370,23 +378,38 @@ export default function OperatorProfileScreen() {
             />
           </View>
 
-          <Text style={styles.sectionLabel}>ACCOUNT & SUPPORT</Text>
+          <Text style={styles.sectionLabel}>
+            {locale === "fil" ? "ACCOUNT AT SUPORTA" : "ACCOUNT & SUPPORT"}
+          </Text>
           <View style={styles.sectionCard}>
             <Text style={styles.accountSummary}>
-              Signed in as {profile?.full_name || "Operator"}
+              {locale === "fil"
+                ? `Naka-sign in bilang ${profile?.full_name || "Operator"}`
+                : `Signed in as ${profile?.full_name || "Operator"}`}
             </Text>
             <Text style={styles.accountEmail}>{user?.email || ""}</Text>
             <ProfileRow
               icon="settings-outline"
-              label="My Account"
-              subtitle="Manage resort and account details"
+              label={t("my_account")}
+              subtitle={t("my_account_sub")}
               onPress={() => router.push("/operator-profile-edit")}
             />
             <View style={styles.divider} />
             <ProfileRow
+              icon="language-outline"
+              label={t("language")}
+              subtitle={
+                locale === "fil"
+                  ? t("language_fil")
+                  : t("language_en")
+              }
+              onPress={toggleLocale}
+            />
+            <View style={styles.divider} />
+            <ProfileRow
               icon="log-out-outline"
-              label="Log out"
-              subtitle="Secure your account"
+              label={t("log_out")}
+              subtitle={t("log_out_sub")}
               onPress={() => setShowLogoutModal(true)}
               destructive
             />

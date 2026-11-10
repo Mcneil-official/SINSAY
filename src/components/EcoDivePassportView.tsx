@@ -31,6 +31,8 @@ import Svg, {
 } from "react-native-svg";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../context/LanguageContext";
+import { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 import { deriveEffectiveEcoStatus } from "../lib/ecoIdExpiry";
 import { pickAvatarImage } from "../lib/pickAvatar";
 import { captureAndDownload, loadImageAsBase64 } from "../lib/snapshot";
@@ -168,6 +170,7 @@ export function EcoDivePassportView() {
     refreshProfile,
     updateProfile,
   } = useAuth();
+  const { t, locale } = useLanguage();
 
   const [activities, setActivities] = useState<DiveTimelineActivity[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -693,26 +696,31 @@ export function EcoDivePassportView() {
           {/* 1. SIMPLIFIED SCREEN HEADER */}
           <View style={styles.screenHeader}>
             <View style={styles.headerTextCol}>
-              <Text style={styles.screenTitle}>Eco-Dive ID</Text>
+              <Text style={styles.screenTitle}>{t("eco_id_title")}</Text>
               <Text style={styles.screenSubtitle}>
-                Your pass to a deeper Mabini.
+                {locale === "fil"
+                  ? "Ang iyong opisyal na pass sa Mabini."
+                  : "Your pass to a deeper Mabini."}
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.headerEditIconBtn}
-              onPress={() => router.push("/tourist/dive-details/step1")}
-              activeOpacity={0.82}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Edit Diver Profile"
-            >
-              <Ionicons
-                name="create-outline"
-                size={20}
-                color={colors.primaryBlue}
-              />
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <HeaderLanguageToggle />
+              <TouchableOpacity
+                style={styles.headerEditIconBtn}
+                onPress={() => router.push("/tourist/dive-details/step1")}
+                activeOpacity={0.82}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Edit Diver Profile"
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={20}
+                  color={colors.primaryBlue}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* 2. SINSAY DIVE PASS IDENTIFICATION CARD (TAP TO VIEW FULL DETAILS & SAVE) */}

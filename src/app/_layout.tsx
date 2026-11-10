@@ -26,6 +26,7 @@ import { SystemBarsSync } from "../components/SystemBarsSync";
 import UnsupportedDeviceScreen from "../components/UnsupportedDeviceScreen";
 import { ENABLE_DESKTOP_LAYOUT } from "../constants/layout";
 import { AuthProvider } from "../context/AuthContext";
+import { LanguageProvider } from "../context/LanguageContext";
 import { LayoutProvider, useLayout } from "../context/LayoutContext";
 import {
   NotificationModalProvider,
@@ -97,17 +98,19 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <WebSafeInsetsNormalizer>
         <AuthProvider>
-          <LayoutProvider>
-            <PWAProvider>
-              <ScreenTransitionProvider>
-                <ToastProvider>
-                  <NotificationModalProvider>
-                    <RootLayoutInner />
-                  </NotificationModalProvider>
-                </ToastProvider>
-              </ScreenTransitionProvider>
-            </PWAProvider>
-          </LayoutProvider>
+          <LanguageProvider>
+            <LayoutProvider>
+              <PWAProvider>
+                <ScreenTransitionProvider>
+                  <ToastProvider>
+                    <NotificationModalProvider>
+                      <RootLayoutInner />
+                    </NotificationModalProvider>
+                  </ToastProvider>
+                </ScreenTransitionProvider>
+              </PWAProvider>
+            </LayoutProvider>
+          </LanguageProvider>
         </AuthProvider>
       </WebSafeInsetsNormalizer>
     </SafeAreaProvider>

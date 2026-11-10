@@ -11,6 +11,7 @@ import WiderScreenNavbar from "../../components/WiderScreenNavbar";
 import { ENABLE_DESKTOP_LAYOUT } from "../../constants/layout";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
+import { useLanguage } from "../../context/LanguageContext";
 
 function TouristGate() {
   const { user, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
@@ -41,18 +42,19 @@ const tabIcons: Record<
   profile: { focused: "person", unfocused: "person-outline" },
 };
 
-const tabLabels: Record<string, string> = {
-  index: "Home",
-  map: "Map",
-  "eco-dive-id": "Eco-Dive ID",
-  profile: "Profile",
-};
-
 const HIDDEN_ROUTES = ["dive-assistant"];
 
 export default function TabLayout() {
   const { isDesktop } = useLayout();
   const { isLoading, roleReady } = useAuth();
+  const { t } = useLanguage();
+
+  const tabLabels: Record<string, string> = {
+    index: t("tab_home"),
+    map: t("tab_map"),
+    "eco-dive-id": t("tab_eco_id"),
+    profile: t("tab_profile"),
+  };
 
   const ready = !isLoading && roleReady;
   const [hasInitialized, setHasInitialized] = useState(ready);

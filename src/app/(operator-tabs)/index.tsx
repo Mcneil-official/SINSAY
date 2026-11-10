@@ -30,6 +30,8 @@ import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useNotificationModal } from "../../context/NotificationModalContext";
 import { useAuth } from "../../hooks/useAuth";
+import { useLanguage } from "../../context/LanguageContext";
+import { HeaderLanguageToggle } from "../../components/HeaderLanguageToggle";
 import { deriveManifestStatus, formatDiveDate } from "../../lib/diveDate";
 import { supabase } from "../../lib/supabase";
 
@@ -65,6 +67,7 @@ export default function OperatorDashboardScreen() {
     unreadCount,
   } = useAuth();
   const { isDesktop, isTablet, isCompact } = useLayout();
+  const { t, locale } = useLanguage();
   const isWide = isDesktop || isTablet;
 
   const establishmentName =
@@ -343,12 +346,13 @@ export default function OperatorDashboardScreen() {
             />
 
             <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
+              <HeaderLanguageToggle />
               <TouchableOpacity
                 style={styles.notificationBtn}
                 onPress={openNotifications}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel={`Notifications, ${unreadCount} unread`}
+                accessibilityLabel={t("notifications_title")}
               >
                 <Ionicons name="notifications" size={20} color="#0b206b" />
                 {unreadCount > 0 && (
@@ -383,9 +387,13 @@ export default function OperatorDashboardScreen() {
           {/* Greeting Section below Logo */}
           <View style={styles.greetingBlock}>
             <Text style={styles.greetingTitle} numberOfLines={1}>
-              Hi, {establishmentName || "Operator"}!
+              {locale === "fil"
+                ? `Kumusta, ${establishmentName || "Operator"}!`
+                : `Hi, ${establishmentName || "Operator"}!`}
             </Text>
-            <Text style={styles.greetingSubtitle}>Logged in as Operator</Text>
+            <Text style={styles.greetingSubtitle}>
+              {locale === "fil" ? "Naka-log in bilang Operator" : "Logged in as Operator"}
+            </Text>
           </View>
 
           {/* Pass Gate Depletion Warning */}

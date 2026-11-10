@@ -18,6 +18,8 @@ import { colors } from "../../../constants/colors";
 import { usePWAInstall } from "../../../context/PWAContext";
 import { useTutorial } from "../../../context/TutorialContext";
 import { useAuth } from "../../../hooks/useAuth";
+import { useLanguage } from "../../../context/LanguageContext";
+import { HeaderLanguageToggle } from "../../../components/HeaderLanguageToggle";
 import { Locale, t } from "../../../lib/i18n";
 
 interface ProfileRowProps {
@@ -73,7 +75,7 @@ export default function ProfileScreen() {
   } = useAuth();
   const { isInstalled, promptInstall } = usePWAInstall();
   const { startTutorial } = useTutorial();
-  const locale: Locale = (profile?.language_preference as Locale) || "en";
+  const { locale, toggleLocale } = useLanguage();
   const [returnToOperator, setReturnToOperator] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -127,9 +129,12 @@ export default function ProfileScreen() {
                 {t("profile_title", locale)}
               </Text>
               <Text style={styles.headerSubtitle}>
-                Manage your diver identity &amp; account preferences.
+                {locale === "fil"
+                  ? "Pamahalaan ang iyong diver identity at mga preference."
+                  : "Manage your diver identity & account preferences."}
               </Text>
             </View>
+            <HeaderLanguageToggle />
           </View>
 
           {/* Profile Identity Card */}
@@ -314,14 +319,12 @@ export default function ProfileScreen() {
               icon="language-outline"
               label={t("language", locale)}
               subtitle={
-                profile?.language_preference === "fil"
+                locale === "fil"
                   ? t("language_fil", locale)
                   : t("language_en", locale)
               }
               onPress={() => {
-                const next =
-                  profile?.language_preference === "fil" ? "en" : "fil";
-                updateProfile({ language_preference: next } as any);
+                toggleLocale();
               }}
             />
             {!isOperator && (

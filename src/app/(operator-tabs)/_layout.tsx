@@ -10,6 +10,7 @@ import { TutorialProvider } from "../../context/TutorialContext";
 import { ENABLE_DESKTOP_LAYOUT } from "../../constants/layout";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
+import { useLanguage } from "../../context/LanguageContext";
 
 function OperatorGate() {
   const { user, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
@@ -40,16 +41,17 @@ const tabIcons: Record<
   profile: { focused: "person-circle", unfocused: "person-circle-outline" },
 };
 
-const tabLabels: Record<string, string> = {
-  index: "Home",
-  manifests: "Dive Manifesto",
-  "buy-pass": "Buy Dive Pass",
-  profile: "Profile",
-};
-
 export default function OperatorTabLayout() {
   const { isDesktop } = useLayout();
   const { isLoading, roleReady } = useAuth();
+  const { t } = useLanguage();
+
+  const tabLabels: Record<string, string> = {
+    index: t("tab_dashboard"),
+    manifests: t("tab_manifests"),
+    "buy-pass": t("tab_buy_pass"),
+    profile: t("tab_profile"),
+  };
 
   const ready = !isLoading && roleReady;
   const [hasInitialized, setHasInitialized] = useState(ready);

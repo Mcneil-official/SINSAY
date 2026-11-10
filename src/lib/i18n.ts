@@ -1,7 +1,121 @@
 export type Locale = "en" | "fil";
 
+export const LOCALES: { code: Locale; label: string; nativeLabel: string }[] = [
+  { code: "en", label: "English", nativeLabel: "English" },
+  { code: "fil", label: "Filipino", nativeLabel: "Filipino" },
+];
+
+export const DEFAULT_LOCALE: Locale = "en";
+export const LANGUAGE_STORAGE_KEY = "@sinsay_language_preference";
+
 const translations: Record<Locale, Record<string, string>> = {
   en: {
+    // Navigation tabs
+    tab_home: "Home",
+    tab_map: "Map",
+    tab_eco_id: "Eco-Dive ID",
+    tab_profile: "Profile",
+    tab_dashboard: "Dashboard",
+    tab_manifests: "Manifests",
+    tab_buy_pass: "Buy Pass",
+    tab_assistant: "Dive Assistant",
+
+    // Headers & Greetings
+    greeting_morning: "Good morning",
+    greeting_afternoon: "Good afternoon",
+    greeting_evening: "Good evening",
+    greeting_diver: "{greeting}, {name}",
+    header_diver: "Diver",
+    quick_language_label: "Switch language",
+
+    // Tourist Home
+    home_hero_title: "Protect Mabini’s Marine Sanctuaries",
+    home_hero_subtitle: "Explore dive spots, book verified operators, and secure your official Eco-Dive Pass.",
+    home_hero_explore: "Explore Dive Spots",
+    home_hero_get_pass: "Get Dive Pass",
+    category_all: "All",
+    category_marine_life: "Marine Life",
+    category_sanctuaries: "Sanctuaries",
+    category_wrecks: "Wrecks",
+    popular_dive_sites: "Popular Dive Sites",
+    verified_establishments: "Verified Establishments",
+    announcements: "Announcements",
+    see_all: "See all",
+    no_announcements: "No announcements at this time.",
+    no_dive_sites: "No dive sites found.",
+    no_establishments: "No establishments found.",
+    search_placeholder: "Search dive sites or resorts...",
+
+    // Eco-Dive ID
+    eco_id_title: "Eco-Dive ID",
+    eco_id_subtitle: "Manage your diver identity & account preferences.",
+    card_title: "Mabini Eco-Dive Tourism Pass",
+    card_subtitle: "Municipal Tourism Office",
+    diver_name: "Diver Name",
+    diver_id: "Diver ID",
+    diver_type: "Diver Type",
+    diver_certified: "Certified Diver",
+    diver_unregistered: "Non-Certified / Discovery",
+    valid_until: "Valid Until",
+    pass_status: "Pass Status",
+    status_active: "Active",
+    status_expired: "Expired",
+    status_incomplete: "Incomplete",
+    status_complete: "Complete",
+    complete_profile_cta: "Complete Diver Profile",
+    recent_dives: "Recent Dives",
+    no_recent_dives: "No dive history recorded yet.",
+    verified_by: "Verified by {resort}",
+    step1_title: "Step 1: Diver Information",
+    step2_title: "Step 2: Certification & Proof",
+
+    // Operator Hub
+    operator_dashboard: "Operator Dashboard",
+    total_divers_checked: "Checked-in Divers",
+    available_passes: "Available Pass Credits",
+    active_manifests: "Active Manifests",
+    create_manifest: "Create Manifest",
+    buy_passes: "Buy Passes",
+    recent_manifests: "Recent Manifests",
+    manifest_history: "Manifest History",
+    no_manifests: "No manifests submitted yet.",
+    step_details: "Step 1: Manifest Details",
+    step_divers: "Step 2: Add Divers",
+    step_confirm: "Step 3: Confirm & Submit",
+    captain_name: "Boat Captain Name",
+    dive_master: "Divemaster / Guide",
+    boat_name: "Boat Name",
+    dive_date: "Dive Date",
+    add_diver: "Add Diver",
+    submit_manifest: "Submit Manifest",
+    walk_in_diver: "Walk-in Diver",
+    search_diver: "Search by Name or Eco-ID",
+    buy_pass_title: "Purchase Dive Passes",
+    buy_pass_subtitle: "Select pass inventory packages for your guests",
+    pass_oneday: "1-Day Dive Pass",
+    pass_annual: "Annual Dive Pass",
+    payment_method: "Payment Method",
+    upload_receipt: "Upload Proof of Payment",
+    operator_approval_title: "You have been approved as an operator!",
+    operator_approval_message: "Your application for {resort} has been verified by the tourism office. You can now manage dive manifests and passes.",
+    switch_to_dashboard: "Switch to Dashboard",
+    stay_in_tourist: "Stay in Tourist Mode",
+
+    // AI Assistant & Planner
+    assistant_title: "AI Dive Assistant",
+    assistant_subtitle: "Ask anything about Anilao dive sites, marine conditions, and eco-regulations.",
+    ask_assistant: "Ask Assistant",
+    trip_planner: "Trip Planner",
+    generate_itinerary: "Generate Itinerary",
+    generating_plan: "Generating Itinerary...",
+    save_itinerary: "Save Itinerary",
+    saved_itinerary: "Saved to Profile ✓",
+    share_itinerary: "Share Itinerary",
+    itinerary_duration: "Duration",
+    budget_level: "Budget Level",
+    group_size: "Group Size",
+
+    // Profile & Account
     profile_title: "Profile",
     my_account: "My Account",
     my_account_sub: "Make changes to your account",
@@ -75,8 +189,131 @@ const translations: Record<Locale, Record<string, string>> = {
     verification_detail: "Check your new email inbox to confirm the change.",
     language_en: "English",
     language_fil: "Filipino",
+
+    // Auth & Modals
+    login_title: "Welcome Back",
+    login_subtitle: "Log in to access your Eco-Dive ID and manifests",
+    signup_title: "Create Diver Account",
+    signup_subtitle: "Register to secure your Mabini Eco-Dive pass",
+    forgot_password: "Forgot password?",
+    password: "Password",
+    confirm_password: "Confirm Password",
+    dont_have_account: "Don't have an account?",
+    already_have_account: "Already have an account?",
+    login_action: "Log In",
+    signup_action: "Sign Up",
+    notifications_title: "Notifications",
+    mark_all_read: "Mark all as read",
+    no_notifications: "No notifications yet.",
+    close: "Close",
   },
   fil: {
+    // Navigation tabs
+    tab_home: "Tahanan",
+    tab_map: "Mapa",
+    tab_eco_id: "Eco-Dive ID",
+    tab_profile: "Profile",
+    tab_dashboard: "Dashboard",
+    tab_manifests: "Manifesto",
+    tab_buy_pass: "Bumili ng Pass",
+    tab_assistant: "Gabay sa Dive",
+
+    // Headers & Greetings
+    greeting_morning: "Magandang umaga",
+    greeting_afternoon: "Magandang hapon",
+    greeting_evening: "Magandang gabi",
+    greeting_diver: "{greeting}, {name}",
+    header_diver: "Maninisid",
+    quick_language_label: "Palitan ang wika",
+
+    // Tourist Home
+    home_hero_title: "Protektahan ang Santuwaryong Pandagat ng Mabini",
+    home_hero_subtitle: "Tuklasin ang mga dive spot, mag-book sa beripikadong operator, at kunin ang iyong opisyal na Eco-Dive Pass.",
+    home_hero_explore: "Tuklasin ang Dive Spots",
+    home_hero_get_pass: "Kumuha ng Dive Pass",
+    category_all: "Lahat",
+    category_marine_life: "Yamang Dagat",
+    category_sanctuaries: "Santuwaryo",
+    category_wrecks: "Barkong Lumubog",
+    popular_dive_sites: "Mga Sikat na Dive Site",
+    verified_establishments: "Beripikadong mga Resort at Sentro",
+    announcements: "Mga Pabatid at Anunsyo",
+    see_all: "Tingnan lahat",
+    no_announcements: "Walang anunsyo sa kasalukuyan.",
+    no_dive_sites: "Walang natagpuang dive site.",
+    no_establishments: "Walang natagpuang resort o operator.",
+    search_placeholder: "Maghanap ng dive site o resort...",
+
+    // Eco-Dive ID
+    eco_id_title: "Eco-Dive ID",
+    eco_id_subtitle: "Pamahalaan ang iyong diver identity at mga preference sa account.",
+    card_title: "Mabini Eco-Dive Tourism Pass",
+    card_subtitle: "Tanggapang Panturismo ng Munisipyo",
+    diver_name: "Pangalan ng Maninisid",
+    diver_id: "Diver ID",
+    diver_type: "Uri ng Maninisid",
+    diver_certified: "Sertipikadong Maninisid",
+    diver_unregistered: "Di-Sertipikado / Discovery",
+    valid_until: "May Bisa Hanggang",
+    pass_status: "Katayuan ng Pass",
+    status_active: "Aktibo",
+    status_expired: "Paso na",
+    status_incomplete: "Kulang pa",
+    status_complete: "Handa na",
+    complete_profile_cta: "Kumpletuhin ang Profile ng Diver",
+    recent_dives: "Mga Nakaraang Dive",
+    no_recent_dives: "Wala pang naitalang kasaysayan ng dive.",
+    verified_by: "Bineripika ng {resort}",
+    step1_title: "Hakbang 1: Impormasyon ng Diver",
+    step2_title: "Hakbang 2: Sertipikasyon at Patunay",
+
+    // Operator Hub
+    operator_dashboard: "Talaan ng Operator",
+    total_divers_checked: "Kabuuang Naka-check In",
+    available_passes: "Natitirang Pass Credits",
+    active_manifests: "Aktibong Manifesto",
+    create_manifest: "Gumawa ng Manifesto",
+    buy_passes: "Bumili ng mga Pass",
+    recent_manifests: "Kamakailang Manifesto",
+    manifest_history: "Kasaysayan ng Manifesto",
+    no_manifests: "Wala pang naisumiteng manifesto.",
+    step_details: "Hakbang 1: Detalye ng Manifesto",
+    step_divers: "Hakbang 2: Magdagdag ng Divers",
+    step_confirm: "Hakbang 3: Kumpirmahin at Isumite",
+    captain_name: "Pangalan ng Kapitan ng Bangka",
+    dive_master: "Divemaster o Gabay",
+    boat_name: "Pangalan ng Bangka",
+    dive_date: "Petsa ng Pag-dive",
+    add_diver: "Magdagdag ng Diver",
+    submit_manifest: "Isumite ang Manifesto",
+    walk_in_diver: "Walk-in na Diver",
+    search_diver: "Maghanap sa Pangalan o Eco-ID",
+    buy_pass_title: "Bumili ng mga Dive Pass",
+    buy_pass_subtitle: "Pumili ng pakete ng pass para sa iyong mga bisita",
+    pass_oneday: "1-Day Dive Pass",
+    pass_annual: "Taunang Dive Pass",
+    payment_method: "Paraan ng Pagbabayad",
+    upload_receipt: "Mag-upload ng Resibo ng Bayad",
+    operator_approval_title: "Naaprubahan ka na bilang isang operator!",
+    operator_approval_message: "Ang iyong aplikasyon para sa {resort} ay bineripika na ng tanggapan ng turismo. Maaari ka nang mamahala ng mga manifesto at pass.",
+    switch_to_dashboard: "Pumunta sa Dashboard",
+    stay_in_tourist: "Manatili sa Tourist Mode",
+
+    // AI Assistant & Planner
+    assistant_title: "AI Gabay sa Pag-dive",
+    assistant_subtitle: "Magtanong tungkol sa mga dive site, kondisyon sa dagat, at panuntunan sa kalikasan ng Anilao.",
+    ask_assistant: "Magtanong sa Gabay",
+    trip_planner: "Plano ng Biyahe",
+    generate_itinerary: "Bumuo ng Plano ng Biyahe",
+    generating_plan: "Bumabuo ng Plano...",
+    save_itinerary: "I-save ang Plano",
+    saved_itinerary: "Nai-save sa Profile ✓",
+    share_itinerary: "Ibahagi ang Plano",
+    itinerary_duration: "Tagal ng Pananatili",
+    budget_level: "Badyet",
+    group_size: "Dami ng Kasama",
+
+    // Profile & Account
     profile_title: "Profile",
     my_account: "Aking Account",
     my_account_sub: "Baguhin ang iyong account",
@@ -150,9 +387,36 @@ const translations: Record<Locale, Record<string, string>> = {
     verification_detail: "Suriin ang iyong bagong email para kumpirmahin ang pagbabago.",
     language_en: "English",
     language_fil: "Filipino",
+
+    // Auth & Modals
+    login_title: "Maligayang Pagbabalik",
+    login_subtitle: "Mag-log in para ma-access ang iyong Eco-Dive ID at mga manifesto",
+    signup_title: "Gumawa ng Diver Account",
+    signup_subtitle: "Magrehistro upang makakuha ng Mabini Eco-Dive pass",
+    forgot_password: "Nakalimutan ang password?",
+    password: "Password",
+    confirm_password: "Kumpirmahin ang Password",
+    dont_have_account: "Wala ka pang account?",
+    already_have_account: "Mayroon ka nang account?",
+    login_action: "Mag-log In",
+    signup_action: "Mag-sign Up",
+    notifications_title: "Mga Abiso",
+    mark_all_read: "Markahan lahat bilang nabasa",
+    no_notifications: "Wala pang mga abiso.",
+    close: "Isara",
   },
 };
 
-export function t(key: string, locale: Locale): string {
-  return translations[locale]?.[key] ?? translations.en[key] ?? key;
+export function t(
+  key: string,
+  locale: Locale,
+  params?: Record<string, string | number>
+): string {
+  let text = translations[locale]?.[key] ?? translations.en[key] ?? key;
+  if (params) {
+    for (const [paramKey, paramVal] of Object.entries(params)) {
+      text = text.replace(new RegExp(`\\{${paramKey}\\}`, "g"), String(paramVal));
+    }
+  }
+  return text;
 }

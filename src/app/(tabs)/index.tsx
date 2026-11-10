@@ -31,6 +31,8 @@ import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useNotificationModal } from "../../context/NotificationModalContext";
 import { useAuth } from "../../hooks/useAuth";
+import { useLanguage } from "../../context/LanguageContext";
+import { HeaderLanguageToggle } from "../../components/HeaderLanguageToggle";
 import { supabase } from "../../lib/supabase";
 import {
   AnnouncementRow,
@@ -86,10 +88,47 @@ export default function HomeScreen() {
     user,
   } = useAuth();
   const { isDesktop, isCompact } = useLayout();
+  const { t, locale } = useLanguage();
+
+  const categories = useMemo(
+    () => [
+      {
+        key: "all",
+        label: t("category_all"),
+        icon: "compass-outline" as const,
+        matches: () => true,
+      },
+      {
+        key: "Beginner",
+        label: locale === "fil" ? "Nagsisimula" : "Beginner",
+        icon: "sunny-outline" as const,
+        matches: (s: DiveSiteRow) =>
+          s.difficulty === "Beginner" || s.difficulty === "Open Water",
+      },
+      {
+        key: "Intermediate",
+        label: locale === "fil" ? "Katamtaman" : "Intermediate",
+        icon: "water-outline" as const,
+        matches: (s: DiveSiteRow) =>
+          s.difficulty === "Intermediate" || s.difficulty === "Rescue",
+      },
+      {
+        key: "Advanced",
+        label: locale === "fil" ? "Mataas" : "Advanced",
+        icon: "flash-outline" as const,
+        matches: (s: DiveSiteRow) =>
+          s.difficulty === "Advanced" ||
+          s.difficulty === "Divemaster" ||
+          s.difficulty === "Instructor",
+      },
+    ],
+    [t, locale]
+  );
+
   const firstName =
     profile?.full_name?.trim().split(" ")[0] ||
     user?.user_metadata?.full_name?.trim().split(" ")[0] ||
-    "Diver";
+    t("header_diver");
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -113,7 +152,7 @@ export default function HomeScreen() {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   const activeCategoryConfig =
-    categoryOptions.find((c) => c.key === activeCategory) ?? categoryOptions[0];
+    categories.find((c) => c.key === activeCategory) ?? categories[0];
   const filteredDiveSites = diveSites.filter((s) =>
     activeCategoryConfig.matches(s),
   );
@@ -382,6 +421,7 @@ export default function HomeScreen() {
               />
 
               <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
+                <HeaderLanguageToggle />
                 <TouchableOpacity
                   style={[
                     styles.iconButton,
@@ -390,7 +430,7 @@ export default function HomeScreen() {
                   onPress={openNotifications}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel={`Notifications, ${unreadCount} unread`}
+                  accessibilityLabel={t("notifications_title")}
                 >
                   <Ionicons
                     name="notifications-outline"
@@ -433,15 +473,19 @@ export default function HomeScreen() {
 
           {/* Greeting Section */}
           <View style={styles.greetingBlock}>
-            <Text style={styles.greetingTitle}>Hi {firstName}!</Text>
+            <Text style={styles.greetingTitle}>
+              {locale === "fil" ? `Kumusta, ${firstName}!` : `Hi ${firstName}!`}
+            </Text>
             <Text style={styles.greetingSubtitle}>
-              Welcome to Mabini, Batangas
+              {locale === "fil"
+                ? "Maligayang pagdating sa Mabini, Batangas"
+                : "Welcome to Mabini, Batangas"}
             </Text>
           </View>
 
           {/* Full-width rounded search bar underneath */}
           <SearchBar
-            placeholder="Search dive sites, resorts, or activities..."
+            placeholder={t("search_placeholder")}
             results={searchResults}
             loading={searchLoading}
             onSearch={handleSearch}
@@ -576,13 +620,13 @@ export default function HomeScreen() {
             <>
               {/* Popular Dive Sites: Horizontal Carousel of Large Photographic Cards */}
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Popular Dive Sites</Text>
+                <Text style={styles.sectionTitle}>{t("popular_dive_sites")}</Text>
                 <TouchableOpacity
                   onPress={() => router.push("/dive-sites")}
                   accessibilityRole="button"
-                  accessibilityLabel="See all popular dive sites"
+                  accessibilityLabel={t("see_all")}
                 >
-                  <Text style={styles.seeAll}>See all</Text>
+                  <Text style={styles.seeAll}>{t("see_all")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -592,18 +636,18 @@ export default function HomeScreen() {
                 </View>
               ) : diveSitesError ? (
                 <ErrorState
-                  message="Failed to load dive sites."
+                  message={locale === "fil" ? "Hindi ma-load ang mga dive site." : "Failed to load dive sites."}
                   onRetry={handleRetryDiveSites}
                 />
               ) : diveSites.length === 0 ? (
                 <EmptyState
                   icon="map-outline"
-                  message="No dive sites available yet."
+                  message={t("no_dive_sites")}
                 />
               ) : filteredDiveSites.length === 0 ? (
                 <EmptyState
                   icon="funnel-outline"
-                  message="No dive sites match this filter."
+                  message={locale === "fil" ? "Walang dive site na tumutugma sa filter." : "No dive sites match this filter."}
                 />
               ) : (
                 <ScrollView
@@ -638,13 +682,13 @@ export default function HomeScreen() {
 
               {/* Dive Resorts: Horizontal Information-Card Layout */}
               <View style={[styles.sectionHeaderRow, { marginTop: 26 }]}>
-                <Text style={styles.sectionTitle}>Dive Resorts</Text>
+                <Text style={styles.sectionTitle}>{t("verified_establishments")}</Text>
                 <TouchableOpacity
                   onPress={() => router.push("/establishments")}
                   accessibilityRole="button"
-                  accessibilityLabel="See all dive resorts"
+                  accessibilityLabel={t("see_all")}
                 >
-                  <Text style={styles.seeAll}>See all</Text>
+                  <Text style={styles.seeAll}>{t("see_all")}</Text>
                 </TouchableOpacity>
               </View>
 

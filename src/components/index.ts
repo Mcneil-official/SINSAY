@@ -47,3 +47,4 @@ export { InAppTutorial } from "./InAppTutorial";
 export { ResortLogoBadge, getResortInitials } from "./ResortLogoBadge";
 export { ResortProfileHero } from "./ResortProfileHero";
 export { OperatorApprovalModal, getOperatorApprovalSeenKey } from "./OperatorApprovalModal";
+export { HeaderLanguageToggle } from "./HeaderLanguageToggle";

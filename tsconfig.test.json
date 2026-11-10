@@ -10,5 +10,5 @@
     "outDir": "dist-test",
     "rootDir": "."
   },
-  "include": ["src/lib/password.ts", "src/lib/phone.ts", "src/lib/notifications.ts", "src/lib/resortInitials.ts", "src/lib/operatorApproval.ts", "tests/**/*.ts"]
+  "include": ["src/lib/password.ts", "src/lib/phone.ts", "src/lib/notifications.ts", "src/lib/resortInitials.ts", "src/lib/operatorApproval.ts", "src/lib/savedItineraries.ts", "src/lib/i18n.ts", "tests/**/*.ts"]
 }

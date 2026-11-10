@@ -51,6 +51,11 @@ export interface Database {
         Insert: DivePlanInputInsert;
         Update: DivePlanInputUpdate;
       };
+      saved_dive_itineraries: {
+        Row: SavedDiveItineraryRow;
+        Insert: SavedDiveItineraryInsert;
+        Update: SavedDiveItineraryUpdate;
+      };
       announcements: {
         Row: AnnouncementRow;
         Insert: AnnouncementInsert;
@@ -342,6 +347,22 @@ export interface DivePlanInputRow {
 
 export type DivePlanInputInsert = Pick<DivePlanInputRow, "tourist_id"> & Partial<Omit<DivePlanInputRow, "id" | "created_at">>;
 export type DivePlanInputUpdate = Partial<DivePlanInputInsert>;
+
+export interface SavedDiveItineraryRow {
+  id: string;
+  tourist_id: string;
+  title: string;
+  budget: string | null;
+  group_size: number | null;
+  activity: string | null;
+  length_of_stay: string | null;
+  plan_data: Record<string, any>;
+  created_at: string;
+}
+
+export type SavedDiveItineraryInsert = Pick<SavedDiveItineraryRow, "tourist_id" | "title" | "plan_data"> &
+  Partial<Omit<SavedDiveItineraryRow, "id" | "created_at">>;
+export type SavedDiveItineraryUpdate = Partial<SavedDiveItineraryInsert>;
 
 export interface AnnouncementRow {
   id: string;
