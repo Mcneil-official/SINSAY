@@ -1,9 +1,10 @@
 import { Afacad_700Bold } from "@expo-google-fonts/afacad/700Bold";
 import { Jost_400Regular } from "@expo-google-fonts/jost/400Regular";
+import { useFocusEffect } from "expo-router";
 import { useFonts } from "expo-font";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -90,10 +91,7 @@ export default function EcoOnboarding({
   // Actual frame height, re-measured on layout so URL-bar / PWA-banner
   // viewport changes are picked up without stale window math.
   const [measuredFrameHeight, setMeasuredFrameHeight] = useState(height);
-  // Measured middle-zone height: the artwork height is set in plain px from
-  // this so it can never exceed the zone (a parent-relative "100%" can fail
-  // to resolve and let the image overflow into the text).
-  const [artZoneHeight, setArtZoneHeight] = useState<number | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const isWide = width > WIDE_BREAKPOINT;
   const frameWidth = isWide ? DESIGN_WIDTH : width;
@@ -129,13 +127,6 @@ export default function EcoOnboarding({
     const nextHeight = e.nativeEvent.layout.height;
     if (nextHeight > 0) {
       setMeasuredFrameHeight(nextHeight);
-    }
-  }, []);
-
-  const handleArtZoneLayout = useCallback((e: LayoutChangeEvent) => {
-    const nextHeight = e.nativeEvent.layout.height;
-    if (nextHeight > 0) {
-      setArtZoneHeight(nextHeight);
     }
   }, []);
 
@@ -177,28 +168,38 @@ export default function EcoOnboarding({
     animateTransition(1, onBack);
   }, [animateTransition, onBack]);
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(slideOpacity, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.timing(slideTranslateX, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.timing(waveScale, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-    ]).start();
-  }, [slideOpacity, slideTranslateX, waveScale]);
+  // Entrance animation + scroll reset on EVERY focus — first visit and
+  // browser-back/swipe-back alike. Screens stay mounted in the stack, so a
+  // mount-only effect would leave the page stuck at opacity 0 (faded out by
+  // the forward transition) and the ScrollView where the user left it, with
+  // the text scrolled off-screen.
+  useFocusEffect(
+    useCallback(() => {
+      slideOpacity.setValue(0);
+      slideTranslateX.setValue(18);
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      Animated.parallel([
+        Animated.timing(slideOpacity, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.timing(slideTranslateX, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.timing(waveScale, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+      ]).start();
+    }, [slideOpacity, slideTranslateX, waveScale]),
+  );
 
   const panResponder = useMemo(
     () =>
@@ -293,6 +294,7 @@ export default function EcoOnboarding({
             ]}
           >
             <ScrollView
+              ref={scrollRef}
               style={styles.scroll}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
@@ -381,17 +383,19 @@ export default function EcoOnboarding({
                 </Text>
               </View>
 
-              {/* Middle zone: artwork scales proportionally, never overlaps text */}
-              <View style={styles.middleZone} onLayout={handleArtZoneLayout}>
+              {/* Middle zone: art keeps its full size and sits at the bottom
+                  of the zone; minHeight >= art height guarantees no overlap. */}
+              <View
+                style={[
+                  styles.middleZone,
+                  { minHeight: Math.max(ART_MIN_ZONE, artMaxHeight) },
+                ]}
+              >
                 <Image
                   source={illustration}
                   style={{
                     width: "100%",
-                    height:
-                      artZoneHeight != null
-                        ? Math.min(artMaxHeight, artZoneHeight)
-                        : "100%",
-                    maxHeight: artMaxHeight,
+                    height: artMaxHeight,
                   }}
                   contentFit="contain"
                   accessibilityLabel={illustrationAlt}
@@ -496,9 +500,8 @@ const styles = StyleSheet.create({
   },
   middleZone: {
     flex: 1,
-    minHeight: ART_MIN_ZONE,
     marginTop: TEXT_ART_GAP,
-    justifyContent: "center",
+    justifyContent: "flex-end",
     overflow: "hidden",
   },
   bottomZone: {
