@@ -32,7 +32,7 @@ export default function NextPage() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <EcoOnboarding
-        illustration={require("../../assets/onboarding/marine-life.png")}
+        illustration={require("../../assets/onboarding/marine-life transparent.png")}
         illustrationAlt="A diver observing a sea turtle and fish underwater"
         title={"Respect\nMarine Life"}
         description={
