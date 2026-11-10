@@ -29,9 +29,7 @@ const WAVE_HEIGHT = 170;
 const CONTENT_SIDE = 30;
 const FOOTER_SIDE = 24;
 const BUTTON_HEIGHT = 52;
-const ART_MAX_HEIGHT = 300; // artwork cap: max-h-[300px]
-const ART_MAX_VH = 0.35; // artwork cap: max-h-[35vh]
-const ART_MIN_ZONE = 160; // never shrink the art zone below this — scroll instead
+const ART_MIN_ZONE = 200; // never collapse the art zone — scroll instead
 const TEXT_ART_GAP = 40; // gap between body text and artwork (AC min 16px)
 
 type WaveVariant = "marine-life" | "protect" | "control";
@@ -112,10 +110,6 @@ export default function EcoOnboarding({
     (isCompact ? 154 : 168) * scale,
   );
   const footerBottom = safeBottom + (isCompact ? 10 : 14);
-  const artMaxHeight = Math.min(
-    ART_MAX_HEIGHT,
-    Math.round(frameHeight * ART_MAX_VH),
-  );
 
   const safeTotal = Math.max(total, 1);
   const activeIndex = Math.min(Math.max(index, 0), safeTotal - 1);
@@ -383,77 +377,70 @@ export default function EcoOnboarding({
                 </Text>
               </View>
 
-              {/* Middle zone: art keeps its full size and sits at the bottom
-                  of the zone; minHeight >= art height guarantees no overlap. */}
-              <View
-                style={[
-                  styles.middleZone,
-                  { minHeight: Math.max(ART_MIN_ZONE, artMaxHeight) },
-                ]}
-              >
+              {/* Middle zone: full-bleed cover art filling the flex space
+                  between the text and the (overlaid) CTA. */}
+              <View style={styles.middleZone}>
                 <Image
                   source={illustration}
-                  style={{
-                    width: "100%",
-                    height: artMaxHeight,
-                  }}
-                  contentFit="contain"
+                  style={styles.artImage}
+                  contentFit="cover"
                   accessibilityLabel={illustrationAlt}
                 />
               </View>
+            </ScrollView>
 
-              {/* Bottom zone: CTA with bottom safe-area inset */}
-              <View
+            {/* Bottom zone: absolutely overlaid so the middle zone grows
+              text → screen bottom and the CTA is always visible. */}
+          <View
+            style={[
+              styles.bottomZone,
+              {
+                paddingHorizontal: FOOTER_SIDE * scale,
+                paddingTop: 8 * scale,
+                paddingBottom: footerBottom,
+              },
+            ]}
+          >
+            <Pressable
+              onPress={advance}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isLast ? "Finish onboarding" : "Continue to next tip"
+              }
+              accessibilityHint="Or swipe left to continue, right to go back."
+              style={({ pressed }) => [
+                styles.button,
+                styles.buttonPrimary,
+                {
+                  minHeight: BUTTON_HEIGHT * scale,
+                  borderRadius: 16 * scale,
+                  backgroundColor: pressed ? "#164e9b" : "#1c5eb9",
+                  shadowColor: "#1c5eb9",
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 10,
+                  elevation: 6,
+                },
+              ]}
+            >
+              <Text
                 style={[
-                  styles.bottomZone,
-                  {
-                    paddingHorizontal: FOOTER_SIDE * scale,
-                    paddingTop: 8 * scale,
-                    paddingBottom: footerBottom,
-                  },
+                  styles.buttonLabel,
+                  styles.buttonPrimaryLabel,
+                  { fontSize: 15 * scale },
                 ]}
               >
-                <Pressable
-                  onPress={advance}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    isLast ? "Finish onboarding" : "Continue to next tip"
-                  }
-                  accessibilityHint="Or swipe left to continue, right to go back."
-                  style={({ pressed }) => [
-                    styles.button,
-                    styles.buttonPrimary,
-                    {
-                      minHeight: BUTTON_HEIGHT * scale,
-                      borderRadius: 16 * scale,
-                      backgroundColor: pressed ? "#164e9b" : "#1c5eb9",
-                      shadowColor: "#1c5eb9",
-                      shadowOffset: { width: 0, height: 8 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 10,
-                      elevation: 6,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.buttonLabel,
-                      styles.buttonPrimaryLabel,
-                      { fontSize: 15 * scale },
-                    ]}
-                  >
-                    {nextLabel}
-                  </Text>
-                  <Text
-                    style={[styles.buttonArrow, { fontSize: 15 * scale }]}
-                    accessible={false}
-                  >
-                    →
-                  </Text>
-                </Pressable>
-              </View>
-            </ScrollView>
-          </Animated.View>
+                {nextLabel}
+              </Text>
+              <Text
+                style={[styles.buttonArrow, { fontSize: 15 * scale }]}
+                accessible={false}
+              >
+                →
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
         </View>
       </View>
     </View>
@@ -500,13 +487,20 @@ const styles = StyleSheet.create({
   },
   middleZone: {
     flex: 1,
+    minHeight: ART_MIN_ZONE,
     marginTop: TEXT_ART_GAP,
-    justifyContent: "flex-end",
     overflow: "hidden",
   },
+  artImage: {
+    width: "100%",
+    height: "100%",
+  },
   bottomZone: {
-    flexGrow: 0,
-    flexShrink: 0,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 3,
   },
   progressRow: {
     flexDirection: "row",
