@@ -19,18 +19,17 @@ import {
 } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
-import { toLocalPhDigits, toDbPhPhone, isValidPhDigits } from "../../../lib/phone";
+import {
+  isValidPhDigits,
+  toDbPhPhone,
+  toLocalPhDigits,
+} from "../../../lib/phone";
 import { uploadFile } from "../../../lib/storage";
 import { supabase } from "../../../lib/supabase";
 
 const roleOptions = [
   { label: "Owner / Proprietor", value: "owner" },
-  { label: "General Manager", value: "manager" },
-  { label: "Operations Manager", value: "operations_manager" },
-  { label: "Dive Operations Lead", value: "dive_lead" },
-  { label: "Authorized Representative", value: "representative" },
-  { label: "Divemaster", value: "divemaster" },
-  { label: "Instructor", value: "instructor" },
+  { label: "Staff", value: "staff" },
 ];
 
 export default function ApplyOperatorScreen() {
@@ -48,7 +47,9 @@ export default function ApplyOperatorScreen() {
   const [pcssdUrl, setPcssdUrl] = useState<string | null>(null);
   const [dotUrl, setDotUrl] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [uploading, setUploading] = useState<"permit" | "pcssd" | "dot" | null>(null);
+  const [uploading, setUploading] = useState<"permit" | "pcssd" | "dot" | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -77,7 +78,8 @@ export default function ApplyOperatorScreen() {
     } else if (currentStep === 1) {
       if (!role) errs.role = "Required";
       if (!contactNumber.trim()) errs.contactNumber = "Required";
-      else if (!isValidPhDigits(contactNumber)) errs.contactNumber = "Format: 9XXXXXXXXX";
+      else if (!isValidPhDigits(contactNumber))
+        errs.contactNumber = "Format: 9XXXXXXXXX";
     } else {
       if (!businessPermitUrl) errs.businessPermitUrl = "Upload required";
       if (!agreed) errs.agreed = "You must confirm to proceed";
@@ -92,7 +94,8 @@ export default function ApplyOperatorScreen() {
     if (!resortLocation.trim()) errs.resortLocation = "Required";
     if (!role) errs.role = "Required";
     if (!contactNumber.trim()) errs.contactNumber = "Required";
-    else if (!isValidPhDigits(contactNumber)) errs.contactNumber = "Format: 9XXXXXXXXX";
+    else if (!isValidPhDigits(contactNumber))
+      errs.contactNumber = "Format: 9XXXXXXXXX";
     if (!businessPermitUrl) errs.businessPermitUrl = "Upload required";
     if (!agreed) errs.agreed = "You must confirm to proceed";
     setErrors(errs);
@@ -426,7 +429,7 @@ export default function ApplyOperatorScreen() {
                 </View>
               </View>
               <Text style={styles.uploadHint}>
-                A clear photo or PDF of your resort’s current mayor’s or business permit.
+                Your resort`s business permit.
               </Text>
               <FileUpload
                 label="Upload"
@@ -448,7 +451,8 @@ export default function ApplyOperatorScreen() {
                 </View>
               </View>
               <Text style={styles.uploadHint}>
-                Philippine Commission on Sports Scuba Diving accreditation certificate.
+                Philippine Commission on Sports Scuba Diving accreditation
+                certificate.
               </Text>
               <FileUpload
                 label="Upload"
@@ -504,7 +508,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
-  wizardInner: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 24, gap: 18 },
+  wizardInner: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 24,
+    gap: 18,
+  },
   stepIntro: {
     flexDirection: "row",
     gap: 12,
