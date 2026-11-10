@@ -1,14 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Image,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
-  Share,
   StatusBar,
   StyleSheet,
   Text,
@@ -27,11 +31,11 @@ import Svg, {
 } from "react-native-svg";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
-import { supabase } from "../lib/supabase";
-import { pickAvatarImage } from "../lib/pickAvatar";
-import { uploadFile } from "../lib/storage";
 import { deriveEffectiveEcoStatus } from "../lib/ecoIdExpiry";
-import { captureAndDownload } from "../lib/snapshot";
+import { pickAvatarImage } from "../lib/pickAvatar";
+import { captureAndDownload, loadImageAsBase64 } from "../lib/snapshot";
+import { uploadFile } from "../lib/storage";
+import { supabase } from "../lib/supabase";
 import ContentContainer from "./ContentContainer";
 import { resolveSiteImage } from "./DiveSiteCard";
 import { ErrorState } from "./ErrorState";
@@ -102,7 +106,13 @@ function formatCardDate(raw?: string | null): string {
 }
 
 /** Custom Dive Mask & Snorkel Icon matching the reference card */
-function DiveMaskIcon({ size = 20, color = "#0D74E7" }: { size?: number; color?: string }) {
+function DiveMaskIcon({
+  size = 20,
+  color = "#0D74E7",
+}: {
+  size?: number;
+  color?: string;
+}) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       {/* Mask Frame */}
@@ -128,7 +138,12 @@ function DiveMaskIcon({ size = 20, color = "#0D74E7" }: { size?: number; color?:
 /** Default Vector Portrait Silhouette matching the reference card */
 function DefaultAvatarSilhouette() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 120 160" preserveAspectRatio="xMidYMax slice">
+    <Svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 120 160"
+      preserveAspectRatio="xMidYMax slice"
+    >
       <Rect x="0" y="0" width="120" height="160" fill="#C6DAF1" />
       <Circle cx="60" cy="58" r="24" fill="#82A8D9" />
       <Path
@@ -142,13 +157,61 @@ function DefaultAvatarSilhouette() {
 export function EcoDivePassportView() {
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const { user, profile, ecoId, avatarUri, setAvatarUri, clearAvatarOverride, isLoading, refreshProfile, updateProfile } =
-    useAuth();
+  const {
+    user,
+    profile,
+    ecoId,
+    avatarUri,
+    setAvatarUri,
+    clearAvatarOverride,
+    isLoading,
+    refreshProfile,
+    updateProfile,
+  } = useAuth();
 
   const [activities, setActivities] = useState<DiveTimelineActivity[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [selectedRecap, setSelectedRecap] =
     useState<DiveTimelineActivity | null>(null);
+  const [recapImageBase64, setRecapImageBase64] = useState<string | null>(null);
+  const [recapLogoBase64, setRecapLogoBase64] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedRecap) {
+      setRecapImageBase64(null);
+      return;
+    }
+    let active = true;
+
+    const rawSource = resolveSiteImage(
+      null,
+      selectedRecap.photoUrl,
+      selectedRecap.imageIndex,
+    );
+    const assetSource = Image.resolveAssetSource(rawSource);
+    const uri =
+      assetSource?.uri || (typeof rawSource === "string" ? rawSource : null);
+    if (uri) {
+      loadImageAsBase64(uri)
+        .then((base64) => {
+          if (active && base64) setRecapImageBase64(base64);
+        })
+        .catch(() => {});
+    }
+
+    const logoSource = Image.resolveAssetSource(SINSAY_WHITE_LOGO);
+    if (logoSource?.uri) {
+      loadImageAsBase64(logoSource.uri)
+        .then((base64) => {
+          if (active && base64) setRecapLogoBase64(base64);
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [selectedRecap]);
   const storyCardRef = useRef<View>(null);
   const [isSavingImage, setIsSavingImage] = useState(false);
   const [showIdCardModal, setShowIdCardModal] = useState(false);
@@ -158,7 +221,9 @@ export function EcoDivePassportView() {
   );
 
   const [refreshKey, setRefreshKey] = useState(0);
-  const [latestManifestDiveDate, setLatestManifestDiveDate] = useState<string | null>(null);
+  const [latestManifestDiveDate, setLatestManifestDiveDate] = useState<
+    string | null
+  >(null);
 
   const profilePhotoUri = avatarUri;
 
@@ -167,15 +232,14 @@ export function EcoDivePassportView() {
       refreshProfile();
       setRefreshKey((k) => k + 1);
       // Self-healing synchronization: check if active pass has expired by date
-      Promise.resolve(supabase
-        .rpc("sync_my_eco_dive_id_status"))
+      Promise.resolve(supabase.rpc("sync_my_eco_dive_id_status"))
         .then(({ data }) => {
           if (data && typeof data === "object" && (data as any).expired) {
             refreshProfile();
           }
         })
         .catch(() => {});
-    }, [refreshProfile])
+    }, [refreshProfile]),
   );
 
   useEffect(() => {
@@ -196,7 +260,9 @@ export function EcoDivePassportView() {
       .select("id, manifest_id, created_at");
 
     if (userEcoId) {
-      diverQuery = diverQuery.or(`tourist_id.eq.${user.id},eco_id.eq.${userEcoId}`);
+      diverQuery = diverQuery.or(
+        `tourist_id.eq.${user.id},eco_id.eq.${userEcoId}`,
+      );
     } else {
       diverQuery = diverQuery.eq("tourist_id", user.id);
     }
@@ -210,7 +276,9 @@ export function EcoDivePassportView() {
           return;
         }
 
-        const manifestIds = Array.from(new Set(diverRows.map((d) => d.manifest_id).filter(Boolean)));
+        const manifestIds = Array.from(
+          new Set(diverRows.map((d) => d.manifest_id).filter(Boolean)),
+        );
         if (manifestIds.length === 0) {
           setActivities([]);
           setHistoryLoading(false);
@@ -246,7 +314,9 @@ export function EcoDivePassportView() {
         });
 
         // Batch fetch establishment names for operators
-        const operatorIds = Array.from(new Set(sortedAsc.map((m) => m.operator_id).filter(Boolean)));
+        const operatorIds = Array.from(
+          new Set(sortedAsc.map((m) => m.operator_id).filter(Boolean)),
+        );
         let estMap = new Map<string, { name: string }>();
         if (operatorIds.length > 0) {
           const { data: ests } = await supabase
@@ -259,15 +329,21 @@ export function EcoDivePassportView() {
         }
 
         // Batch fetch dive sites for photos & coordinates
-        const siteNames = Array.from(new Set(sortedAsc.map((m) => m.location).filter(Boolean)));
+        const siteNames = Array.from(
+          new Set(sortedAsc.map((m) => m.location).filter(Boolean)),
+        );
         let siteMap = new Map<string, any>();
         if (siteNames.length > 0) {
           const { data: sites } = await supabase
             .from("dive_sites")
-            .select("name, barangay, depth_range, lat, lng, image_url, photo_url")
+            .select(
+              "name, barangay, depth_range, lat, lng, image_url, photo_url",
+            )
             .in("name", siteNames);
           if (sites) {
-            siteMap = new Map(sites.map((s) => [s.name.toLowerCase().trim(), s]));
+            siteMap = new Map(
+              sites.map((s) => [s.name.toLowerCase().trim(), s]),
+            );
           }
         }
 
@@ -284,7 +360,9 @@ export function EcoDivePassportView() {
 
           const guideName =
             m.instructor_name ||
-            (m.dive_masters && m.dive_masters.length ? m.dive_masters[0] : null) ||
+            (m.dive_masters && m.dive_masters.length
+              ? m.dive_masters[0]
+              : null) ||
             m.captain_name ||
             "Accredited Dive Guide";
 
@@ -294,10 +372,21 @@ export function EcoDivePassportView() {
             siteName: m.location || "Mabini Marine Sanctuary",
             dateTime: `${formattedDate} • 09:00 AM`,
             diveCategory: `${m.dive_type || "Recreational Dive"} • ${m.dive_mode || "Boat Dive"}`,
-            resortOrCenter: est?.name || (m.boat_name ? `${m.boat_name} Dive Center` : "Mabini Accredited Dive Center"),
-            barangay: site?.barangay ? `${site.barangay}, Mabini` : "Mabini Marine Sanctuary, Batangas",
-            coordinates: site?.lat && site?.lng ? `${site.lat.toFixed(4)}° N, ${site.lng.toFixed(4)}° E` : "13.7242° N, 120.8764° E",
-            depthRange: site?.depth_range || (m.difficulty === "Advanced" ? "18–32m" : "12–24m"),
+            resortOrCenter:
+              est?.name ||
+              (m.boat_name
+                ? `${m.boat_name} Dive Center`
+                : "Mabini Accredited Dive Center"),
+            barangay: site?.barangay
+              ? `${site.barangay}, Mabini`
+              : "Mabini Marine Sanctuary, Batangas",
+            coordinates:
+              site?.lat && site?.lng
+                ? `${site.lat.toFixed(4)}° N, ${site.lng.toFixed(4)}° E`
+                : "13.7242° N, 120.8764° E",
+            depthRange:
+              site?.depth_range ||
+              (m.difficulty === "Advanced" ? "18–32m" : "12–24m"),
             duration: "45 mins",
             visibility: "20m Clear",
             waterTemp: "28°C",
@@ -341,7 +430,12 @@ export function EcoDivePassportView() {
         size: result.blob?.size || 1024,
         uri: result.uri,
       };
-      const uploadRes = await uploadFile("operator_media", "profile-avatar", fileInfo, user.id);
+      const uploadRes = await uploadFile(
+        "operator_media",
+        "profile-avatar",
+        fileInfo,
+        user.id,
+      );
       if (uploadRes.path) {
         await updateProfile({ avatar_path: uploadRes.path });
         clearAvatarOverride(user.id);
@@ -352,17 +446,51 @@ export function EcoDivePassportView() {
     }
   }, [setAvatarUri, user, updateProfile, clearAvatarOverride]);
 
-  const handleSaveIdCard = useCallback(() => {
-    setToastMessage("Eco-Dive ID Card saved to device!");
-    setCopiedBanner(true);
-    setTimeout(() => setCopiedBanner(false), 2600);
-  }, []);
-
   const handleSaveRecapImage = useCallback(
     async (activity: DiveTimelineActivity) => {
       if (!storyCardRef.current || isSavingImage) return;
       setIsSavingImage(true);
       try {
+        let needsSettle = false;
+
+        // 1. Guarantee background dive photo base64 is resolved before snapshot
+        let bgBase64 = recapImageBase64;
+        if (!bgBase64) {
+          const rawSource = resolveSiteImage(
+            null,
+            activity.photoUrl,
+            activity.imageIndex,
+          );
+          const assetSource = Image.resolveAssetSource(rawSource);
+          const uri =
+            assetSource?.uri ||
+            (typeof rawSource === "string" ? rawSource : null);
+          if (uri) {
+            bgBase64 = await loadImageAsBase64(uri);
+            if (bgBase64) {
+              setRecapImageBase64(bgBase64);
+              needsSettle = true;
+            }
+          }
+        }
+
+        // 2. Guarantee brand logo base64 is resolved before snapshot
+        let logoBase64 = recapLogoBase64;
+        if (!logoBase64) {
+          const logoSource = Image.resolveAssetSource(SINSAY_WHITE_LOGO);
+          if (logoSource?.uri) {
+            logoBase64 = await loadImageAsBase64(logoSource.uri);
+            if (logoBase64) {
+              setRecapLogoBase64(logoBase64);
+              needsSettle = true;
+            }
+          }
+        }
+
+        if (needsSettle) {
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
         const safeName = (activity.siteName || "mabini")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-");
@@ -382,7 +510,7 @@ export function EcoDivePassportView() {
         setIsSavingImage(false);
       }
     },
-    [isSavingImage],
+    [isSavingImage, recapImageBase64, recapLogoBase64],
   );
 
   // Effective date-aware status (prevents expired One-Day passes from showing active)
@@ -393,7 +521,12 @@ export function EcoDivePassportView() {
       latestManifestDiveDate,
       annualValidUntil: profile?.renewal_date || null,
     });
-  }, [ecoId?.status, profile?.dive_pass_type, latestManifestDiveDate, profile?.renewal_date]);
+  }, [
+    ecoId?.status,
+    profile?.dive_pass_type,
+    latestManifestDiveDate,
+    profile?.renewal_date,
+  ]);
 
   const isIdActive = effectiveStatus === "active";
   const isIdExpired = effectiveStatus === "expired";
@@ -415,15 +548,14 @@ export function EcoDivePassportView() {
       (profile?.certification_level &&
         CERT_LEVEL_LABELS[profile.certification_level.toLowerCase()]) ||
       profile?.certification_level ||
-      (profile?.type_of_dive === "instructor-master" || profile?.type_of_dive === "dive-master"
+      (profile?.type_of_dive === "instructor-master" ||
+      profile?.type_of_dive === "dive-master"
         ? "Dive Master / Instructor"
         : "—");
     const dateAccredited = formatCardDate(profile?.date_accredited);
     const renewalDate = formatCardDate(profile?.renewal_date);
-    const emergencyName =
-      profile?.emergency_contact_name?.trim() || "—";
-    const emergencyNumber =
-      profile?.emergency_contact_number?.trim() || "—";
+    const emergencyName = profile?.emergency_contact_name?.trim() || "—";
+    const emergencyNumber = profile?.emergency_contact_number?.trim() || "—";
 
     return {
       fullName,
@@ -435,7 +567,7 @@ export function EcoDivePassportView() {
       emergencyName,
       emergencyNumber,
     };
-  }, [profile, effectiveStatus]);
+  }, [profile]);
 
   // Compute dive profile completion progress (0% - 100%)
   const { completionProgress, isProfileComplete, missingStepHint } =
@@ -451,7 +583,7 @@ export function EcoDivePassportView() {
       const hasNationality = Boolean(profile.nationality?.trim());
       const hasEmergency = Boolean(
         profile.emergency_contact_name?.trim() &&
-          profile.emergency_contact_number?.trim(),
+        profile.emergency_contact_number?.trim(),
       );
       const hasDiveType = Boolean(profile.type_of_dive?.trim());
       const isInstructorMasterPath =
@@ -461,8 +593,10 @@ export function EcoDivePassportView() {
       const hasCertDetails = !isInstructorMasterPath
         ? hasDiveType
         : Boolean(
-            (profile.pcssd_accreditation_no?.trim() || profile.pcssd_url?.trim()) &&
-            (profile.permit_to_operate_no?.trim() || profile.permit_to_operate_url?.trim())
+            (profile.pcssd_accreditation_no?.trim() ||
+              profile.pcssd_url?.trim()) &&
+            (profile.permit_to_operate_no?.trim() ||
+              profile.permit_to_operate_url?.trim()),
           );
 
       const checks = [
@@ -475,13 +609,15 @@ export function EcoDivePassportView() {
       const completedCount = checks.filter(Boolean).length;
       const pct = Math.round((completedCount / checks.length) * 100);
 
-      let hint = "Your Eco-Dive ID is complete and ready for manifest verification.";
+      let hint =
+        "Your Eco-Dive ID is complete and ready for manifest verification.";
       if (!hasNationality || !hasEmergency) {
         hint = "Add your nationality and emergency contact details.";
       } else if (!hasDiveType) {
         hint = "Select your preferred dive category.";
       } else if (isInstructorMasterPath && !hasCertDetails) {
-        hint = "Complete your Dive Instructor / Master accreditation and permit.";
+        hint =
+          "Complete your Dive Instructor / Master accreditation and permit.";
       }
 
       return {
@@ -541,14 +677,16 @@ export function EcoDivePassportView() {
   );
   const storyCardWidth = Math.round(storyCardHeight * 0.6);
 
-
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: 12, paddingBottom: 20 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: 12, paddingBottom: 20 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <ContentContainer maxWidth={560}>
@@ -648,7 +786,10 @@ export function EcoDivePassportView() {
                       styles.portraitIdText,
                       {
                         fontSize: Math.max(5.8, Math.round(u * 4.4 * 10) / 10),
-                        lineHeight: Math.max(8.5, Math.round(u * 6.2 * 10) / 10),
+                        lineHeight: Math.max(
+                          8.5,
+                          Math.round(u * 6.2 * 10) / 10,
+                        ),
                         marginTop: Math.max(2.5, Math.round(u * 2.0)),
                         width: "115%",
                         flexShrink: 0,
@@ -666,8 +807,8 @@ export function EcoDivePassportView() {
                       isIdActive
                         ? styles.portraitBottomStatusPillActive
                         : isIdExpired
-                        ? styles.portraitBottomStatusPillExpired
-                        : styles.portraitBottomStatusPillInactive,
+                          ? styles.portraitBottomStatusPillExpired
+                          : styles.portraitBottomStatusPillInactive,
                       {
                         marginTop: Math.max(2.5, Math.round(u * 2.2)),
                         paddingHorizontal: Math.max(5, Math.round(u * 3.8)),
@@ -677,13 +818,25 @@ export function EcoDivePassportView() {
                     ]}
                   >
                     <Ionicons
-                      name={isIdActive ? "checkmark-circle" : isIdExpired ? "time-outline" : "ellipse"}
+                      name={
+                        isIdActive
+                          ? "checkmark-circle"
+                          : isIdExpired
+                            ? "time-outline"
+                            : "ellipse"
+                      }
                       size={
                         isIdActive
                           ? Math.max(6.5, Math.round(u * 6.2))
                           : Math.max(4.5, Math.round(u * 4.5))
                       }
-                      color={isIdActive ? "#059669" : isIdExpired ? "#DC2626" : "#64748B"}
+                      color={
+                        isIdActive
+                          ? "#059669"
+                          : isIdExpired
+                            ? "#DC2626"
+                            : "#64748B"
+                      }
                     />
                     <Text
                       style={[
@@ -691,15 +844,27 @@ export function EcoDivePassportView() {
                         isIdActive
                           ? styles.portraitBottomStatusTextActive
                           : isIdExpired
-                          ? styles.portraitBottomStatusTextExpired
-                          : styles.portraitBottomStatusTextInactive,
+                            ? styles.portraitBottomStatusTextExpired
+                            : styles.portraitBottomStatusTextInactive,
                         {
-                          fontSize: Math.max(5.2, Math.round(u * 3.8 * 10) / 10),
-                          lineHeight: Math.max(7.2, Math.round(u * 5.2 * 10) / 10),
+                          fontSize: Math.max(
+                            5.2,
+                            Math.round(u * 3.8 * 10) / 10,
+                          ),
+                          lineHeight: Math.max(
+                            7.2,
+                            Math.round(u * 5.2 * 10) / 10,
+                          ),
                         },
                       ]}
                     >
-                      {isIdActive ? "ACTIVE" : isIdExpired ? "EXPIRED" : effectiveStatus === "complete" ? "READY" : "INACTIVE"}
+                      {isIdActive
+                        ? "ACTIVE"
+                        : isIdExpired
+                          ? "EXPIRED"
+                          : effectiveStatus === "complete"
+                            ? "READY"
+                            : "INACTIVE"}
                     </Text>
                   </View>
                 </View>
@@ -916,7 +1081,10 @@ export function EcoDivePassportView() {
                     <View
                       style={[
                         styles.cardIconWrap,
-                        { width: iconBoxW, paddingTop: Math.max(1, Math.round(u * 1.2)) },
+                        {
+                          width: iconBoxW,
+                          paddingTop: Math.max(1, Math.round(u * 1.2)),
+                        },
                       ]}
                     >
                       <Ionicons
@@ -1021,11 +1189,7 @@ export function EcoDivePassportView() {
                 <Text style={styles.incompleteCtaText}>
                   Complete Dive Profile
                 </Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={15}
-                  color={colors.white}
-                />
+                <Ionicons name="arrow-forward" size={15} color={colors.white} />
               </TouchableOpacity>
             </View>
           )}
@@ -1035,8 +1199,7 @@ export function EcoDivePassportView() {
             <Text style={styles.timelineTitle}>Dive Timeline</Text>
             <View style={styles.timelineCountPill}>
               <Text style={styles.timelineCountText}>
-                {activities.length}{" "}
-                {activities.length === 1 ? "Dive" : "Dives"}
+                {activities.length} {activities.length === 1 ? "Dive" : "Dives"}
               </Text>
             </View>
           </View>
@@ -1057,9 +1220,7 @@ export function EcoDivePassportView() {
                   color={colors.primaryBlue}
                 />
               </View>
-              <Text style={styles.emptyTimelineTitle}>
-                No Dive History Yet
-              </Text>
+              <Text style={styles.emptyTimelineTitle}>No Dive History Yet</Text>
               <Text style={styles.emptyTimelineSubtitle}>
                 Your official dive logs and digital recaps will appear here
                 automatically once an accredited dive center records you on a
@@ -1069,174 +1230,177 @@ export function EcoDivePassportView() {
           ) : (
             <View style={styles.verticalTimelineContainer}>
               {activities.map((item, idx) => {
-              const isLast = idx === activities.length - 1;
-              return (
-                <View key={item.id} style={styles.timelineRow}>
-                  {/* Vertical Timeline Left Rail & Node */}
-                  <View style={styles.timelineRailCol}>
-                    <View style={styles.timelineNodeOuter}>
-                      <View style={styles.timelineNodeInner} />
-                    </View>
-                    {!isLast && <View style={styles.timelineConnectorLine} />}
-                  </View>
-
-                  {/* Individual White Activity Card with Subtle Blue Border */}
-                  <View style={styles.timelineCardWrap}>
-                    <View style={styles.timelineActivityCard}>
-                      {/* Card Header: Dive Number + Date/Time */}
-                      <View style={styles.activityHeaderRow}>
-                        <View style={styles.diveNumberBadge}>
-                          <Text style={styles.diveNumberText}>
-                            Dive #{String(item.diveNumber).padStart(2, "0")}
-                          </Text>
-                        </View>
-                        <Text style={styles.dateTimeText} numberOfLines={1}>
-                          {item.dateTime}
-                        </Text>
+                const isLast = idx === activities.length - 1;
+                return (
+                  <View key={item.id} style={styles.timelineRow}>
+                    {/* Vertical Timeline Left Rail & Node */}
+                    <View style={styles.timelineRailCol}>
+                      <View style={styles.timelineNodeOuter}>
+                        <View style={styles.timelineNodeInner} />
                       </View>
+                      {!isLast && <View style={styles.timelineConnectorLine} />}
+                    </View>
 
-                      {/* Main Body: Left Details + Right Site Photo */}
-                      <View style={styles.activityMainRow}>
-                        <View style={styles.activityInfoCol}>
-                          {/* Dive Site Name */}
-                          <Text
-                            style={styles.activitySiteName}
-                            numberOfLines={1}
-                          >
-                            {item.siteName}
-                          </Text>
-
-                          {/* Dive Category, Resort / Dive Center, and Location */}
-                          <View style={styles.metaInfoStack}>
-                            <View style={styles.metaInlineRow}>
-                              <Ionicons
-                                name="water-outline"
-                                size={13}
-                                color={colors.primaryBlue}
-                              />
-                              <Text
-                                style={styles.metaCategoryText}
-                                numberOfLines={1}
-                              >
-                                {item.diveCategory}
-                              </Text>
-                            </View>
-
-                            <View style={styles.metaInlineRow}>
-                              <Ionicons
-                                name="boat-outline"
-                                size={13}
-                                color="#64748B"
-                              />
-                              <Text
-                                style={styles.metaResortText}
-                                numberOfLines={1}
-                              >
-                                {item.resortOrCenter}
-                              </Text>
-                            </View>
-
-                            <View style={styles.metaInlineRow}>
-                              <Ionicons
-                                name="location-sharp"
-                                size={13}
-                                color={colors.primaryBlue}
-                              />
-                              <Text style={styles.locBarangay} numberOfLines={1}>
-                                {item.barangay} • {item.duration}
-                              </Text>
-                            </View>
+                    {/* Individual White Activity Card with Subtle Blue Border */}
+                    <View style={styles.timelineCardWrap}>
+                      <View style={styles.timelineActivityCard}>
+                        {/* Card Header: Dive Number + Date/Time */}
+                        <View style={styles.activityHeaderRow}>
+                          <View style={styles.diveNumberBadge}>
+                            <Text style={styles.diveNumberText}>
+                              Dive #{String(item.diveNumber).padStart(2, "0")}
+                            </Text>
                           </View>
+                          <Text style={styles.dateTimeText} numberOfLines={1}>
+                            {item.dateTime}
+                          </Text>
                         </View>
 
-                        {/* Right-Side Dive Site Photo (Location Preview) */}
-                        <TouchableOpacity
-                          style={styles.rightPhotoBox}
-                          activeOpacity={0.86}
-                          onPress={() => router.push("/(tabs)/map")}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Preview ${item.siteName} on map`}
-                        >
-                          <Image
-                            source={resolveSiteImage(
-                              null,
-                              item.photoUrl,
-                              item.imageIndex ?? idx,
-                            )}
-                            style={styles.locThumbImg}
-                            resizeMode="cover"
-                          />
-                          <View
-                            style={styles.locThumbGrad}
-                            pointerEvents="none"
-                          >
-                            <Svg
-                              width="100%"
-                              height="100%"
-                              viewBox="0 0 100 100"
-                              preserveAspectRatio="none"
+                        {/* Main Body: Left Details + Right Site Photo */}
+                        <View style={styles.activityMainRow}>
+                          <View style={styles.activityInfoCol}>
+                            {/* Dive Site Name */}
+                            <Text
+                              style={styles.activitySiteName}
+                              numberOfLines={1}
                             >
-                              <Defs>
-                                <LinearGradient
-                                  id={`locGrad-${item.id}`}
-                                  x1="0"
-                                  y1="0"
-                                  x2="0"
-                                  y2="1"
-                                >
-                                  <Stop
-                                    offset="0"
-                                    stopColor="#020817"
-                                    stopOpacity="0"
-                                  />
-                                  <Stop
-                                    offset="1"
-                                    stopColor="#020817"
-                                    stopOpacity="0.85"
-                                  />
-                                </LinearGradient>
-                              </Defs>
-                              <Rect
-                                x="0"
-                                y="0"
-                                width="100"
-                                height="100"
-                                fill={`url(#locGrad-${item.id})`}
-                              />
-                            </Svg>
-                          </View>
-                          <Text style={styles.locDepthOverlay}>
-                            {item.depthRange}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
+                              {item.siteName}
+                            </Text>
 
-                      {/* View Dive Recap Action */}
-                      <View style={styles.cardFooterActions}>
-                        <TouchableOpacity
-                          style={styles.viewRecapBtn}
-                          onPress={() => setSelectedRecap(item)}
-                          activeOpacity={0.85}
-                          accessibilityRole="button"
-                          accessibilityLabel={`View dive recap for ${item.siteName}`}
-                        >
-                          <Ionicons
-                            name="document-text-outline"
-                            size={14}
-                            color={colors.primaryBlue}
-                          />
-                          <Text style={styles.viewRecapBtnText}>
-                            View Recap
-                          </Text>
-                        </TouchableOpacity>
+                            {/* Dive Category, Resort / Dive Center, and Location */}
+                            <View style={styles.metaInfoStack}>
+                              <View style={styles.metaInlineRow}>
+                                <Ionicons
+                                  name="water-outline"
+                                  size={13}
+                                  color={colors.primaryBlue}
+                                />
+                                <Text
+                                  style={styles.metaCategoryText}
+                                  numberOfLines={1}
+                                >
+                                  {item.diveCategory}
+                                </Text>
+                              </View>
+
+                              <View style={styles.metaInlineRow}>
+                                <Ionicons
+                                  name="boat-outline"
+                                  size={13}
+                                  color="#64748B"
+                                />
+                                <Text
+                                  style={styles.metaResortText}
+                                  numberOfLines={1}
+                                >
+                                  {item.resortOrCenter}
+                                </Text>
+                              </View>
+
+                              <View style={styles.metaInlineRow}>
+                                <Ionicons
+                                  name="location-sharp"
+                                  size={13}
+                                  color={colors.primaryBlue}
+                                />
+                                <Text
+                                  style={styles.locBarangay}
+                                  numberOfLines={1}
+                                >
+                                  {item.barangay} • {item.duration}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Right-Side Dive Site Photo (Location Preview) */}
+                          <TouchableOpacity
+                            style={styles.rightPhotoBox}
+                            activeOpacity={0.86}
+                            onPress={() => router.push("/(tabs)/map")}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Preview ${item.siteName} on map`}
+                          >
+                            <Image
+                              source={resolveSiteImage(
+                                null,
+                                item.photoUrl,
+                                item.imageIndex ?? idx,
+                              )}
+                              style={styles.locThumbImg}
+                              resizeMode="cover"
+                            />
+                            <View
+                              style={styles.locThumbGrad}
+                              pointerEvents="none"
+                            >
+                              <Svg
+                                width="100%"
+                                height="100%"
+                                viewBox="0 0 100 100"
+                                preserveAspectRatio="none"
+                              >
+                                <Defs>
+                                  <LinearGradient
+                                    id={`locGrad-${item.id}`}
+                                    x1="0"
+                                    y1="0"
+                                    x2="0"
+                                    y2="1"
+                                  >
+                                    <Stop
+                                      offset="0"
+                                      stopColor="#020817"
+                                      stopOpacity="0"
+                                    />
+                                    <Stop
+                                      offset="1"
+                                      stopColor="#020817"
+                                      stopOpacity="0.85"
+                                    />
+                                  </LinearGradient>
+                                </Defs>
+                                <Rect
+                                  x="0"
+                                  y="0"
+                                  width="100"
+                                  height="100"
+                                  fill={`url(#locGrad-${item.id})`}
+                                />
+                              </Svg>
+                            </View>
+                            <Text style={styles.locDepthOverlay}>
+                              {item.depthRange}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* View Dive Recap Action */}
+                        <View style={styles.cardFooterActions}>
+                          <TouchableOpacity
+                            style={styles.viewRecapBtn}
+                            onPress={() => setSelectedRecap(item)}
+                            activeOpacity={0.85}
+                            accessibilityRole="button"
+                            accessibilityLabel={`View dive recap for ${item.siteName}`}
+                          >
+                            <Ionicons
+                              name="document-text-outline"
+                              size={14}
+                              color={colors.primaryBlue}
+                            />
+                            <Text style={styles.viewRecapBtnText}>
+                              View Recap
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
+                );
+              })}
+            </View>
+          )}
         </ContentContainer>
       </ScrollView>
 
@@ -1334,20 +1498,42 @@ export function EcoDivePassportView() {
                   <Text style={styles.idFullPrimaryName}>
                     {cardData.fullName}
                   </Text>
-                  <View style={[
-                    styles.idFullPassBadge,
-                    isIdActive ? styles.idFullPassBadgeActive : (isIdExpired ? styles.idFullPassBadgeExpired : null),
-                  ]}>
+                  <View
+                    style={[
+                      styles.idFullPassBadge,
+                      isIdActive
+                        ? styles.idFullPassBadgeActive
+                        : isIdExpired
+                          ? styles.idFullPassBadgeExpired
+                          : null,
+                    ]}
+                  >
                     <Ionicons
-                      name={isIdActive ? "shield-checkmark" : isIdExpired ? "time-outline" : "ellipse"}
+                      name={
+                        isIdActive
+                          ? "shield-checkmark"
+                          : isIdExpired
+                            ? "time-outline"
+                            : "ellipse"
+                      }
                       size={12}
                       color={colors.primaryBlue}
                     />
-                    <Text style={[
-                      styles.idFullPassBadgeText,
-                      isIdActive ? styles.idFullPassBadgeTextActive : (isIdExpired ? styles.idFullPassBadgeTextExpired : null),
-                    ]}>
-                      {isIdActive ? "Active" : isIdExpired ? "Expired" : "Pending"}
+                    <Text
+                      style={[
+                        styles.idFullPassBadgeText,
+                        isIdActive
+                          ? styles.idFullPassBadgeTextActive
+                          : isIdExpired
+                            ? styles.idFullPassBadgeTextExpired
+                            : null,
+                      ]}
+                    >
+                      {isIdActive
+                        ? "Active"
+                        : isIdExpired
+                          ? "Expired"
+                          : "Pending"}
                     </Text>
                   </View>
                 </View>
@@ -1394,8 +1580,6 @@ export function EcoDivePassportView() {
                     </Text>
                   </View>
                 </View>
-
-
 
                 <View style={styles.idFullDivider} />
 
@@ -1471,7 +1655,6 @@ export function EcoDivePassportView() {
                 </View>
               </View>
             </ScrollView>
-
           </Pressable>
         </Pressable>
       </Modal>
@@ -1525,11 +1708,15 @@ export function EcoDivePassportView() {
                   ]}
                 >
                   <Image
-                    source={resolveSiteImage(
-                      null,
-                      selectedRecap.photoUrl,
-                      selectedRecap.imageIndex,
-                    )}
+                    source={
+                      recapImageBase64
+                        ? { uri: recapImageBase64 }
+                        : resolveSiteImage(
+                            null,
+                            selectedRecap.photoUrl,
+                            selectedRecap.imageIndex,
+                          )
+                    }
                     style={styles.storyCardBgImage}
                     resizeMode="cover"
                   />
@@ -1585,7 +1772,11 @@ export function EcoDivePassportView() {
                   {/* Story Card Top Brand Header */}
                   <View style={styles.storyTopBrandBlock}>
                     <Image
-                      source={SINSAY_WHITE_LOGO}
+                      source={
+                        recapLogoBase64
+                          ? { uri: recapLogoBase64 }
+                          : SINSAY_WHITE_LOGO
+                      }
                       style={styles.storyBrandLogo}
                       resizeMode="contain"
                     />
@@ -1598,8 +1789,9 @@ export function EcoDivePassportView() {
                   <View style={styles.storyBottomOverlay}>
                     <View style={styles.storyDiveBadge}>
                       <Text style={styles.storyDiveBadgeText}>
-                        DIVE #{String(selectedRecap.diveNumber).padStart(2, "0")}{" "}
-                        IN MABINI
+                        DIVE #
+                        {String(selectedRecap.diveNumber).padStart(2, "0")} IN
+                        MABINI
                       </Text>
                     </View>
 
@@ -1647,11 +1839,7 @@ export function EcoDivePassportView() {
                 {isSavingImage ? (
                   <ActivityIndicator size="small" color="#0D74E7" />
                 ) : (
-                  <Ionicons
-                    name="download-outline"
-                    size={17}
-                    color="#0D74E7"
-                  />
+                  <Ionicons name="download-outline" size={17} color="#0D74E7" />
                 )}
                 <Text style={styles.saveStoryImageBtnText}>
                   {isSavingImage ? "Saving Image..." : "Save Image"}
@@ -2463,8 +2651,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundImage:
-      "linear-gradient(180deg, rgba(2,8,23,0.32) 0%, rgba(2,8,23,0.10) 40%, rgba(2,8,23,0.65) 68%, rgba(2,8,23,0.92) 100%)" as any,
   },
   storyTopBrandBlock: {
     paddingHorizontal: 14,
