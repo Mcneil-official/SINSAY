@@ -11,8 +11,9 @@
 -- Deliberately NOT touched:
 --   * Twin Rocks Sanctuary  — DB value already matches boat GPS within ~170m
 --     (kept as-is; catalog copy was the wrong one).
---   * Mermaid Rock, Diver's Sanctuary, Anilao Cove — no trustworthy fix
---     found; existing values retained rather than inventing coordinates.
+-- Unverified catalog-only sites (Mermaid Rock, Diver's Sanctuary,
+-- Anilao Cove) were removed from the client catalog entirely rather than
+-- given invented coordinates.
 
 update public.dive_sites set lat = 13.7608,  lng = 120.9271 where name = 'Anilao Pier';
 -- was 13.75 / 120.92 (~1.4 km SW of the town pier)

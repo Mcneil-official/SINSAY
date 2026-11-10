@@ -47,7 +47,7 @@ check("verified coords used when DB has none", () => {
 
 // 2. Unverified sites fall back to DB, then null (never a fake default)
 check("unverified site falls back to DB coords", () => {
-  const coords = resolveSiteCoords("Anilao Cove", 13.755, 120.896);
+  const coords = resolveSiteCoords("Some Local Spot", 13.755, 120.896);
   if (!coords) throw new Error("expected coords");
   assertEqual(coords.lat, 13.755);
   assertEqual(coords.lng, 120.896);
