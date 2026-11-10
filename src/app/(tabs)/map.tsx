@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Image,
@@ -13,9 +19,13 @@ import {
   View,
 } from "react-native";
 import { DidYouKnowCard, ErrorState, resolveSiteImage } from "../../components";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
+import { getDiveSiteMapCoordinates } from "../../lib/diveSiteCoordinates";
 import { supabase } from "../../lib/supabase";
 import { DiveSiteRow } from "../../types/supabase";
 
@@ -26,8 +36,6 @@ interface MarineSpecies {
 }
 
 interface SiteEnrichment {
-  lat: number;
-  lng: number;
   barangay: string;
   depthRange: string;
   featureTag: string;
@@ -38,463 +46,8 @@ interface SiteEnrichment {
   ecoRules: string[];
 }
 
-export const ALL_DEFAULT_SITES: DiveSiteRow[] = [
-  {
-    id: "landmark-cathedral-rock",
-    site_code: "DS-001",
-    name: "Cathedral Rock",
-    barangay: "Bagalangit",
-    depth_range: "12–28m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.9",
-    description:
-      "Iconic marine sanctuary featuring two submerged volcanic rock pinnacles framing a cross-adorned cavern at 15 meters, surrounded by vibrant soft corals and dense schools of reef fish.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7225,
-    lng: 120.8758,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-arthurs-rock",
-    site_code: "DS-002",
-    name: "Arthur's Rock",
-    barangay: "Bagalangit",
-    depth_range: "8–26m",
-    difficulty: "Advanced",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "A protected coral slope descending from a shallow boulder reef into rich crinoid and soft-coral gardens, prized by underwater photographers for rare critters and vibrant reef life.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7142,
-    lng: 120.8878,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-twin-rocks",
-    site_code: "DS-003",
-    name: "Twin Rocks Sanctuary",
-    barangay: "Solo",
-    depth_range: "5–22m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.9",
-    description:
-      "A premier marine sanctuary off Barangay Solo where twin submerged barges and thriving hard-coral slopes host giant trevallies, resident turtles, and clouds of damselfish.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7025,
-    lng: 120.8992,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-anilao-cove",
-    site_code: "DS-004",
-    name: "Anilao Cove",
-    barangay: "Anilao Proper",
-    depth_range: "5–18m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.7",
-    description:
-      "Sheltered cove with gentle slopes and calm surface conditions, perfect for check-out dives and night macro critter hunts.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7550,
-    lng: 120.8960,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-sombrero-island",
-    site_code: "DS-005",
-    name: "Sombrero Island",
-    barangay: "Maricaban Strait",
-    depth_range: "10–35m",
-    difficulty: "Intermediate",
-    site_type: "Wall",
-    status: "Active",
-    rating: "4.9",
-    description:
-      "Hat-shaped offshore island encircled by steep drop-offs, vibrant sea fan gardens, schooling jacks, and occasional reef sharks in brisk currents.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.6960,
-    lng: 120.8285,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-beatrice-rock",
-    site_code: "DS-006",
-    name: "Beatrice Rock",
-    barangay: "Sombrero Channel",
-    depth_range: "14–32m",
-    difficulty: "Advanced",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "Dynamic current-swept pinnacle swarming with thousands of orange and purple anthias, fusiliers, and hunting bluefin trevallies.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.6890,
-    lng: 120.8190,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-sepoc-wall",
-    site_code: "DS-007",
-    name: "Sepoc Wall",
-    barangay: "Maricaban NW",
-    depth_range: "6–28m",
-    difficulty: "Beginner",
-    site_type: "Wall",
-    status: "Active",
-    rating: "4.7",
-    description:
-      "Gentle vertical wall with coral crevices, barrel sponges, and friendly sea turtles basking along sunny reef flats.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.6950,
-    lng: 120.8140,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-layag-layag",
-    site_code: "DS-008",
-    name: "Layag-Layag",
-    barangay: "Caban Island",
-    depth_range: "8–24m",
-    difficulty: "Intermediate",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "Vibrant ridge formation with thriving staghorn thickets, colorful nudibranchs, and schools of yellowtail snappers.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7120,
-    lng: 120.8400,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-kiribatcho",
-    site_code: "DS-009",
-    name: "Kiribatcho",
-    barangay: "Caban Island",
-    depth_range: "12–28m",
-    difficulty: "Intermediate",
-    site_type: "Wall",
-    status: "Active",
-    rating: "4.7",
-    description:
-      "Dramatic wall drop-off favored by macro photographers for pygmy seahorses, ornate ghost pipefish, and rare nudibranchs.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7160,
-    lng: 120.8480,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-eagle-point",
-    site_code: "DS-010",
-    name: "Eagle Point",
-    barangay: "Bagalangit",
-    depth_range: "5–25m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "House reef with easy boat access, healthy hard-coral bommies, clownfish colonies, and moray eels in shallow crevices.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7175,
-    lng: 120.8710,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-batong-buhay",
-    site_code: "DS-011",
-    name: "Batong Buhay",
-    barangay: "Bagalangit",
-    depth_range: "10–30m",
-    difficulty: "Advanced",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "Deep sloping coral reef known for encounters with big pelagics, hunting Spanish mackerels, and lush black coral bushes.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7200,
-    lng: 120.8740,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-anilao-pier",
-    site_code: "DS-012",
-    name: "Anilao Pier",
-    barangay: "Anilao Proper",
-    depth_range: "3–14m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "Legendary night and twilight critter diving directly beneath the public pier pilings; famed for bobtail squids, stargazers, and frogfish.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7580,
-    lng: 120.8950,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-mainit-muck",
-    site_code: "DS-013",
-    name: "Mainit Muck",
-    barangay: "San Jose",
-    depth_range: "5–20m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.9",
-    description:
-      "Warm hydrothermal springs bubbling up through dark volcanic sand, creating unique habitats for mimic octopuses, wonderpus, and dragonets.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.6900,
-    lng: 120.8950,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-mapating-rock",
-    site_code: "DS-014",
-    name: "Mapating Rock",
-    barangay: "Maricaban Strait",
-    depth_range: "15–40m",
-    difficulty: "Advanced",
-    site_type: "Pinnacle",
-    status: "Active",
-    rating: "4.9",
-    description:
-      "Current-swept open-water pinnacle ('Shark Rock') attracting whitetip and grey reef sharks, giant trevallies, and schooling tuna.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.6820,
-    lng: 120.8250,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-red-rock",
-    site_code: "DS-015",
-    name: "Red Rock",
-    barangay: "Bagalangit",
-    depth_range: "8–25m",
-    difficulty: "Intermediate",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.7",
-    description:
-      "Named after reddish volcanic shoreline cliffs, offering terraced coral gardens with sea anemones, porcelain crabs, and pipefish.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7080,
-    lng: 120.8860,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-mermaid-rock",
-    site_code: "DS-016",
-    name: "Mermaid Rock",
-    barangay: "Bagalangit",
-    depth_range: "6–22m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.7",
-    description:
-      "Picturesque reef slope adorned with leather soft corals, blue damselfish, juvenile batfish, and resident hawksbill turtles.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7190,
-    lng: 120.8760,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-koala",
-    site_code: "DS-017",
-    name: "Koala",
-    barangay: "San Teodoro",
-    depth_range: "9–26m",
-    difficulty: "Intermediate",
-    site_type: "Wall",
-    status: "Active",
-    rating: "4.6",
-    description:
-      "A scenic drift dive along lush sloping drop-offs with crinoid-covered boulders, triggerfish, and hunting sweetlips.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7050,
-    lng: 120.8920,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-bethlehem",
-    site_code: "DS-018",
-    name: "Bethlehem",
-    barangay: "Solo",
-    depth_range: "6–20m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "Protected reef garden known for nudibranch biodiversity, painted frogfish, and dense schooling fusiliers.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7010,
-    lng: 120.9010,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-secret-bay",
-    site_code: "DS-019",
-    name: "Secret Bay (Basura)",
-    barangay: "Mainaga",
-    depth_range: "5–18m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.9",
-    description:
-      "World-renowned black-sand muck diving amphitheater famous for mimic octopuses, wonderpus, flamboyant cuttlefish, and frogfish.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7345,
-    lng: 120.8710,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-dead-palm",
-    site_code: "DS-020",
-    name: "Dead Palm",
-    barangay: "Bagalangit",
-    depth_range: "7–22m",
-    difficulty: "Intermediate",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.6",
-    description:
-      "Rich macro slope named after an old shoreline landmark, home to pygmy seahorses, banded sea kraits, and mantis shrimps.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7240,
-    lng: 120.8750,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-divers-sanctuary",
-    site_code: "DS-021",
-    name: "Diver's Sanctuary",
-    barangay: "Bagalangit",
-    depth_range: "6–20m",
-    difficulty: "Beginner",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "Protected reef sanctuary with vibrant brain corals, giant clams, and friendly schools of batfish.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7160,
-    lng: 120.8800,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-dari-laut",
-    site_code: "DS-022",
-    name: "Dari Laut",
-    barangay: "San Teodoro",
-    depth_range: "12–25m",
-    difficulty: "Intermediate",
-    site_type: "Wreck",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "Sunken floating casino timber wreck now encrusted with hard and soft corals, serving as an artificial reef haven for sweetlips and moray eels.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7080,
-    lng: 120.8860,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-ligpo-island",
-    site_code: "DS-023",
-    name: "Ligpo Island",
-    barangay: "Ligpo",
-    depth_range: "10–30m",
-    difficulty: "Intermediate",
-    site_type: "Wall",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "Dramatic offshore rocky islet with steep coral drop-offs, gorgonian sea fans, and frequent sightings of schooling barracudas.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.7885,
-    lng: 120.8988,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-mainit-point",
-    site_code: "DS-024",
-    name: "Mainit Point",
-    barangay: "San Jose",
-    depth_range: "8–28m",
-    difficulty: "Advanced",
-    site_type: "Reef",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "High-energy tip of the peninsula featuring roaring currents, schooling jacks, dogtooth tuna, and pristine gorgonian seafans.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.6850,
-    lng: 120.8900,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "landmark-devils-point",
-    site_code: "DS-025",
-    name: "Devil's Point",
-    barangay: "Maricaban Strait",
-    depth_range: "12–35m",
-    difficulty: "Advanced",
-    site_type: "Wall",
-    status: "Active",
-    rating: "4.8",
-    description:
-      "Exhilarating deep drift along underwater ravines, hosting black coral forests, stingrays, and cruising trevallies.",
-    image_url: null,
-    photo_url: null,
-    lat: 13.6780,
-    lng: 120.8450,
-    created_at: "2026-01-01T00:00:00.000Z",
-  },
-];
-
 const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
   "Cathedral Rock": {
-    lat: 13.7225,
-    lng: 120.8758,
     barangay: "Bagalangit, Mabini",
     depthRange: "12–28m",
     featureTag: "Cavern & Coral Sanctuary",
@@ -515,8 +68,6 @@ const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
     ],
   },
   "Arthur's Rock": {
-    lat: 13.7142,
-    lng: 120.8878,
     barangay: "Bagalangit, Mabini",
     depthRange: "8–26m",
     featureTag: "Macro Pinnacle & Sanctuary",
@@ -525,7 +76,11 @@ const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
     description:
       "A protected coral slope descending from a shallow boulder reef into rich crinoid and soft-coral gardens, prized by underwater photographers for rare critters and vibrant reef life.",
     marineLife: [
-      { name: "Pygmy Seahorse", tag: "Gorgonian Fan", icon: "sparkles-outline" },
+      {
+        name: "Pygmy Seahorse",
+        tag: "Gorgonian Fan",
+        icon: "sparkles-outline",
+      },
       { name: "Harlequin Shrimp", tag: "Rare Critter", icon: "star-outline" },
       { name: "Banded Sea Krait", tag: "Reef Slope", icon: "water-outline" },
     ],
@@ -535,8 +90,6 @@ const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
     ],
   },
   "Twin Rocks Sanctuary": {
-    lat: 13.7025,
-    lng: 120.8992,
     barangay: "Solo, Mabini",
     depthRange: "5–22m",
     featureTag: "Core Marine Sanctuary",
@@ -555,8 +108,6 @@ const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
     ],
   },
   "Sombrero Island": {
-    lat: 13.6960,
-    lng: 120.8285,
     barangay: "Maricaban Strait",
     depthRange: "10–35m",
     featureTag: "Offshore Island Sanctuary",
@@ -581,18 +132,19 @@ function getDifficultyColor(diff?: string | null): string {
   const d = diff.toLowerCase();
   if (d.includes("beginner") || d.includes("open water")) return "#10B981";
   if (d.includes("intermediate") || d.includes("rescue")) return "#F59E0B";
-  if (d.includes("advanced") || d.includes("divemaster") || d.includes("instructor")) return "#EF4444";
+  if (
+    d.includes("advanced") ||
+    d.includes("divemaster") ||
+    d.includes("instructor")
+  )
+    return "#EF4444";
   return "#2563EB";
 }
 
 function getEnrichment(site: DiveSiteRow): SiteEnrichment {
   const known = SITE_ENRICHMENTS[site.name];
-  const lat = site.lat ?? known?.lat ?? 13.722;
-  const lng = site.lng ?? known?.lng ?? 120.875;
 
   return {
-    lat,
-    lng,
     barangay: site.barangay
       ? `${site.barangay}, Mabini, Batangas`
       : known?.barangay || "Mabini, Batangas",
@@ -610,7 +162,11 @@ function getEnrichment(site: DiveSiteRow): SiteEnrichment {
       { name: "Hawksbill Sea Turtle", tag: "Resident", icon: "shield-outline" },
       { name: "Painted Frogfish", tag: "Macro", icon: "eye-outline" },
       { name: "Nudibranchs", tag: "Reef Slope", icon: "color-palette-outline" },
-      { name: "Anthias & Damselfish", tag: "Coral Garden", icon: "fish-outline" },
+      {
+        name: "Anthias & Damselfish",
+        tag: "Coral Garden",
+        icon: "fish-outline",
+      },
     ],
     ecoRules: known?.ecoRules || [
       "Strict No-Touch Zone: Maintain neutral buoyancy at least 1.5m above live corals.",
@@ -624,7 +180,7 @@ function getEnrichment(site: DiveSiteRow): SiteEnrichment {
 // 100% Free, ZERO API keys, ZERO watermarks, smooth 60fps pan & pinch-to-zoom!
 function generateLeafletMapHtml(
   sitesJson: string,
-  initialSelectedId: string | null
+  initialSelectedId: string | null,
 ): string {
   return `<!DOCTYPE html>
 <html>
@@ -710,7 +266,7 @@ function generateLeafletMapHtml(
   <div id="map"></div>
   <script>
     const sites = ${sitesJson};
-    let selectedId = ${initialSelectedId ? `'${initialSelectedId}'` : 'null'};
+    let selectedId = ${initialSelectedId ? `'${initialSelectedId}'` : "null"};
 
     const map = L.map('map', {
       center: [13.722, 120.875],
@@ -949,13 +505,7 @@ export default function MapScreen() {
             const rawRows = (data ?? []).filter(
               (r) => !r.status || r.status !== "Restricted",
             );
-            // Combine with catalog to ensure all 25 sites are present
-            const dbNames = new Set(rawRows.map((r) => r.name.toLowerCase()));
-            const missingDefaults = ALL_DEFAULT_SITES.filter(
-              (d) => !dbNames.has(d.name.toLowerCase()),
-            );
-            const merged = [...rawRows, ...missingDefaults];
-            setSites(merged);
+            setSites(rawRows);
             setError(false);
           }
           setLoading(false);
@@ -1042,8 +592,7 @@ export default function MapScreen() {
     [sites, selectedSiteId],
   );
 
-  const selectedSite =
-    selectedSiteIndex >= 0 ? sites[selectedSiteIndex] : null;
+  const selectedSite = selectedSiteIndex >= 0 ? sites[selectedSiteIndex] : null;
 
   const selectedEnrichment = useMemo(() => {
     if (!selectedSite) return null;
@@ -1085,7 +634,9 @@ export default function MapScreen() {
     const requested = sites.find(
       (site) => site.name.toLowerCase() === requestedSite.toLowerCase(),
     );
-    if (requested) handleSelectPin(requested.id);
+    if (requested && getDiveSiteMapCoordinates(requested)) {
+      handleSelectPin(requested.id);
+    }
   }, [requestedSite, sites, selectedSiteId, handleSelectPin]);
 
   const handleCloseDrawer = useCallback(() => {
@@ -1119,23 +670,23 @@ export default function MapScreen() {
 
   // Format sites payload for Leaflet
   const sitesForMap = useMemo(() => {
-    return sites.map((s) => {
+    return sites.flatMap((s) => {
+      const coordinates = getDiveSiteMapCoordinates(s);
+      if (!coordinates) return [];
       const enrichment = getEnrichment(s);
-      return {
-        id: s.id,
-        name: s.name,
-        difficulty: s.difficulty || enrichment.difficulty,
-        lat: enrichment.lat,
-        lng: enrichment.lng,
-      };
+      return [
+        {
+          id: s.id,
+          name: s.name,
+          difficulty: s.difficulty || enrichment.difficulty,
+          ...coordinates,
+        },
+      ];
     });
   }, [sites]);
 
   const leafletHtml = useMemo(() => {
-    return generateLeafletMapHtml(
-      JSON.stringify(sitesForMap),
-      selectedSiteId,
-    );
+    return generateLeafletMapHtml(JSON.stringify(sitesForMap), selectedSiteId);
   }, [selectedSiteId, sitesForMap]);
 
   return (
@@ -1189,7 +740,7 @@ export default function MapScreen() {
                 <View>
                   <Text style={styles.topTitle}>Mabini Peninsula Dive Map</Text>
                   <Text style={styles.topSubtitle}>
-                    {sites.length} Dive Sites • Tap any pin to explore
+                    {sitesForMap.length} Dive Sites • Tap any pin to explore
                   </Text>
                 </View>
               </View>
@@ -1302,11 +853,7 @@ export default function MapScreen() {
               accessibilityRole="button"
               accessibilityLabel="Locate my position"
             >
-              <Ionicons
-                name="locate"
-                size={17}
-                color={colors.primaryBlue}
-              />
+              <Ionicons name="locate" size={17} color={colors.primaryBlue} />
             </TouchableOpacity>
             <View style={styles.mapCtrlDivider} />
             <TouchableOpacity

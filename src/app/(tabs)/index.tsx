@@ -75,8 +75,6 @@ const categoryOptions: {
   },
 ];
 
-
-
 export default function HomeScreen() {
   const router = useRouter();
   const { openNotifications } = useNotificationModal();
@@ -92,7 +90,6 @@ export default function HomeScreen() {
     profile?.full_name?.trim().split(" ")[0] ||
     user?.user_metadata?.full_name?.trim().split(" ")[0] ||
     "Diver";
-  
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -110,7 +107,8 @@ export default function HomeScreen() {
 
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(true);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementRow | null>(null);
+  const [selectedAnnouncement, setSelectedAnnouncement] =
+    useState<AnnouncementRow | null>(null);
 
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
@@ -127,35 +125,37 @@ export default function HomeScreen() {
       .from("dive_sites")
       .select("*")
       .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!active) return;
-        const rows = (data ?? [])
-          .filter((row) => !row.status || row.status !== "Restricted")
-          .sort((a, b) => {
-            const aHasPhoto = Boolean(
-              a.photo_url?.trim() || a.image_url?.trim(),
-            );
-            const bHasPhoto = Boolean(
-              b.photo_url?.trim() || b.image_url?.trim(),
-            );
-            if (aHasPhoto !== bHasPhoto) return aHasPhoto ? -1 : 1;
-            const aTime = new Date(
-              a.updated_at || a.created_at || 0,
-            ).getTime();
-            const bTime = new Date(
-              b.updated_at || b.created_at || 0,
-            ).getTime();
-            return bTime - aTime;
-          });
-        setDiveSites(rows);
-        setDiveSitesError(!!error);
-        setDiveSitesLoading(false);
-      },
-      () => {
-        if (!active) return;
-        setDiveSitesError(true);
-        setDiveSitesLoading(false);
-      });
+      .then(
+        ({ data, error }) => {
+          if (!active) return;
+          const rows = (data ?? [])
+            .filter((row) => !row.status || row.status !== "Restricted")
+            .sort((a, b) => {
+              const aHasPhoto = Boolean(
+                a.photo_url?.trim() || a.image_url?.trim(),
+              );
+              const bHasPhoto = Boolean(
+                b.photo_url?.trim() || b.image_url?.trim(),
+              );
+              if (aHasPhoto !== bHasPhoto) return aHasPhoto ? -1 : 1;
+              const aTime = new Date(
+                a.updated_at || a.created_at || 0,
+              ).getTime();
+              const bTime = new Date(
+                b.updated_at || b.created_at || 0,
+              ).getTime();
+              return bTime - aTime;
+            });
+          setDiveSites(rows);
+          setDiveSitesError(!!error);
+          setDiveSitesLoading(false);
+        },
+        () => {
+          if (!active) return;
+          setDiveSitesError(true);
+          setDiveSitesLoading(false);
+        },
+      );
     return () => {
       active = false;
     };
@@ -175,22 +175,27 @@ export default function HomeScreen() {
       .select("*")
       .eq("accredited", true)
       .limit(10)
-      .then(({ data, error }) => {
-        if (!active) return;
-        const uniqueList = Array.from(
-          new Map(
-            (data ?? []).map((item) => [item.name.trim().toLowerCase(), item])
-          ).values()
-        );
-        setEstablishments(uniqueList);
-        setEstablishmentsError(!!error);
-        setEstablishmentsLoading(false);
-      },
-      () => {
-        if (!active) return;
-        setEstablishmentsError(true);
-        setEstablishmentsLoading(false);
-      });
+      .then(
+        ({ data, error }) => {
+          if (!active) return;
+          const uniqueList = Array.from(
+            new Map(
+              (data ?? []).map((item) => [
+                item.name.trim().toLowerCase(),
+                item,
+              ]),
+            ).values(),
+          );
+          setEstablishments(uniqueList);
+          setEstablishmentsError(!!error);
+          setEstablishmentsLoading(false);
+        },
+        () => {
+          if (!active) return;
+          setEstablishmentsError(true);
+          setEstablishmentsLoading(false);
+        },
+      );
     return () => {
       active = false;
     };
@@ -211,22 +216,24 @@ export default function HomeScreen() {
       .eq("active", true)
       .order("priority", { ascending: false })
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (!active) return;
-        setAnnouncements(data ?? []);
-        setAnnouncementsLoading(false);
-      },
-      () => {
-        if (!active) return;
-        setAnnouncements([]);
-        setAnnouncementsLoading(false);
-      });
+      .then(
+        ({ data }) => {
+          if (!active) return;
+          setAnnouncements(data ?? []);
+          setAnnouncementsLoading(false);
+        },
+        () => {
+          if (!active) return;
+          setAnnouncements([]);
+          setAnnouncementsLoading(false);
+        },
+      );
     return () => {
       active = false;
     };
   }, []);
 
-    // Load tourist favorites
+  // Load tourist favorites
   const loadFavorites = useCallback(async () => {
     if (!user) {
       setFavoriteIds(new Set());
@@ -380,7 +387,10 @@ export default function HomeScreen() {
 
               <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
                 <TouchableOpacity
-                  style={[styles.iconButton, isCompact && styles.compactIconButton]}
+                  style={[
+                    styles.iconButton,
+                    isCompact && styles.compactIconButton,
+                  ]}
                   onPress={openNotifications}
                   activeOpacity={0.8}
                   accessibilityRole="button"
@@ -410,7 +420,11 @@ export default function HomeScreen() {
                   {avatarUri ? (
                     <Image
                       source={{ uri: avatarUri }}
-                      style={{ width: "100%", height: "100%", borderRadius: 19 }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: 19,
+                      }}
                       contentFit="cover"
                     />
                   ) : (
@@ -448,7 +462,7 @@ export default function HomeScreen() {
                   } else {
                     router.push({
                       pathname: "/establishment/[id]",
-                      params: { id: item.id },
+                      params: { id: item.id, returnTo: "home" },
                     });
                   }
                 }}
@@ -655,7 +669,8 @@ export default function HomeScreen() {
               ) : (
                 <View style={styles.resortsGrid}>
                   {establishments.slice(0, 6).map((item, idx) => {
-                    const { imageUrl, logoUrl } = resolveEstablishmentMedia(item);
+                    const { imageUrl, logoUrl } =
+                      resolveEstablishmentMedia(item);
                     return (
                       <View key={item.id} style={styles.resortsGridCol}>
                         <EstablishmentCard
@@ -664,15 +679,19 @@ export default function HomeScreen() {
                           location={item.location}
                           accreditation={item.accreditation}
                           accredited={item.accredited}
-                          isPcssdAccredited={Boolean(item.pcssd_url && item.pcssd_url.trim().length > 0)}
-                          isDotAccredited={Boolean(item.dot_url && item.dot_url.trim().length > 0)}
+                          isPcssdAccredited={Boolean(
+                            item.pcssd_url && item.pcssd_url.trim().length > 0,
+                          )}
+                          isDotAccredited={Boolean(
+                            item.dot_url && item.dot_url.trim().length > 0,
+                          )}
                           imageUrl={imageUrl}
                           logoUrl={logoUrl}
                           index={idx}
                           onPress={() =>
                             router.push({
                               pathname: "/establishment/[id]",
-                              params: { id: item.id },
+                              params: { id: item.id, returnTo: "home" },
                             })
                           }
                         />
@@ -754,7 +773,7 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
   },
-  
+
   badge: {
     position: "absolute",
     top: -2,
