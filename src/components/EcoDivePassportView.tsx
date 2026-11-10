@@ -63,6 +63,19 @@ const DIVE_TYPE_LABELS: Record<string, string> = {
   certified: "Dive Instructor / Master",
 };
 
+// Fun Dive profiles do not have certification or accreditation dates. Keep
+// those details visible for missing or unrecognized legacy values.
+const FUN_DIVE_TYPES = new Set([
+  "fun-intro-guest",
+  "intro-fun",
+  "fun",
+  "intro",
+  "guest",
+  "guest-tourist",
+  "intro-dive",
+  "fun-dive",
+]);
+
 const CERT_LEVEL_LABELS: Record<string, string> = {
   "open-water": "Open Water Diver",
   advanced: "Advanced Open Water",
@@ -397,6 +410,9 @@ export function EcoDivePassportView() {
 
   const isIdActive = effectiveStatus === "active";
   const isIdExpired = effectiveStatus === "expired";
+  const showCertificationDetails = !FUN_DIVE_TYPES.has(
+    profile?.type_of_dive?.trim().toLowerCase() ?? "",
+  );
 
   // Dynamic values for the ID card matching the reference layout
   const cardData = useMemo(() => {
@@ -533,6 +549,40 @@ export function EcoDivePassportView() {
   const colPad = Math.max(7, Math.round(cardWidth * 0.022));
   const midRowVerticalGap = Math.max(4, Math.round(u * 5.4));
   const rightRowVerticalGap = Math.max(2, Math.round(u * 2.8));
+
+  const renderFunDiveDetail = (
+    icon: React.ReactNode,
+    label: string,
+    values: string[],
+    compact = false,
+  ) => (
+    <View style={styles.funDiveDetailCell}>
+      <View style={styles.funDiveDetailHeading}>
+        {icon}
+        <Text
+          style={[styles.cardFieldLabel, { fontSize: labelFs, lineHeight: labelLh }]}
+        >
+          {label}
+        </Text>
+      </View>
+      <View style={styles.funDiveDetailValues}>
+        {values.map((value, index) => (
+          <Text
+            key={`${label}-${index}`}
+            style={[
+              styles.cardFieldValue,
+              {
+                fontSize: compact ? subValFs : valFs,
+                lineHeight: compact ? subValLh : valLh,
+              },
+            ]}
+          >
+            {value}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
 
   // Responsive 9:16 story card size so the View Recap modal never overflows the viewport frame
   const storyCardHeight = Math.max(
@@ -704,6 +754,8 @@ export function EcoDivePassportView() {
                   </View>
                 </View>
 
+                {showCertificationDetails ? (
+                  <>
                 {/* PART 2: Middle Identity Column (4 Icon + Label/Value Rows) */}
                 <View
                   style={[
@@ -814,6 +866,8 @@ export function EcoDivePassportView() {
                     },
                   ]}
                 >
+                  {showCertificationDetails && (
+                    <>
                   {/* Row 1: CERTIFICATION LEVEL */}
                   <View style={[styles.cardFieldRow, { gap: rowGap }]}>
                     <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
@@ -903,6 +957,9 @@ export function EcoDivePassportView() {
                     </View>
                   </View>
 
+                    </>
+                  )}
+
                   {/* Thin Horizontal Light-Blue Divider above Emergency Contact */}
                   <View style={styles.horizontalCardDivider} />
 
@@ -956,6 +1013,39 @@ export function EcoDivePassportView() {
                     </View>
                   </View>
                 </View>
+                  </>
+                ) : (
+                  <View style={[styles.funDiveDetailsGrid, { paddingLeft: colPad }]}>
+                    <View style={styles.funDiveDetailsRow}>
+                      {renderFunDiveDetail(
+                        <Ionicons name="person" size={iconSz} color="#0D74E7" />,
+                        "FULL NAME",
+                        [cardData.fullName],
+                      )}
+                      <View style={styles.funDiveGridVerticalDivider} />
+                      {renderFunDiveDetail(
+                        <Ionicons name="globe-outline" size={iconSz} color="#0D74E7" />,
+                        "NATIONALITY",
+                        [cardData.nationality],
+                      )}
+                    </View>
+                    <View style={styles.funDiveGridHorizontalDivider} />
+                    <View style={styles.funDiveDetailsRow}>
+                      {renderFunDiveDetail(
+                        <DiveMaskIcon size={iconSz} color="#0D74E7" />,
+                        "TYPE OF DIVE",
+                        [cardData.typeOfDive],
+                      )}
+                      <View style={styles.funDiveGridVerticalDivider} />
+                      {renderFunDiveDetail(
+                        <Ionicons name="call" size={Math.max(12, iconSz - 1)} color="#0D74E7" />,
+                        "EMERGENCY CONTACT",
+                        [cardData.emergencyName, cardData.emergencyNumber],
+                        true,
+                      )}
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
           </TouchableOpacity>
@@ -1394,9 +1484,6 @@ export function EcoDivePassportView() {
                     </Text>
                   </View>
                 </View>
-
-
-
                 <View style={styles.idFullDivider} />
 
                 <View style={styles.idFullDetailItem}>
@@ -1411,6 +1498,8 @@ export function EcoDivePassportView() {
 
                 <View style={styles.idFullDivider} />
 
+                {showCertificationDetails && (
+                  <>
                 <View style={styles.idFullDetailItem}>
                   <Ionicons
                     name="ribbon"
@@ -1456,6 +1545,9 @@ export function EcoDivePassportView() {
                 </View>
 
                 <View style={styles.idFullDivider} />
+
+                  </>
+                )}
 
                 <View style={styles.idFullDetailItem}>
                   <Ionicons name="call" size={16} color={colors.primaryBlue} />
@@ -1828,6 +1920,39 @@ const styles = StyleSheet.create({
   rightCertCol: {
     flex: 1,
     justifyContent: "center",
+  },
+  funDiveDetailsGrid: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
+  },
+  funDiveDetailsRow: {
+    flex: 1,
+    minHeight: 0,
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  funDiveDetailCell: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  funDiveDetailHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  funDiveDetailValues: {
+    minWidth: 0,
+  },
+  funDiveGridVerticalDivider: {
+    width: 1,
+    backgroundColor: "#B8D4F2",
+  },
+  funDiveGridHorizontalDivider: {
+    height: 1,
+    backgroundColor: "#B8D4F2",
   },
   horizontalCardDivider: {
     height: 1,
