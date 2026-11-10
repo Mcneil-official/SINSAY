@@ -293,9 +293,17 @@ export function AssistantPlannerPanel() {
 
   const handleCopy = async () => {
     if (!plan || planError) return;
-    await Clipboard.setStringAsync(stripMarkdown(plan));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await Clipboard.setStringAsync(stripMarkdown(plan));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      showToast("Itinerary copied to clipboard!", { tone: "success" });
+    } catch (e) {
+      console.warn("Failed to copy dive itinerary:", e);
+      showToast("Couldn't copy the itinerary. Please try again.", {
+        tone: "error",
+      });
+    }
   };
 
   const handleShare = async () => {
@@ -504,9 +512,6 @@ export function AssistantPlannerPanel() {
               </TouchableOpacity>
             </View>
           </View>
-          {copied && (
-            <Text style={styles.copiedNote}>Copied to clipboard ✓</Text>
-          )}
           <View style={styles.contextPill}>
             <Text style={styles.contextPillText}>
               ₱{Number(budget).toLocaleString()} Budget ·{" "}
@@ -824,12 +829,6 @@ const styles = StyleSheet.create({
     borderColor: colors.grayBorder,
     alignItems: "center",
     justifyContent: "center",
-  },
-  copiedNote: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.green,
-    marginBottom: 8,
   },
   resultText: {
     fontSize: 13,

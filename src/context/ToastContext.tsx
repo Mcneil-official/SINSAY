@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type ToastTone = "success" | "info" | "warning" | "error";
 
@@ -54,14 +55,22 @@ const toneConfig: Record<
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<ToastState | null>(null);
   const [translateY] = useState(() => new Animated.Value(80));
   const [opacity] = useState(() => new Animated.Value(0));
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastId = useRef(0);
   const useNativeDriver = Platform.OS !== "web";
 
   const dismissToast = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current);
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const dismissingId = toastId.current;
+    translateY.stopAnimation();
+    opacity.stopAnimation();
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: 80,
@@ -75,16 +84,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         easing: Easing.in(Easing.quad),
         useNativeDriver,
       }),
-    ]).start(() => setToast(null));
+    ]).start(({ finished }) => {
+      if (finished && dismissingId === toastId.current) setToast(null);
+    });
   }, [opacity, translateY, useNativeDriver]);
 
   const showToast = useCallback(
     (message: string, options: ToastOptions = {}) => {
-      if (timer.current) clearTimeout(timer.current);
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+      translateY.stopAnimation();
+      opacity.stopAnimation();
+      const id = ++toastId.current;
+      const duration = options.duration ?? 3500;
       setToast({
         message,
         tone: options.tone ?? "info",
-        duration: options.duration ?? 3500,
+        duration,
         action: options.action,
       });
       translateY.setValue(80);
@@ -103,7 +121,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           useNativeDriver,
         }),
       ]).start();
-      timer.current = setTimeout(dismissToast, options.duration ?? 3500);
+      timer.current = setTimeout(() => {
+        if (id === toastId.current) dismissToast();
+      }, duration);
     },
     [dismissToast, opacity, translateY, useNativeDriver],
   );
@@ -111,8 +131,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      translateY.stopAnimation();
+      opacity.stopAnimation();
     };
-  }, []);
+  }, [opacity, translateY]);
 
   const config = toast ? toneConfig[toast.tone] : null;
 
@@ -121,15 +143,28 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       {toast && config ? (
         <Animated.View
-          accessibilityRole="alert"
+          pointerEvents={toast.action ? "box-none" : "none"}
           style={[
             styles.wrapper,
-            { opacity, transform: [{ translateY }] },
+            {
+              opacity,
+              bottom: Math.max(insets.bottom + 88, 104),
+              transform: [{ translateY }],
+            },
           ]}
         >
-          <View style={styles.content}>
+          <View
+            style={styles.content}
+            pointerEvents={toast.action ? "box-none" : "none"}
+          >
             <Ionicons name={config.icon} size={20} color={config.color} />
-            <Text style={styles.message}>{toast.message}</Text>
+            <Text
+              style={styles.message}
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+            >
+              {toast.message}
+            </Text>
             {toast.action ? (
               <Pressable
                 onPress={() => {
@@ -137,6 +172,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   dismissToast();
                 }}
                 accessibilityRole="button"
+                accessibilityLabel={toast.action.label}
               >
                 <Text style={[styles.action, { color: config.color }]}>
                   {toast.action.label}
@@ -163,7 +199,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 88,
     zIndex: 20000,
     elevation: 20,
   },

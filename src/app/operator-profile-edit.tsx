@@ -3,11 +3,10 @@ import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { ContentContainer, Dropdown, TextInput } from "../components";
+import { ConfirmModal, ContentContainer, Dropdown, TextInput } from "../components";
 import { colors } from "../constants/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../hooks/useAuth";
-import { showAlert } from "../lib/confirm";
 import { safeBack } from "../lib/navigation";
 import { uploadFile } from "../lib/storage";
 import { supabase } from "../lib/supabase";
@@ -43,6 +42,8 @@ export default function OperatorProfileEditScreen() {
   const [avatar, setAvatar] = useState<Photo | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("resort");
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof values, string>>>({});
   const handleBack = () => safeBack(router, "/(operator-tabs)/profile");
@@ -184,8 +185,8 @@ export default function OperatorProfileEditScreen() {
       const removed = [...(app.cover_image_paths || []).filter((p) => !coverPaths.includes(p)), ...(profile?.avatar_path && profile.avatar_path !== avatarPath ? [profile.avatar_path] : [])];
       if (removed.length) await supabase.storage.from("operator_media").remove(removed);
       await refreshProfile();
-      if (emailNotice) showAlert("Profile updated", emailNotice); else showAlert("Profile updated", "Your resort and account details have been saved.");
-      handleBack();
+      setSaveSuccessMessage(emailNotice || "Your resort and account details have been saved.");
+      setShowSaveSuccess(true);
     } catch (e) {
       if (uploaded.length) await supabase.storage.from("operator_media").remove(uploaded);
       setError(e instanceof Error ? e.message : "Could not save profile. Please try again.");
@@ -308,7 +309,21 @@ export default function OperatorProfileEditScreen() {
       <View style={{ height: 18 }} />
     </ContentContainer></ScrollView>
     <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>{!!error && <Text style={styles.error}>{error}</Text>}<View style={styles.actions}><TouchableOpacity style={styles.cancel} onPress={handleBack}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity style={[styles.save, busy && { opacity: .65 }]} disabled={busy} onPress={save}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save changes</Text>}</TouchableOpacity></View></View>
-  </KeyboardAvoidingView></SafeAreaView>;
+  </KeyboardAvoidingView>
+  <ConfirmModal
+    visible={showSaveSuccess}
+    title="Profile updated"
+    message={saveSuccessMessage}
+    cancelText="Continue editing"
+    confirmText="Back to profile"
+    icon="checkmark-circle-outline"
+    onCancel={() => setShowSaveSuccess(false)}
+    onConfirm={() => {
+      setShowSaveSuccess(false);
+      handleBack();
+    }}
+  />
+  </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({

@@ -170,7 +170,7 @@ export function EcoDivePassportView() {
     refreshProfile,
     updateProfile,
   } = useAuth();
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
 
   const [activities, setActivities] = useState<DiveTimelineActivity[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -219,9 +219,7 @@ export function EcoDivePassportView() {
   const [isSavingImage, setIsSavingImage] = useState(false);
   const [showIdCardModal, setShowIdCardModal] = useState(false);
   const [copiedBanner, setCopiedBanner] = useState(false);
-  const [toastMessage, setToastMessage] = useState(
-    "Dive recap copied to clipboard!",
-  );
+  const [toastMessage, setToastMessage] = useState(t("toast_recap_copied"));
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [latestManifestDiveDate, setLatestManifestDiveDate] = useState<
@@ -442,12 +440,12 @@ export function EcoDivePassportView() {
       if (uploadRes.path) {
         await updateProfile({ avatar_path: uploadRes.path });
         clearAvatarOverride(user.id);
-        setToastMessage("Eco-Dive ID photo saved to your profile!");
+        setToastMessage(t("toast_eco_photo_saved"));
         setCopiedBanner(true);
         setTimeout(() => setCopiedBanner(false), 2600);
       }
     }
-  }, [setAvatarUri, user, updateProfile, clearAvatarOverride]);
+  }, [setAvatarUri, user, updateProfile, clearAvatarOverride, t]);
 
   const handleSaveRecapImage = useCallback(
     async (activity: DiveTimelineActivity) => {
@@ -499,13 +497,13 @@ export function EcoDivePassportView() {
           .replace(/[^a-z0-9]+/g, "-");
         const fileName = `sinsay-recap-dive-${String(activity.diveNumber).padStart(2, "0")}-${safeName}.png`;
         await captureAndDownload(storyCardRef.current, fileName);
-        setToastMessage("Dive recap image saved to device!");
+        setToastMessage(t("toast_recap_saved"));
         setCopiedBanner(true);
         setTimeout(() => setCopiedBanner(false), 2600);
       } catch (e) {
         console.warn("Failed to save recap image:", e);
         setToastMessage(
-          e instanceof Error ? e.message : "Couldn't save image. Try again.",
+          e instanceof Error ? e.message : t("save_image_error"),
         );
         setCopiedBanner(true);
         setTimeout(() => setCopiedBanner(false), 2600);
@@ -513,7 +511,7 @@ export function EcoDivePassportView() {
         setIsSavingImage(false);
       }
     },
-    [isSavingImage, recapImageBase64, recapLogoBase64],
+    [isSavingImage, recapImageBase64, recapLogoBase64, t],
   );
 
   // Effective date-aware status (prevents expired One-Day passes from showing active)
@@ -579,7 +577,7 @@ export function EcoDivePassportView() {
         return {
           completionProgress: 0,
           isProfileComplete: false,
-          missingStepHint: "Add your basic dive details & emergency contact.",
+          missingStepHint: t("hint_profile_missing"),
         };
       }
       const hasName = Boolean(profile.full_name?.trim());
@@ -612,15 +610,13 @@ export function EcoDivePassportView() {
       const completedCount = checks.filter(Boolean).length;
       const pct = Math.round((completedCount / checks.length) * 100);
 
-      let hint =
-        "Your Eco-Dive ID is complete and ready for manifest verification.";
+      let hint = t("hint_profile_complete");
       if (!hasNationality || !hasEmergency) {
-        hint = "Add your nationality and emergency contact details.";
+        hint = t("hint_nationality_emergency");
       } else if (!hasDiveType) {
-        hint = "Select your preferred dive category.";
+        hint = t("hint_dive_category");
       } else if (isInstructorMasterPath && !hasCertDetails) {
-        hint =
-          "Complete your Dive Instructor / Master accreditation and permit.";
+        hint = t("hint_instructor_master");
       }
 
       return {
@@ -628,7 +624,7 @@ export function EcoDivePassportView() {
         isProfileComplete: pct >= 100,
         missingStepHint: hint,
       };
-    }, [profile]);
+    }, [profile, t]);
 
   if (isLoading) {
     return (
@@ -698,9 +694,7 @@ export function EcoDivePassportView() {
             <View style={styles.headerTextCol}>
               <Text style={styles.screenTitle}>{t("eco_id_title")}</Text>
               <Text style={styles.screenSubtitle}>
-                {locale === "fil"
-                  ? "Ang iyong opisyal na pass sa Mabini."
-                  : "Your pass to a deeper Mabini."}
+                {t("eco_id_tagline")}
               </Text>
             </View>
 
@@ -712,7 +706,7 @@ export function EcoDivePassportView() {
                 activeOpacity={0.82}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Edit Diver Profile"
+                accessibilityLabel={t("a11y_edit_id_card")}
               >
                 <Ionicons
                   name="create-outline"
@@ -732,7 +726,7 @@ export function EcoDivePassportView() {
             activeOpacity={0.93}
             onPress={() => setShowIdCardModal(true)}
             accessibilityRole="button"
-            accessibilityLabel="Open Eco-Dive ID card full details and save options"
+            accessibilityLabel={t("a11y_open_id_card")}
           >
             <View style={styles.idCardCanvas}>
               {/* Official SINSAY Dive Pass Card Design Background */}
@@ -775,7 +769,7 @@ export function EcoDivePassportView() {
                     onPress={handlePickProfilePhoto}
                     activeOpacity={0.85}
                     focusable
-                    accessibilityLabel="Upload or change diver profile photo"
+                    accessibilityLabel={t("a11y_upload_photo")}
                   >
                     {profilePhotoUri ? (
                       <Image
@@ -805,7 +799,7 @@ export function EcoDivePassportView() {
                     ]}
                     numberOfLines={1}
                   >
-                    {ecoId?.eco_id_number || "PENDING"}
+                    {ecoId?.eco_id_number || t("eco_id_pending_short")}
                   </Text>
 
                   {/* Active / Inactive Status Pill (positioned lower with clear separation) */}
@@ -867,12 +861,12 @@ export function EcoDivePassportView() {
                       ]}
                     >
                       {isIdActive
-                        ? "ACTIVE"
+                        ? t("status_active").toUpperCase()
                         : isIdExpired
-                          ? "EXPIRED"
+                          ? t("status_expired").toUpperCase()
                           : effectiveStatus === "complete"
-                            ? "READY"
-                            : "INACTIVE"}
+                            ? t("status_ready")
+                            : t("status_inactive")}
                     </Text>
                   </View>
                 </View>
@@ -901,7 +895,7 @@ export function EcoDivePassportView() {
                         ]}
                         numberOfLines={1}
                       >
-                        FULL NAME
+                        {t("label_full_name")}
                       </Text>
                       <Text
                         style={[
@@ -932,7 +926,7 @@ export function EcoDivePassportView() {
                         ]}
                         numberOfLines={1}
                       >
-                        NATIONALITY
+                        {t("label_nationality")}
                       </Text>
                       <Text
                         style={[
@@ -959,7 +953,7 @@ export function EcoDivePassportView() {
                         ]}
                         numberOfLines={1}
                       >
-                        TYPE OF DIVE
+                        {t("label_type_of_dive")}
                       </Text>
                       <Text
                         style={[
@@ -1000,7 +994,7 @@ export function EcoDivePassportView() {
                         ]}
                         numberOfLines={1}
                       >
-                        CERTIFICATION LEVEL
+                        {t("label_certification_level")}
                       </Text>
                       <Text
                         style={[
@@ -1031,7 +1025,7 @@ export function EcoDivePassportView() {
                         ]}
                         numberOfLines={1}
                       >
-                        DATE ACCREDITED
+                        {t("label_date_accredited")}
                       </Text>
                       <Text
                         style={[
@@ -1062,7 +1056,7 @@ export function EcoDivePassportView() {
                         ]}
                         numberOfLines={1}
                       >
-                        RENEWAL DATE
+                        {t("label_renewal_date")}
                       </Text>
                       <Text
                         style={[
@@ -1109,7 +1103,7 @@ export function EcoDivePassportView() {
                         ]}
                         numberOfLines={1}
                       >
-                        EMERGENCY CONTACT
+                        {t("label_emergency_contact")}
                       </Text>
                       <Text
                         style={[
@@ -1148,7 +1142,7 @@ export function EcoDivePassportView() {
               color={colors.primaryBlue}
             />
             <Text style={styles.tapCardHintText}>
-              Tap card to view full details &amp; save
+              {t("tap_card_details")}
             </Text>
           </TouchableOpacity>
 
@@ -1165,7 +1159,7 @@ export function EcoDivePassportView() {
                 </View>
                 <View style={styles.incompleteTitleCol}>
                   <Text style={styles.incompleteTitle}>
-                    Complete Your Dive Profile
+                    {t("complete_your_profile")}
                   </Text>
                   <Text style={styles.incompleteSubtitle}>
                     {missingStepHint}
@@ -1192,10 +1186,10 @@ export function EcoDivePassportView() {
                 onPress={() => router.push("/tourist/dive-details/step1")}
                 activeOpacity={0.86}
                 accessibilityRole="button"
-                accessibilityLabel="Complete dive profile"
+                accessibilityLabel={t("a11y_complete_dive_profile")}
               >
                 <Text style={styles.incompleteCtaText}>
-                  Complete Dive Profile
+                  {t("complete_profile_cta_short")}
                 </Text>
                 <Ionicons name="arrow-forward" size={15} color={colors.white} />
               </TouchableOpacity>
@@ -1204,10 +1198,12 @@ export function EcoDivePassportView() {
 
           {/* 3. VERTICAL TIMELINE FOR DIVE LOGS */}
           <View style={styles.timelineSectionHeader}>
-            <Text style={styles.timelineTitle}>Dive Timeline</Text>
+            <Text style={styles.timelineTitle}>{t("dive_timeline")}</Text>
             <View style={styles.timelineCountPill}>
               <Text style={styles.timelineCountText}>
-                {activities.length} {activities.length === 1 ? "Dive" : "Dives"}
+                {activities.length === 1
+                  ? t("dive_count", { count: 1 })
+                  : t("dives_count", { count: activities.length })}
               </Text>
             </View>
           </View>
@@ -1216,7 +1212,7 @@ export function EcoDivePassportView() {
             <View style={styles.historyLoadingWrap}>
               <ActivityIndicator size="small" color={colors.primaryBlue} />
               <Text style={styles.historyLoadingText}>
-                Loading verified dive history...
+                {t("loading_dive_history")}
               </Text>
             </View>
           ) : activities.length === 0 ? (
@@ -1228,11 +1224,9 @@ export function EcoDivePassportView() {
                   color={colors.primaryBlue}
                 />
               </View>
-              <Text style={styles.emptyTimelineTitle}>No Dive History Yet</Text>
+              <Text style={styles.emptyTimelineTitle}>{t("no_dive_history_title")}</Text>
               <Text style={styles.emptyTimelineSubtitle}>
-                Your official dive logs and digital recaps will appear here
-                automatically once an accredited dive center records you on a
-                verified dive manifest.
+                {t("no_dive_history_body")}
               </Text>
             </View>
           ) : (
@@ -1256,7 +1250,7 @@ export function EcoDivePassportView() {
                         <View style={styles.activityHeaderRow}>
                           <View style={styles.diveNumberBadge}>
                             <Text style={styles.diveNumberText}>
-                              Dive #{String(item.diveNumber).padStart(2, "0")}
+                              {t("dive_number", { number: String(item.diveNumber).padStart(2, "0") })}
                             </Text>
                           </View>
                           <Text style={styles.dateTimeText} numberOfLines={1}>
@@ -1327,7 +1321,7 @@ export function EcoDivePassportView() {
                             activeOpacity={0.86}
                             onPress={() => router.push("/(tabs)/map")}
                             accessibilityRole="button"
-                            accessibilityLabel={`Preview ${item.siteName} on map`}
+                            accessibilityLabel={t("a11y_preview_map", { site: item.siteName })}
                           >
                             <Image
                               source={resolveSiteImage(
@@ -1390,16 +1384,16 @@ export function EcoDivePassportView() {
                             onPress={() => setSelectedRecap(item)}
                             activeOpacity={0.85}
                             accessibilityRole="button"
-                            accessibilityLabel={`View dive recap for ${item.siteName}`}
+                            accessibilityLabel={t("a11y_view_recap", { site: item.siteName })}
                           >
                             <Ionicons
                               name="document-text-outline"
                               size={14}
                               color={colors.primaryBlue}
                             />
-                            <Text style={styles.viewRecapBtnText}>
-                              View Recap
-                            </Text>
+                  <Text style={styles.viewRecapBtnText}>
+                    {t("view_recap")}
+                  </Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1455,7 +1449,7 @@ export function EcoDivePassportView() {
                   activeOpacity={0.8}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Edit ID card details"
+                  accessibilityLabel={t("a11y_edit_id_card")}
                 >
                   <Ionicons name="create-outline" size={17} color="#0D74E7" />
                 </TouchableOpacity>
@@ -1466,7 +1460,7 @@ export function EcoDivePassportView() {
                   activeOpacity={0.8}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Close ID card details modal"
+                  accessibilityLabel={t("a11y_close_id_card")}
                 >
                   <Ionicons name="close" size={17} color="#0D74E7" />
                 </TouchableOpacity>
@@ -1485,7 +1479,7 @@ export function EcoDivePassportView() {
                   onPress={handlePickProfilePhoto}
                   activeOpacity={0.85}
                   accessibilityRole="button"
-                  accessibilityLabel="Change diver photo"
+                  accessibilityLabel={t("a11y_change_photo")}
                 >
                   {profilePhotoUri ? (
                     <Image
@@ -1502,7 +1496,7 @@ export function EcoDivePassportView() {
                 </TouchableOpacity>
 
                 <View style={styles.idFullTopIdentityCol}>
-                  <Text style={styles.idFullLabel}>FULL NAME</Text>
+                  <Text style={styles.idFullLabel}>{t("label_full_name")}</Text>
                   <Text style={styles.idFullPrimaryName}>
                     {cardData.fullName}
                   </Text>
@@ -1538,10 +1532,10 @@ export function EcoDivePassportView() {
                       ]}
                     >
                       {isIdActive
-                        ? "Active"
+                        ? t("status_active_title")
                         : isIdExpired
-                          ? "Expired"
-                          : "Pending"}
+                          ? t("status_expired_title")
+                          : t("status_pending")}
                     </Text>
                   </View>
                 </View>
@@ -1557,7 +1551,7 @@ export function EcoDivePassportView() {
                     color={colors.primaryBlue}
                   />
                   <View style={styles.idFullDetailTextCol}>
-                    <Text style={styles.idFullLabel}>ECO-DIVE ID NO.</Text>
+                    <Text style={styles.idFullLabel}>{t("label_eco_id_no")}</Text>
                     <Text
                       style={[
                         styles.idFullValue,
@@ -1568,7 +1562,7 @@ export function EcoDivePassportView() {
                         },
                       ]}
                     >
-                      {ecoId?.eco_id_number || "ECO-ID PENDING"}
+                      {ecoId?.eco_id_number || t("eco_id_pending_long")}
                     </Text>
                   </View>
                 </View>
@@ -1582,7 +1576,7 @@ export function EcoDivePassportView() {
                     color={colors.primaryBlue}
                   />
                   <View style={styles.idFullDetailTextCol}>
-                    <Text style={styles.idFullLabel}>NATIONALITY</Text>
+                    <Text style={styles.idFullLabel}>{t("label_nationality")}</Text>
                     <Text style={styles.idFullValue}>
                       {cardData.nationality}
                     </Text>
@@ -1594,7 +1588,7 @@ export function EcoDivePassportView() {
                 <View style={styles.idFullDetailItem}>
                   <DiveMaskIcon size={16} color={colors.primaryBlue} />
                   <View style={styles.idFullDetailTextCol}>
-                    <Text style={styles.idFullLabel}>TYPE OF DIVE</Text>
+                    <Text style={styles.idFullLabel}>{t("label_type_of_dive")}</Text>
                     <Text style={styles.idFullValue}>
                       {cardData.typeOfDive}
                     </Text>
@@ -1610,7 +1604,7 @@ export function EcoDivePassportView() {
                     color={colors.primaryBlue}
                   />
                   <View style={styles.idFullDetailTextCol}>
-                    <Text style={styles.idFullLabel}>CERTIFICATION LEVEL</Text>
+                    <Text style={styles.idFullLabel}>{t("label_certification_level")}</Text>
                     <Text style={styles.idFullValue}>{cardData.certLevel}</Text>
                   </View>
                 </View>
@@ -1625,7 +1619,7 @@ export function EcoDivePassportView() {
                       color={colors.primaryBlue}
                     />
                     <View style={styles.idFullDetailTextCol}>
-                      <Text style={styles.idFullLabel}>DATE ACCREDITED</Text>
+                      <Text style={styles.idFullLabel}>{t("label_date_accredited")}</Text>
                       <Text style={styles.idFullValue}>
                         {cardData.dateAccredited}
                       </Text>
@@ -1639,7 +1633,7 @@ export function EcoDivePassportView() {
                       color={colors.primaryBlue}
                     />
                     <View style={styles.idFullDetailTextCol}>
-                      <Text style={styles.idFullLabel}>RENEWAL DATE</Text>
+                      <Text style={styles.idFullLabel}>{t("label_renewal_date")}</Text>
                       <Text style={styles.idFullValue}>
                         {cardData.renewalDate}
                       </Text>
@@ -1652,7 +1646,7 @@ export function EcoDivePassportView() {
                 <View style={styles.idFullDetailItem}>
                   <Ionicons name="call" size={16} color={colors.primaryBlue} />
                   <View style={styles.idFullDetailTextCol}>
-                    <Text style={styles.idFullLabel}>EMERGENCY CONTACT</Text>
+                    <Text style={styles.idFullLabel}>{t("label_emergency_contact")}</Text>
                     <Text style={styles.idFullValue}>
                       {cardData.emergencyName}
                     </Text>
@@ -1687,10 +1681,10 @@ export function EcoDivePassportView() {
               <View style={styles.recapSheetHeader}>
                 <View style={styles.recapSheetTitleCol}>
                   <Text style={styles.recapSheetTitle}>
-                    Your dive, worth sharing.
+                    {t("recap_title")}
                   </Text>
                   <Text style={styles.recapSheetSubtitle}>
-                    A little Mabini for your story.
+                    {t("recap_subtitle")}
                   </Text>
                 </View>
 
@@ -1700,7 +1694,7 @@ export function EcoDivePassportView() {
                   activeOpacity={0.8}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Close recap modal"
+                  accessibilityLabel={t("a11y_close_recap")}
                 >
                   <Ionicons name="close" size={17} color="#0D74E7" />
                 </TouchableOpacity>
@@ -1789,7 +1783,7 @@ export function EcoDivePassportView() {
                       resizeMode="contain"
                     />
                     <Text style={styles.storyBrandLocation}>
-                      MABINI, BATANGAS
+                      {t("story_location")}
                     </Text>
                   </View>
 
@@ -1797,15 +1791,14 @@ export function EcoDivePassportView() {
                   <View style={styles.storyBottomOverlay}>
                     <View style={styles.storyDiveBadge}>
                       <Text style={styles.storyDiveBadgeText}>
-                        DIVE #
-                        {String(selectedRecap.diveNumber).padStart(2, "0")} IN
-                        MABINI
+                        {t("story_dive_badge", {
+                          number: String(selectedRecap.diveNumber).padStart(2, "0"),
+                        })}
                       </Text>
                     </View>
 
                     <Text style={styles.storyHeroHeadline}>
-                      Just explored{"\n"}
-                      {selectedRecap.siteName}!
+                      {t("story_headline", { site: selectedRecap.siteName })}
                     </Text>
 
                     <Text style={styles.storyDateCatLine} numberOfLines={1}>
@@ -1817,7 +1810,7 @@ export function EcoDivePassportView() {
 
                     <View style={styles.storyDetailsStack}>
                       <Text style={styles.storyResortLine} numberOfLines={1}>
-                        With {selectedRecap.resortOrCenter}
+                        {t("story_with", { resort: selectedRecap.resortOrCenter })}
                       </Text>
 
                       <Text style={styles.storyStatsLine} numberOfLines={1}>
@@ -1825,7 +1818,7 @@ export function EcoDivePassportView() {
                       </Text>
 
                       <Text style={styles.storyEcoTagline}>
-                        Look, don&apos;t touch. Leave only bubbles.
+                        {t("story_tagline")}
                       </Text>
                     </View>
                   </View>
@@ -1842,7 +1835,7 @@ export function EcoDivePassportView() {
                 activeOpacity={0.86}
                 disabled={isSavingImage}
                 accessibilityRole="button"
-                accessibilityLabel="Save dive recap image"
+                accessibilityLabel={t("a11y_save_recap")}
               >
                 {isSavingImage ? (
                   <ActivityIndicator size="small" color="#0D74E7" />
@@ -1850,7 +1843,7 @@ export function EcoDivePassportView() {
                   <Ionicons name="download-outline" size={17} color="#0D74E7" />
                 )}
                 <Text style={styles.saveStoryImageBtnText}>
-                  {isSavingImage ? "Saving Image..." : "Save Image"}
+                  {isSavingImage ? t("saving_image") : t("save_image")}
                 </Text>
               </TouchableOpacity>
             </Pressable>
