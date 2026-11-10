@@ -16,6 +16,7 @@
     "src/lib/notifications.ts",
     "src/lib/resortInitials.ts",
     "src/lib/diveSiteCoordinates.ts",
+    "src/lib/bookingChannels.ts",
     "tests/**/*.ts"
   ]
 }

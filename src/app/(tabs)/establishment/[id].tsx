@@ -73,7 +73,7 @@ function getBookingIcon(
     case "instagram":
       return "logo-instagram";
     case "messenger":
-      return "chatbubble-ellipses-outline";
+      return "logo-facebook";
     case "viber":
       return "call-outline";
     case "tripadvisor":

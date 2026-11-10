@@ -3,24 +3,30 @@ import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { ContentContainer, Dropdown, TextInput } from "../components";
+import { ConfirmModal, ContentContainer, Dropdown, TextInput } from "../components";
 import { colors } from "../constants/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../hooks/useAuth";
-import { showAlert } from "../lib/confirm";
 import { safeBack } from "../lib/navigation";
 import { uploadFile } from "../lib/storage";
 import { supabase } from "../lib/supabase";
 import { toLocalPhDigits, toDbPhPhone } from "../lib/phone";
 import { BookingLinkItem, BookingPlatformType } from "../types/supabase";
-import { detectTravelPlatform, PLATFORM_NAMES, normalizeTravelUrl } from "../components/EstablishmentBookingSection";
+import {
+  detectTravelPlatform,
+  findDuplicateBookingPlatform,
+  getAvailableBookingPlatforms,
+  getNextAvailableBookingPlatform,
+  PLATFORM_NAMES,
+  sanitizeBookingLinks,
+} from "../lib/bookingChannels";
 
 type Photo = { uri: string; path: string | null; file?: DocumentPicker.DocumentPickerAsset };
 type EditorTab = "resort" | "photos" | "account";
 const publicUrl = (path?: string | null) => path ? supabase.storage.from("operator_media").getPublicUrl(path).data.publicUrl : "";
 
 const PLATFORM_OPTIONS: { label: string; value: BookingPlatformType }[] = [
-  { label: "Messenger (Facebook)", value: "messenger" },
+  { label: "Facebook", value: "messenger" },
   { label: "Agoda", value: "agoda" },
   { label: "WhatsApp", value: "whatsapp" },
   { label: "Booking.com", value: "booking" },
@@ -42,6 +48,7 @@ export default function OperatorProfileEditScreen() {
   const [covers, setCovers] = useState<Photo[]>([]);
   const [avatar, setAvatar] = useState<Photo | null>(null);
   const [busy, setBusy] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("resort");
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof values, string>>>({});
@@ -70,44 +77,53 @@ export default function OperatorProfileEditScreen() {
     });
   }, [profile, app, user?.email, avatarUri]);
 
-      const addBookingLink = () => {
-    setBookingLinks((prev) => [
-      ...prev,
-      {
+  const addBookingLink = () => {
+    setBookingLinks((previous) => {
+      const platform = getNextAvailableBookingPlatform(previous);
+      if (!platform) return previous;
+      return [...previous, {
         id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        platform: "agoda",
-        label: "Agoda",
+        platform,
+        label: PLATFORM_NAMES[platform],
         url: "",
-      },
-    ]);
+      }];
+    });
+    setError("");
   };
 
   const updateBookingLink = (id: string, updates: Partial<BookingLinkItem>) => {
-    setBookingLinks((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        const next = { ...item, ...updates };
+    const current = bookingLinks.find((item) => item.id === id);
+    if (!current) return;
+    if (updates.platform) {
+      const available = getAvailableBookingPlatforms(bookingLinks, id);
+      if (!available.includes(updates.platform)) {
+        setError(`${PLATFORM_NAMES[updates.platform]} is already configured. Choose another channel.`);
+        return;
+      }
+      setError("");
+      setBookingLinks((previous) => previous.map((item) => item.id === id
+        ? { ...item, platform: updates.platform!, label: PLATFORM_NAMES[updates.platform!] }
+        : item));
+      return;
+    }
 
-        // If user manually switched the platform dropdown:
-        if (updates.platform && updates.platform !== item.platform) {
-          if (!next.label || next.label === PLATFORM_NAMES[item.platform]) {
-            next.label = PLATFORM_NAMES[updates.platform];
-          }
+    let platform = current.platform;
+    if (updates.url !== undefined) {
+      const detected = detectTravelPlatform(updates.url);
+      if (detected !== "direct" && detected !== current.platform) {
+        if (getAvailableBookingPlatforms(bookingLinks, id).includes(detected)) {
+          platform = detected;
+          setError("");
+        } else {
+          setError(`${PLATFORM_NAMES[detected]} is already configured. Choose another channel or enter a different URL.`);
         }
-
-        // If user entered URL, auto-detect platform if still default/direct:
-        if (updates.url !== undefined) {
-          const auto = detectTravelPlatform(updates.url);
-          if (auto !== "direct") {
-            next.platform = auto;
-            if (!next.label || Object.values(PLATFORM_NAMES).includes(next.label)) {
-              next.label = PLATFORM_NAMES[auto];
-            }
-          }
-        }
-        return next;
-      })
-    );
+      } else {
+        setError("");
+      }
+    }
+    setBookingLinks((previous) => previous.map((item) => item.id === id
+      ? { ...item, ...updates, platform, label: PLATFORM_NAMES[platform] }
+      : item));
   };
 
   const removeBookingLink = (id: string) => {
@@ -125,6 +141,22 @@ export default function OperatorProfileEditScreen() {
   const move = (index: number, direction: number) => setCovers((prev) => { const next = [...prev]; const target = index + direction; if (target < 0 || target >= next.length) return prev; [next[index], next[target]] = [next[target], next[index]]; return next; });
   const save = async () => {
     if (!user || !app) return;
+    const duplicatePlatform = findDuplicateBookingPlatform(bookingLinks);
+    if (duplicatePlatform) {
+      setActiveTab("resort");
+      setError(`Only one ${PLATFORM_NAMES[duplicatePlatform]} channel is allowed. Change or remove the duplicate before saving.`);
+      return;
+    }
+    const mismatchedLink = bookingLinks.find((link) => {
+      if (!link.url.trim()) return false;
+      const detected = detectTravelPlatform(link.url);
+      return detected !== "direct" && detected !== link.platform;
+    });
+    if (mismatchedLink) {
+      setActiveTab("resort");
+      setError(`The URL for ${PLATFORM_NAMES[mismatchedLink.platform]} appears to belong to ${PLATFORM_NAMES[detectTravelPlatform(mismatchedLink.url)]}.`);
+      return;
+    }
     const missingResort = [!values.resortName.trim() && "resort name", !values.location.trim() && "location", !values.resortPhone.trim() && "resort phone"].filter(Boolean);
     const missingAccount = !values.fullName.trim();
     if (missingResort.length || missingAccount) {
@@ -161,13 +193,7 @@ export default function OperatorProfileEditScreen() {
       };
       const coverPaths = (await Promise.all(covers.map((photo) => savePhoto(photo, "profile-cover")))).filter((path): path is string => !!path);
       const avatarPath = avatar ? await savePhoto(avatar, "profile-avatar") : null;
-                  const cleanedLinks = bookingLinks
-        .filter((l) => l.url.trim().length > 0)
-        .map((l) => ({
-          ...l,
-          label: l.label.trim() || PLATFORM_NAMES[l.platform] || "Book Online",
-          url: normalizeTravelUrl(l.url, l.platform),
-        }));
+      const cleanedLinks = sanitizeBookingLinks(bookingLinks);
       const { error: saveError } = await supabase.rpc("save_operator_profile", {
         p_application_id: app.id, p_resort_name: values.resortName.trim(), p_resort_location: values.location.trim(), p_resort_description: values.description.trim() || null,
         p_resort_contact_number: toDbPhPhone(values.resortPhone) || "", p_resort_email: values.resortEmail.trim() || null, p_facebook_url: values.facebook.trim() || null, p_website_url: values.website.trim() || null, p_booking_url: cleanedLinks[0]?.url || values.bookingUrl.trim() || null,
@@ -184,8 +210,7 @@ export default function OperatorProfileEditScreen() {
       const removed = [...(app.cover_image_paths || []).filter((p) => !coverPaths.includes(p)), ...(profile?.avatar_path && profile.avatar_path !== avatarPath ? [profile.avatar_path] : [])];
       if (removed.length) await supabase.storage.from("operator_media").remove(removed);
       await refreshProfile();
-      if (emailNotice) showAlert("Profile updated", emailNotice); else showAlert("Profile updated", "Your resort and account details have been saved.");
-      handleBack();
+      setSuccessMessage(emailNotice || "Your resort and account details have been saved.");
     } catch (e) {
       if (uploaded.length) await supabase.storage.from("operator_media").remove(uploaded);
       setError(e instanceof Error ? e.message : "Could not save profile. Please try again.");
@@ -233,7 +258,7 @@ export default function OperatorProfileEditScreen() {
               <View style={styles.sectionIcon}><Ionicons name="calendar-outline" size={19} color="#087BFF" /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.section}>Booking & Channels</Text>
-                <Text style={styles.helper}>Add channels where divers can book (Agoda, Messenger, WhatsApp, etc.)</Text>
+                <Text style={styles.helper}>Add channels where divers can book (Agoda, Facebook, WhatsApp, etc.)</Text>
               </View>
             </View>
 
@@ -257,18 +282,20 @@ export default function OperatorProfileEditScreen() {
 
                 <Dropdown
                   label="Platform Channel"
-                  options={PLATFORM_OPTIONS}
+                  options={PLATFORM_OPTIONS.filter((option) => option.value === item.platform || getAvailableBookingPlatforms(bookingLinks, item.id).includes(option.value))}
                   value={item.platform}
                   onSelect={(val) => updateBookingLink(item.id, { platform: val as BookingPlatformType })}
                   placeholder="Select Platform"
                 />
 
-                <TextInput
-                  label="Button Display Label"
-                  value={item.label}
-                  onChangeText={(val) => updateBookingLink(item.id, { label: val })}
-                  placeholder={`e.g. ${PLATFORM_NAMES[item.platform] || "Agoda"}`}
-                />
+                <View style={styles.generatedLabel} accessibilityLabel={`Public button label: ${PLATFORM_NAMES[item.platform]}`}>
+                  <Text style={styles.generatedLabelHint}>Public button label</Text>
+                  <View style={styles.generatedLabelValue}>
+                    <Ionicons name={item.platform === "whatsapp" ? "logo-whatsapp" : item.platform === "instagram" ? "logo-instagram" : item.platform === "messenger" ? "logo-facebook" : item.platform === "website" ? "globe-outline" : item.platform === "direct" ? "link-outline" : "business-outline"} size={16} color="#087BFF" />
+                    <Text style={styles.generatedLabelText}>{PLATFORM_NAMES[item.platform]}</Text>
+                    <Text style={styles.autoLabel}>AUTO</Text>
+                  </View>
+                </View>
 
                 <TextInput
                   label="Booking / Profile Link URL"
@@ -278,13 +305,25 @@ export default function OperatorProfileEditScreen() {
                     item.platform === "agoda"
                       ? "https://www.agoda.com/your-resort"
                       : item.platform === "messenger"
-                      ? "https://m.me/your-resort"
+                      ? "https://facebook.com/your-resort"
                       : item.platform === "whatsapp"
                       ? "https://wa.me/639XXXXXXXXX"
                       : item.platform === "booking"
                       ? "https://www.booking.com/hotel/ph/..."
                       : item.platform === "instagram"
                       ? "https://instagram.com/your-resort"
+                      : item.platform === "viber"
+                      ? "https://invite.viber.com/your-resort"
+                      : item.platform === "tripadvisor"
+                      ? "https://www.tripadvisor.com/your-resort"
+                      : item.platform === "klook"
+                      ? "https://www.klook.com/your-resort"
+                      : item.platform === "airbnb"
+                      ? "https://www.airbnb.com/rooms/your-listing"
+                      : item.platform === "website"
+                      ? "https://your-resort.com"
+                      : item.platform === "direct"
+                      ? "https://your-booking-page.com"
                       : "https://your-link.com"
                   }
                   autoCapitalize="none"
@@ -295,11 +334,12 @@ export default function OperatorProfileEditScreen() {
             <TouchableOpacity
               style={styles.addLinkButton}
               onPress={addBookingLink}
+              disabled={!getNextAvailableBookingPlatform(bookingLinks)}
               accessibilityRole="button"
-              accessibilityLabel="Add another booking link"
+              accessibilityLabel={getNextAvailableBookingPlatform(bookingLinks) ? "Add another booking link" : "All 11 booking channels configured"}
             >
-              <Ionicons name="add-circle-outline" size={18} color="#087BFF" />
-              <Text style={styles.addLinkButtonText}>Add Booking Link</Text>
+              <Ionicons name={getNextAvailableBookingPlatform(bookingLinks) ? "add-circle-outline" : "checkmark-circle-outline"} size={18} color="#087BFF" />
+              <Text style={styles.addLinkButtonText}>{getNextAvailableBookingPlatform(bookingLinks) ? "Add Booking Link" : "All 11 booking channels configured"}</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -308,7 +348,21 @@ export default function OperatorProfileEditScreen() {
       <View style={{ height: 18 }} />
     </ContentContainer></ScrollView>
     <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>{!!error && <Text style={styles.error}>{error}</Text>}<View style={styles.actions}><TouchableOpacity style={styles.cancel} onPress={handleBack}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity style={[styles.save, busy && { opacity: .65 }]} disabled={busy} onPress={save}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save changes</Text>}</TouchableOpacity></View></View>
-  </KeyboardAvoidingView></SafeAreaView>;
+  </KeyboardAvoidingView>
+  <ConfirmModal
+    visible={successMessage !== null}
+    title="Profile updated"
+    message={successMessage || ""}
+    icon="checkmark-circle-outline"
+    confirmText="Done"
+    cancelText="Stay here"
+    onCancel={() => setSuccessMessage(null)}
+    onConfirm={() => {
+      setSuccessMessage(null);
+      handleBack();
+    }}
+  />
+  </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
@@ -341,6 +395,11 @@ const styles = StyleSheet.create({
     fontFamily: "Quicksand_700Bold",
     color: "#087BFF",
   },
+  generatedLabel: { marginTop: 2, gap: 5 },
+  generatedLabelHint: { fontSize: 10, color: "#647797", fontFamily: "Quicksand_600SemiBold" },
+  generatedLabelValue: { minHeight: 38, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, paddingHorizontal: 10, backgroundColor: "#EEF6FF", borderWidth: 1, borderColor: "#D8E9FC" },
+  generatedLabelText: { flex: 1, color: "#174B91", fontSize: 12, fontFamily: "Quicksand_700Bold" },
+  autoLabel: { color: "#6684A8", fontSize: 8, letterSpacing: 0.6, fontFamily: "Quicksand_700Bold" },
   deleteLinkBtn: {
     padding: 4,
   },
