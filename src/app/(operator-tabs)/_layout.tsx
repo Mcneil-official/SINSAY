@@ -7,7 +7,6 @@ import SplashScreen from "../../components/SplashScreen";
 import OperatorWiderScreenNavbar from "../../components/OperatorWiderScreenNavbar";
 import { InAppTutorial } from "../../components/InAppTutorial";
 import { TutorialProvider } from "../../context/TutorialContext";
-import { colors } from "../../constants/colors";
 import { ENABLE_DESKTOP_LAYOUT } from "../../constants/layout";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";

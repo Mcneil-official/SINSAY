@@ -1,6 +1,0 @@
-{
-  "summary": "Comprehensive responsiveness enhancement plan targeting compact mobile devices down to 320px width (e.g. iPhone SE, compact Androids, and narrow viewports). Covers LayoutContext responsive extensions, adaptive ContentContainer padding, wrap-safe BottomNav, touch targets, and flexible wrapping for dense operator and tourist views.",
-  "updatedAt": "2026-11-06T15:44:08.848231668Z",
-  "requestFeedback": true,
-  "userFacing": true
-}

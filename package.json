@@ -57,7 +57,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web --port 3000",
     "lint": "expo lint",
-    "test": "tsc -p tsconfig.test.json && node dist-test/tests/test-password.js && node dist-test/tests/test-phone.js && node dist-test/tests/test-notifications.js && node dist-test/tests/test-eco-expiry.js && node dist-test/tests/test-resort-initials.js",
+    "test": "tsc -p tsconfig.test.json && node dist-test/tests/test-password.js && node dist-test/tests/test-phone.js && node dist-test/tests/test-notifications.js && node dist-test/tests/test-eco-expiry.js && node dist-test/tests/test-resort-initials.js && node dist-test/tests/test-operator-approval.js",
     "postinstall": "node scripts/patch-expo-cors.js && node scripts/patch-console-warnings.js"
   },
   "private": true

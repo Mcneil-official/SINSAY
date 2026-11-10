@@ -36,6 +36,12 @@ const diveLevels = [
   { label: "Divemaster / Instructor", value: "Divemaster / Instructor" },
 ];
 
+function generateFallbackEcoId(): string {
+  const year = new Date().getFullYear();
+  const suffix = Math.floor(100000 + Math.random() * 900000);
+  return `ECO-${year}-${suffix}`;
+}
+
 export default function AddDiverScreen() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
@@ -111,8 +117,7 @@ export default function AddDiverScreen() {
         .maybeSingle();
       ecoId = data?.eco_id_number ?? undefined;
       if (!ecoId && tourist.id) {
-        const year = new Date().getFullYear();
-        const fallbackNum = `ECO-${year}-${Math.floor(100000 + Math.random() * 900000)}`;
+        const fallbackNum = generateFallbackEcoId();
         const { data: createdEco } = await supabase
           .from("eco_dive_ids")
           .insert({

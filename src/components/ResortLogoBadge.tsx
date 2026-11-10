@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import {
   Image,
   ImageResizeMode,
@@ -34,11 +34,12 @@ export function ResortLogoBadge({
   style,
 }: ResortLogoBadgeProps) {
   const [imageFailed, setImageFailed] = useState(false);
+  const reactId = useId();
 
   const radius = borderRadius ?? size / 2;
   const computedFontSize = fontSize ?? Math.max(10, Math.round(size * 0.38));
   const initials = getResortInitials(name);
-  const gradId = `resortLogoGrad-${size}-${Math.random().toString(36).substring(2, 7)}`;
+  const gradId = `resortLogoGrad-${size}-${reactId.replace(/[:]/g, "")}`;
 
   const hasValidLogo = Boolean(logoUrl && logoUrl.trim().length > 0 && !imageFailed);
 

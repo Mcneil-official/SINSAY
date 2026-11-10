@@ -8,7 +8,6 @@ import { FloatingAssistant } from "../../components/assistant/FloatingAssistant"
 import { InAppTutorial } from "../../components/InAppTutorial";
 import { TutorialProvider } from "../../context/TutorialContext";
 import WiderScreenNavbar from "../../components/WiderScreenNavbar";
-import { colors } from "../../constants/colors";
 import { ENABLE_DESKTOP_LAYOUT } from "../../constants/layout";
 import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";

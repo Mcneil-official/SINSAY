@@ -9,11 +9,10 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { DidYouKnowCard, ErrorState, resolveSiteImage } from "../../components";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
@@ -909,13 +908,11 @@ function generateLeafletMapHtml(
 }
 
 export default function MapScreen() {
-  const insets = useSafeAreaInsets();
   const mapBottomOffset = 16;
   const drawerScrollBottom = 28;
   const router = useRouter();
   const { site: requestedSite } = useLocalSearchParams<{ site?: string }>();
   const { user } = useAuth();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const [sites, setSites] = useState<DiveSiteRow[]>([]);
   const [loading, setLoading] = useState(true);

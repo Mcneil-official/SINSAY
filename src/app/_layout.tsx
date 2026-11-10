@@ -16,6 +16,7 @@ import {
 import {
   AnnouncementDetailModal,
   NotificationsModal,
+  OperatorApprovalModal,
   WebSafeInsetsNormalizer,
 } from "../components";
 import AppShell from "../components/AppShell";
@@ -67,6 +68,7 @@ function RootLayoutInner() {
           announcement={selectedAnnouncement}
           onClose={closeAnnouncementModal}
         />
+        <OperatorApprovalModal />
       </AppShell>
     </View>
   );
