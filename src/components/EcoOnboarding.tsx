@@ -27,6 +27,9 @@ const WAVE_HEIGHT = 170;
 const CONTENT_SIDE = 30;
 const FOOTER_SIDE = 24;
 const BUTTON_HEIGHT = 52;
+// Lift the protect wave so its right-side dip clears the Skip label
+// (design-space px; scaled with frame width like everything else).
+const PROTECT_WAVE_LIFT = 24;
 
 type WaveVariant = "marine-life" | "protect" | "control";
 
@@ -252,7 +255,9 @@ export default function EcoOnboarding({
               styles.wave,
               {
                 height: (frameWidth * WAVE_HEIGHT) / DESIGN_WIDTH,
-                top: headerOffsetY,
+                top:
+                  headerOffsetY -
+                  (wave === "protect" ? PROTECT_WAVE_LIFT * scale : 0),
                 transform: [{ scale: waveScale }],
               },
             ]}
