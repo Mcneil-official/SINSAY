@@ -713,7 +713,7 @@ export function EcoDivePassportView() {
   const subValLh = Math.round(subValFs * 1.23 * 10) / 10;
   const fieldIconSz = Math.max(10, Math.round(u * 8.6));
   const colPad = Math.max(7, Math.round(cardWidth * 0.022));
-  const gridGapCert = Math.max(3, Math.round(u * 3.2));
+  const gridGapCert = Math.max(5, Math.round(u * 5.2));
   const gridGapFun = Math.max(8, Math.round(u * 9));
   // Narrow phones: use the short emergency label so it never clips
   const compactCard = cardWidth < 330;
@@ -992,16 +992,6 @@ export function EcoDivePassportView() {
                     </>
                   ) : (
                     <>
-                      <CardField
-                        icon={<Ionicons name="ribbon" size={fieldIconSz} color="#0D74E7" />}
-                        label={t("label_certification_level")}
-                        values={[cardData.certLevel]}
-                        maxLines={2}
-                        labelFs={labelFs}
-                        labelLh={labelLh}
-                        valFs={subValFs}
-                        valLh={subValLh}
-                      />
                       <CardField
                         icon={<Ionicons name="calendar-outline" size={fieldIconSz} color="#0D74E7" />}
                         label={t("label_date_accredited")}
