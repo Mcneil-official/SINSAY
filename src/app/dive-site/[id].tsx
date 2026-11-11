@@ -139,21 +139,7 @@ export default function DiveSiteDetailScreen() {
 
         <Text style={styles.title}>Dive Site Details</Text>
 
-        <TouchableOpacity
-          onPress={handleToggleLike}
-          hitSlop={10}
-          style={[styles.headerBookmarkBtn, liked && styles.heartBtnActive]}
-          accessibilityRole="button"
-          accessibilityLabel={
-            liked ? "Remove from favorites" : "Add to favorites"
-          }
-        >
-          <Ionicons
-            name={liked ? "heart" : "heart-outline"}
-            size={19}
-            color={liked ? colors.heartRed : colors.darkText}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       {loading ? (
@@ -414,15 +400,9 @@ const styles = StyleSheet.create({
     fontFamily: "Quicksand_700Bold",
     color: colors.darkText,
   },
-  headerBookmarkBtn: {
+  headerSpacer: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F8FBFF",
-    borderWidth: 1,
-    borderColor: "#DBE8F4",
   },
   container: {
     flex: 1,
@@ -469,10 +449,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   heroHeartBtnActive: {
-    backgroundColor: "#FEF2F2",
-    borderColor: "#FCA5A5",
-  },
-  heartBtnActive: {
     backgroundColor: "#FEF2F2",
     borderColor: "#FCA5A5",
   },

@@ -33,6 +33,7 @@ import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../context/LanguageContext";
 import { deriveEffectiveEcoStatus } from "../lib/ecoIdExpiry";
+import { resolveImageUri } from "../lib/imageSource";
 import { pickAvatarImage } from "../lib/pickAvatar";
 import { captureAndDownload, loadImageAsBase64 } from "../lib/snapshot";
 import { uploadFile } from "../lib/storage";
@@ -190,9 +191,7 @@ export function EcoDivePassportView() {
       selectedRecap.photoUrl,
       selectedRecap.imageIndex,
     );
-    const assetSource = Image.resolveAssetSource(rawSource);
-    const uri =
-      assetSource?.uri || (typeof rawSource === "string" ? rawSource : null);
+    const uri = resolveImageUri(rawSource);
     if (uri) {
       loadImageAsBase64(uri)
         .then((base64) => {
@@ -201,9 +200,9 @@ export function EcoDivePassportView() {
         .catch(() => {});
     }
 
-    const logoSource = Image.resolveAssetSource(SINSAY_WHITE_LOGO);
-    if (logoSource?.uri) {
-      loadImageAsBase64(logoSource.uri)
+    const logoUri = resolveImageUri(SINSAY_WHITE_LOGO);
+    if (logoUri) {
+      loadImageAsBase64(logoUri)
         .then((base64) => {
           if (active && base64) setRecapLogoBase64(base64);
         })
@@ -461,10 +460,7 @@ export function EcoDivePassportView() {
             activity.photoUrl,
             activity.imageIndex,
           );
-          const assetSource = Image.resolveAssetSource(rawSource);
-          const uri =
-            assetSource?.uri ||
-            (typeof rawSource === "string" ? rawSource : null);
+          const uri = resolveImageUri(rawSource);
           if (uri) {
             bgBase64 = await loadImageAsBase64(uri);
             if (bgBase64) {
@@ -477,9 +473,9 @@ export function EcoDivePassportView() {
         // 2. Guarantee brand logo base64 is resolved before snapshot
         let logoBase64 = recapLogoBase64;
         if (!logoBase64) {
-          const logoSource = Image.resolveAssetSource(SINSAY_WHITE_LOGO);
-          if (logoSource?.uri) {
-            logoBase64 = await loadImageAsBase64(logoSource.uri);
+          const logoUri = resolveImageUri(SINSAY_WHITE_LOGO);
+          if (logoUri) {
+            logoBase64 = await loadImageAsBase64(logoUri);
             if (logoBase64) {
               setRecapLogoBase64(logoBase64);
               needsSettle = true;
@@ -1377,9 +1373,9 @@ export function EcoDivePassportView() {
                           <TouchableOpacity
                             style={styles.rightPhotoBox}
                             activeOpacity={0.86}
-                            onPress={() => router.push("/(tabs)/map")}
+                            onPress={() => setSelectedRecap(item)}
                             accessibilityRole="button"
-                            accessibilityLabel={t("a11y_preview_map", { site: item.siteName })}
+                            accessibilityLabel={t("a11y_view_recap", { site: item.siteName })}
                           >
                             <Image
                               source={resolveSiteImage(
