@@ -68,7 +68,6 @@ export default function ProfileScreen() {
     isOperator,
     signOut,
     isLoading,
-    updateProfile,
     setViewAsTourist,
     viewAsTourist,
   } = useAuth();

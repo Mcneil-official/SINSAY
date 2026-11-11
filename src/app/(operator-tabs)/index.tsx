@@ -625,7 +625,7 @@ export default function OperatorDashboardScreen() {
                 <Defs>
                   <LinearGradient id="ctaGrad1" x1="0" y1="0" x2="1" y2="1">
                     <Stop offset="0" stopColor="#0061f6" />
-                    <Stop offset="1" stopColor="#0D68D0" />
+                    <Stop offset="1" stopColor="#2d8dff" />
                   </LinearGradient>
                 </Defs>
                 <Rect
@@ -635,18 +635,13 @@ export default function OperatorDashboardScreen() {
                   fill="url(#ctaGrad1)"
                 />
               </Svg>
-              <View style={styles.actionContent}>
-                <View style={styles.actionSymbol}>
-                  <Ionicons name="add" size={18} color="#0061f6" />
-                </View>
-                <Text
-                  style={styles.actionBtnText}
-                  numberOfLines={2}
-                  ellipsizeMode="clip"
-                >
-                  Create Dive Manifest
-                </Text>
+              <View style={styles.actionSymbol}>
+                <Ionicons name="add" size={18} color="#0061f6" />
               </View>
+              <Text style={styles.actionBtnText} numberOfLines={2}>
+                {t("action_create_manifest")}
+              </Text>
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
             </TouchableOpacity>
 
             {/* Action 2: Buy Dive Credits */}
@@ -665,7 +660,7 @@ export default function OperatorDashboardScreen() {
                 <Defs>
                   <LinearGradient id="ctaGrad2" x1="0" y1="0" x2="1" y2="1">
                     <Stop offset="0" stopColor="#1682ff" />
-                    <Stop offset="1" stopColor="#1267CF" />
+                    <Stop offset="1" stopColor="#409dff" />
                   </LinearGradient>
                 </Defs>
                 <Rect
@@ -675,18 +670,13 @@ export default function OperatorDashboardScreen() {
                   fill="url(#ctaGrad2)"
                 />
               </Svg>
-              <View style={styles.actionContent}>
-                <View style={styles.actionSymbol}>
-                  <Ionicons name="card" size={16} color="#0061f6" />
-                </View>
-                <Text
-                  style={styles.actionBtnText}
-                  numberOfLines={2}
-                  ellipsizeMode="clip"
-                >
-                  Buy Dive Credits
-                </Text>
+              <View style={styles.actionSymbol}>
+                <Ionicons name="card" size={16} color="#0061f6" />
               </View>
+              <Text style={styles.actionBtnText} numberOfLines={2}>
+                {t("action_buy_credits")}
+              </Text>
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </ContentContainer>
@@ -1092,9 +1082,11 @@ const styles = StyleSheet.create({
     minHeight: 60,
     borderRadius: 12,
     overflow: "hidden",
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    gap: 6,
     shadowColor: "#6fb9ed",
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1109,16 +1101,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  actionContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    maxWidth: "100%",
-  },
   actionBtnText: {
-    flexShrink: 1,
+    flex: 1,
     fontSize: 13,
+    lineHeight: 16,
     fontFamily: "Quicksand_700Bold",
     color: "#FFFFFF",
     textAlign: "center",
@@ -1150,8 +1136,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.95)",
     borderRadius: 16,
     minHeight: 56,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: "rgba(111, 185, 237, 0.24)",
     gap: 12,
@@ -1162,8 +1147,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   manifestSymbol: {
-    width: 38,
-    height: 38,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     backgroundColor: "#e7f3ff",
     alignItems: "center",

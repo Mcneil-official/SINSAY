@@ -1,74 +1,82 @@
-import assert from "node:assert";
 import {
   DEFAULT_LOCALE,
   LANGUAGE_STORAGE_KEY,
   LOCALES,
-  Locale,
   t,
 } from "../src/lib/i18n";
+
+let failures = 0;
+
+function check(name: string, fn: () => void) {
+  try {
+    fn();
+    console.log(`ok - ${name}`);
+  } catch (e) {
+    failures += 1;
+    console.error(`FAIL - ${name}: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+function assertEqual(actual: unknown, expected: unknown) {
+  if (actual !== expected) {
+    throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
 
 console.log("Running i18n unit tests...");
 
 // Test 1: Locales and Storage constants
-assert.strictEqual(DEFAULT_LOCALE, "en", "Default locale must be English");
-assert.strictEqual(
-  LANGUAGE_STORAGE_KEY,
-  "@sinsay_language_preference",
-  "Storage key must be @sinsay_language_preference"
+check("Default locale must be English", () => assertEqual(DEFAULT_LOCALE, "en"));
+check("Storage key must be @sinsay_language_preference", () =>
+  assertEqual(LANGUAGE_STORAGE_KEY, "@sinsay_language_preference")
 );
-assert.strictEqual(LOCALES.length, 2, "Must support 2 locales");
-assert.ok(
-  LOCALES.some((l) => l.code === "en"),
-  "Must include English locale"
+check("Must support 2 locales", () => assertEqual(LOCALES.length, 2));
+check("Must include English locale", () =>
+  assertEqual(LOCALES.some((l) => l.code === "en"), true)
 );
-assert.ok(
-  LOCALES.some((l) => l.code === "fil"),
-  "Must include Filipino locale"
+check("Must include Filipino locale", () =>
+  assertEqual(LOCALES.some((l) => l.code === "fil"), true)
 );
-console.log("ok - locales and storage key configured");
 
 // Test 2: Basic translation lookup
-assert.strictEqual(t("tab_home", "en"), "Home");
-assert.strictEqual(t("tab_home", "fil"), "Tahanan");
-
-assert.strictEqual(t("tab_map", "en"), "Map");
-assert.strictEqual(t("tab_map", "fil"), "Mapa");
-
-assert.strictEqual(t("tab_dashboard", "en"), "Dashboard");
-assert.strictEqual(t("tab_dashboard", "fil"), "Dashboard");
-
-assert.strictEqual(t("tab_manifests", "en"), "Manifests");
-assert.strictEqual(t("tab_manifests", "fil"), "Manifesto");
-
-assert.strictEqual(t("my_account", "en"), "My Account");
-assert.strictEqual(t("my_account", "fil"), "Aking Account");
-
-assert.strictEqual(t("language", "en"), "Language");
-assert.strictEqual(t("language", "fil"), "Wika");
-console.log("ok - translates basic navigation and profile keys");
+check("Translates tab_home en", () => assertEqual(t("tab_home", "en"), "Home"));
+check("Translates tab_home fil", () => assertEqual(t("tab_home", "fil"), "Tahanan"));
+check("Translates tab_map en", () => assertEqual(t("tab_map", "en"), "Map"));
+check("Translates tab_map fil", () => assertEqual(t("tab_map", "fil"), "Mapa"));
+check("Translates tab_dashboard en", () => assertEqual(t("tab_dashboard", "en"), "Dashboard"));
+check("Translates tab_dashboard fil", () => assertEqual(t("tab_dashboard", "fil"), "Dashboard"));
+check("Translates tab_manifests en", () => assertEqual(t("tab_manifests", "en"), "Manifests"));
+check("Translates tab_manifests fil", () => assertEqual(t("tab_manifests", "fil"), "Manifesto"));
+check("Translates my_account en", () => assertEqual(t("my_account", "en"), "My Account"));
+check("Translates my_account fil", () => assertEqual(t("my_account", "fil"), "Aking Account"));
+check("Translates language en", () => assertEqual(t("language", "en"), "Language"));
+check("Translates language fil", () => assertEqual(t("language", "fil"), "Wika"));
 
 // Test 3: Parameter substitution
-const enGreeting = t("greeting_diver", "en", { greeting: "Good morning", name: "Diver" });
-assert.strictEqual(enGreeting, "Good morning, Diver");
+check("Substitutes parameters in English greeting", () => {
+  const enGreeting = t("greeting_diver", "en", { greeting: "Good morning", name: "Diver" });
+  assertEqual(enGreeting, "Good morning, Diver");
+});
 
-const filGreeting = t("greeting_diver", "fil", { greeting: "Magandang umaga", name: "Juan" });
-assert.strictEqual(filGreeting, "Magandang umaga, Juan");
+check("Substitutes parameters in Filipino greeting", () => {
+  const filGreeting = t("greeting_diver", "fil", { greeting: "Magandang umaga", name: "Juan" });
+  assertEqual(filGreeting, "Magandang umaga, Juan");
+});
 
-const verifiedResort = t("verified_by", "fil", { resort: "Solitude Acacia" });
-assert.strictEqual(verifiedResort, "Bineripika ng Solitude Acacia");
-console.log("ok - handles parameter interpolation correctly");
+check("Substitutes parameters in verified resort label", () => {
+  const verifiedResort = t("verified_by", "fil", { resort: "Solitude Acacia" });
+  assertEqual(verifiedResort, "Bineripika ng Solitude Acacia");
+});
 
 // Test 4: Missing key fallback
-assert.strictEqual(
-  t("non_existent_key_xyz", "en"),
-  "non_existent_key_xyz",
-  "Fallback to raw key when missing"
-);
-assert.strictEqual(
-  t("non_existent_key_xyz", "fil"),
-  "non_existent_key_xyz",
-  "Fallback to raw key when missing in non-default locale"
-);
-console.log("ok - handles missing key fallback gracefully");
+check("Fallback to raw key when missing in en", () => {
+  assertEqual(t("non_existent_key_xyz", "en"), "non_existent_key_xyz");
+});
+check("Fallback to raw key when missing in fil", () => {
+  assertEqual(t("non_existent_key_xyz", "fil"), "non_existent_key_xyz");
+});
 
+if (failures > 0) {
+  throw new Error(`${failures} test(s) failed`);
+}
 console.log("all i18n tests passed");

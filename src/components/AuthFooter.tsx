@@ -37,7 +37,15 @@ export default function AuthFooter({ mode, compact, onSwitch }: AuthFooterProps)
         >
           Terms
         </Text>{" "}
-        and RA 10173 (Data Privacy Act) for LGU tourism analytics.
+        and{" "}
+        <Text
+          style={styles.termsLink}
+          onPress={() => router.push("/privacy")}
+          accessibilityRole="link"
+        >
+          Privacy Policy
+        </Text>
+        .
       </Text>
     </View>
   );

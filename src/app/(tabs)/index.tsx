@@ -39,43 +39,6 @@ import {
   EstablishmentRow,
 } from "../../types/supabase";
 
-const categoryOptions: {
-  key: string;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  matches: (site: DiveSiteRow) => boolean;
-}[] = [
-  {
-    key: "all",
-    label: "All Dives",
-    icon: "compass-outline",
-    matches: () => true,
-  },
-  {
-    key: "Beginner",
-    label: "Beginner",
-    icon: "sunny-outline",
-    matches: (s) =>
-      s.difficulty === "Beginner" || s.difficulty === "Open Water",
-  },
-  {
-    key: "Intermediate",
-    label: "Intermediate",
-    icon: "water-outline",
-    matches: (s) =>
-      s.difficulty === "Intermediate" || s.difficulty === "Rescue",
-  },
-  {
-    key: "Advanced",
-    label: "Advanced",
-    icon: "flash-outline",
-    matches: (s) =>
-      s.difficulty === "Advanced" ||
-      s.difficulty === "Divemaster" ||
-      s.difficulty === "Instructor",
-  },
-];
-
 export default function HomeScreen() {
   const router = useRouter();
   const { openNotifications } = useNotificationModal();
@@ -87,7 +50,7 @@ export default function HomeScreen() {
     user,
   } = useAuth();
   const { isDesktop, isCompact } = useLayout();
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
 
   const categories = useMemo(
     () => [
@@ -121,13 +84,13 @@ export default function HomeScreen() {
           s.difficulty === "Instructor",
       },
     ],
-    [t, locale]
+    [t]
   );
 
   const firstName =
     profile?.full_name?.trim().split(" ")[0] ||
     user?.user_metadata?.full_name?.trim().split(" ")[0] ||
-    "Diver";
+    t("header_diver");
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -216,15 +179,7 @@ export default function HomeScreen() {
       .then(
         ({ data, error }) => {
           if (!active) return;
-          const uniqueList = Array.from(
-            new Map(
-              (data ?? []).map((item) => [
-                item.name.trim().toLowerCase(),
-                item,
-              ]),
-            ).values(),
-          );
-          setEstablishments(uniqueList);
+          setEstablishments(data ?? []);
           setEstablishmentsError(!!error);
           setEstablishmentsLoading(false);
         },
@@ -506,7 +461,7 @@ export default function HomeScreen() {
                   } else {
                     router.push({
                       pathname: "/establishment/[id]",
-                      params: { id: item.id, returnTo: "home" },
+                      params: { id: item.id },
                     });
                   }
                 }}
@@ -713,8 +668,7 @@ export default function HomeScreen() {
               ) : (
                 <View style={styles.resortsGrid}>
                   {establishments.slice(0, 6).map((item, idx) => {
-                    const { imageUrl, logoUrl } =
-                      resolveEstablishmentMedia(item);
+                    const { imageUrl } = resolveEstablishmentMedia(item);
                     return (
                       <View key={item.id} style={styles.resortsGridCol}>
                         <EstablishmentCard
@@ -734,7 +688,7 @@ export default function HomeScreen() {
                           onPress={() =>
                             router.push({
                               pathname: "/establishment/[id]",
-                              params: { id: item.id, returnTo: "home" },
+                              params: { id: item.id },
                             })
                           }
                         />

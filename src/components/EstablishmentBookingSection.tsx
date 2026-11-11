@@ -17,13 +17,6 @@ import {
   Text as SvgText,
 } from "react-native-svg";
 import { BookingLinkItem, BookingPlatformType } from "../types/supabase";
-import {
-  detectTravelPlatform,
-  normalizeTravelUrl,
-  PLATFORM_NAMES,
-} from "../lib/bookingChannels";
-
-export { detectTravelPlatform, normalizeTravelUrl, PLATFORM_NAMES };
 
 export interface EstablishmentBookingSectionProps {
   bookingLinks?: BookingLinkItem[] | null;
@@ -39,6 +32,71 @@ interface BookingChannel {
   name: string;
   url: string;
   type: BookingPlatformType;
+}
+
+export function detectTravelPlatform(url: string): BookingPlatformType {
+  const lower = url.toLowerCase();
+  if (lower.includes("m.me") || lower.includes("messenger.com"))
+    return "messenger";
+  if (lower.includes("agoda.com")) return "agoda";
+  if (lower.includes("wa.me") || lower.includes("whatsapp.com"))
+    return "whatsapp";
+  if (lower.includes("booking.com")) return "booking";
+  if (lower.includes("viber.com") || lower.includes("viber.me")) return "viber";
+  if (lower.includes("tripadvisor.")) return "tripadvisor";
+  if (lower.includes("klook.com")) return "klook";
+  if (lower.includes("airbnb.com")) return "airbnb";
+  if (lower.includes("instagram.com")) return "instagram";
+  if (
+    lower.includes("facebook.com") ||
+    lower.includes("fb.com") ||
+    lower.includes("fb.me")
+  )
+    return "messenger";
+  return "direct";
+}
+
+export const PLATFORM_NAMES: Record<BookingPlatformType, string> = {
+  messenger: "Messenger",
+  agoda: "Agoda",
+  whatsapp: "WhatsApp",
+  booking: "Booking.com",
+  viber: "Viber",
+  tripadvisor: "TripAdvisor",
+  klook: "Klook",
+  airbnb: "Airbnb",
+  instagram: "Instagram",
+  website: "Website",
+  direct: "Book Online",
+};
+
+export function normalizeTravelUrl(
+  url: string,
+  type?: BookingPlatformType,
+): string {
+  const trimmed = url.trim();
+  if (type === "messenger") {
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+      return trimmed.startsWith("m.me/")
+        ? `https://${trimmed}`
+        : `https://m.me/${trimmed.replace(/^@/, "")}`;
+    }
+  }
+  if (type === "whatsapp") {
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+      const digitsOnly = trimmed.replace(/[^0-9]/g, "");
+      return `https://wa.me/${digitsOnly}`;
+    }
+  }
+  if (type === "instagram") {
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+      return `https://instagram.com/${trimmed.replace(/^@/, "")}`;
+    }
+  }
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
 }
 
 export function EstablishmentBookingSection({
@@ -86,13 +144,13 @@ export function EstablishmentBookingSection({
     }
   }
 
-  // 3. Process Facebook Page (if not already included)
+  // 3. Process Facebook / Messenger Page (if not already included)
   if (facebookUrl && facebookUrl.trim().length > 0) {
     const norm = normalizeTravelUrl(facebookUrl, "messenger");
     if (!channels.some((c) => c.url.toLowerCase() === norm.toLowerCase())) {
       channels.push({
         id: "messenger",
-        name: "Facebook",
+        name: "Messenger",
         url: norm,
         type: "messenger",
       });
@@ -137,7 +195,7 @@ export function EstablishmentBookingSection({
       case "messenger":
         return (
           <View style={[styles.logoBadge, { backgroundColor: "#0084FF" }]}>
-            <Ionicons name="logo-facebook" size={26} color="#FFFFFF" />
+            <Ionicons name="chatbubble-ellipses" size={26} color="#FFFFFF" />
           </View>
         );
 

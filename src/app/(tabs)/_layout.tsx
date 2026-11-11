@@ -42,14 +42,7 @@ const tabIcons: Record<
   profile: { focused: "person", unfocused: "person-outline" },
 };
 
-const tabLabels: Record<string, string> = {
-  index: "Home",
-  map: "Map",
-  "eco-dive-id": "Eco-Dive ID",
-  profile: "Profile",
-};
-
-const HIDDEN_ROUTES = ["dive-assistant", "establishment"];
+const HIDDEN_ROUTES = ["dive-assistant"];
 
 export default function TabLayout() {
   const { isDesktop } = useLayout();
@@ -106,7 +99,6 @@ export default function TabLayout() {
           <Tabs.Screen name="eco-dive-id" />
           <Tabs.Screen name="dive-assistant" />
           <Tabs.Screen name="profile" />
-          <Tabs.Screen name="establishment" />
         </Tabs>
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
           <FloatingAssistant />

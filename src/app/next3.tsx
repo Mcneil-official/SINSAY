@@ -22,7 +22,7 @@ export default function Next3Page() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <EcoOnboarding
-        illustration={require("../../assets/onboarding/maintain-control transparent.png")}
+        illustration={require("../../assets/onboarding/maintain-control.png")}
         illustrationAlt="Illustration for maintaining control underwater"
         artContentPosition="top"
         illustrationOffsetY={-130}
@@ -32,6 +32,7 @@ export default function Next3Page() {
         }
         index={2}
         wave="control"
+        illustrationAspect={960 / 1280}
         onBack={() => safeBack(router, "/next2")}
         onFinish={handleFinish}
       />

@@ -20,6 +20,7 @@ import {
   ContentContainer,
   DateField as SharedDateField,
   Dropdown as SharedDropdown,
+  SearchableCombobox,
   TextInput as SharedTextInput,
 } from "../../../components";
 import { colors } from "../../../constants/colors";
@@ -28,18 +29,90 @@ import { deleteDraft, saveDraft } from "../../../lib/manifestDrafts";
 import { toDbPhPhone, toLocalPhDigits } from "../../../lib/phone";
 import { supabase } from "../../../lib/supabase";
 
-const diveTypes = [
-  { label: "Scuba Diving", value: "Scuba Diving" },
-  { label: "Free Diving", value: "Free Diving" },
-  { label: "Snorkeling", value: "Snorkeling" },
-  { label: "Technical", value: "Technical" },
+export const FALLBACK_MABINI_DIVE_SITES = [
+  { label: "Cathedral Rock · Bagalangit, Mabini", value: "Cathedral Rock" },
+  { label: "Twin Rocks · San Jose, Mabini", value: "Twin Rocks" },
+  { label: "Sombrero Island · Tingloy / Mabini", value: "Sombrero Island" },
+  { label: "Sepoc Beach · Tingloy / Mabini", value: "Sepoc Beach" },
+  { label: "Arthur's Rock · Bagalangit, Mabini", value: "Arthur's Rock" },
+  { label: "El Pinoy · Solo, Mabini", value: "El Pinoy" },
+  { label: "Kirby's Rock · Bagalangit, Mabini", value: "Kirby's Rock" },
+  { label: "Beatrice Rock · Sombrero Channel, Mabini", value: "Beatrice Rock" },
+  { label: "Ligpo Island · Ligpo, Mabini", value: "Ligpo Island" },
+  { label: "Mainit Point · Mainit, Mabini", value: "Mainit Point" },
+  { label: "Coconut Point · Maricaban Channel, Mabini", value: "Coconut Point" },
+  { label: "Red Rock · Bagalangit, Mabini", value: "Red Rock" },
+  { label: "Koala · San Jose, Mabini", value: "Koala" },
+  { label: "Secret Bay (Amphitheater) · Mainit, Mabini", value: "Secret Bay" },
+  { label: "Basura · Solo, Mabini", value: "Basura" },
+  { label: "Devil's Point · Maricaban, Mabini", value: "Devil's Point" },
+  { label: "Bethlehem · Bagalangit, Mabini", value: "Bethlehem" },
+  { label: "Anilao Cove · Anilao Proper, Mabini", value: "Anilao Cove" },
 ];
 
-const diveModes = [
-  { label: "Boat Dive", value: "Boat Dive" },
-  { label: "Shore Entry", value: "Shore Entry" },
-  { label: "Night Dive", value: "Night Dive" },
+export const FALLBACK_MABINI_DIVEMASTERS = [
+  {
+    label: "Instructor Carlos Cruz · PCSSD #1042 · Mabini Lead Instructor",
+    value: "Instructor Carlos Cruz",
+    subtitle: "Lead Instructor · PCSSD #1042",
+    badge: "Instructor",
+  },
+  {
+    label: "DM Carlo Mendoza · PCSSD #2184 · Anilao Divers",
+    value: "DM Carlo Mendoza",
+    subtitle: "Certified Divemaster · PCSSD #2184",
+    badge: "Divemaster",
+  },
+  {
+    label: "Instructor Maria Santos · PCSSD #3190 · Mabini MTO Permit",
+    value: "Instructor Maria Santos",
+    subtitle: "Master Scuba Diver Trainer · PCSSD #3190",
+    badge: "Instructor",
+  },
+  {
+    label: "DM Roberto Bautista · PCSSD #1844 · Solo, Mabini",
+    value: "DM Roberto Bautista",
+    subtitle: "Certified Divemaster · PCSSD #1844",
+    badge: "Divemaster",
+  },
+  {
+    label: "Instructor Alex Reyes · PCSSD #4012 · Bagalangit, Mabini",
+    value: "Instructor Alex Reyes",
+    subtitle: "Freediving & Scuba Instructor · PCSSD #4012",
+    badge: "Instructor",
+  },
+  {
+    label: "DM Juan Dela Cruz · Mabini Resident DM · Permit Verified",
+    value: "DM Juan Dela Cruz",
+    subtitle: "Divemaster · Permit Verified",
+    badge: "Divemaster",
+  },
 ];
+
+const diveTypes = [
+
+  { label: "Scuba Diving", value: "Scuba Diving" },
+  { label: "Freediving", value: "Freediving" },
+];
+
+export const isBoatMode = (mode?: string | null): boolean => {
+  if (!mode) return true;
+  const m = mode.trim().toLowerCase();
+  return m.includes("boat"); // matches "Boat Entry", "Boat Dive", "Boat Diving"
+};
+
+export const isShoreMode = (mode?: string | null): boolean => {
+  if (!mode) return false;
+  const m = mode.trim().toLowerCase();
+  return m.includes("shore"); // matches "Shore Entry", "Shore Dive"
+};
+
+export const diveModes = [
+  { label: "Shore Entry", value: "Shore Entry" },
+  { label: "Boat Entry", value: "Boat Entry" },
+];
+
+
 
 const FORM_FONT = "Quicksand_500Medium";
 const TextInput = (props: React.ComponentProps<typeof SharedTextInput>) => (
@@ -180,12 +253,18 @@ export default function CreateManifestStep1() {
   );
   const [draftSavedTick, setDraftSavedTick] = useState(0);
 
-  const [diveType, setDiveType] = useState(
-    (initialDraft.diveType as string) ?? "Scuba Diving",
-  );
-  const [diveMode, setDiveMode] = useState(
-    (initialDraft.diveMode as string) ?? "Boat Dive",
-  );
+  const [diveType, setDiveType] = useState<string>(() => {
+    const raw = initialDraft.diveType as string | undefined;
+    return raw === "Freediving" || raw === "Scuba Diving"
+      ? raw
+      : "Scuba Diving";
+  });
+  const [diveMode, setDiveMode] = useState<string>(() => {
+    const raw = initialDraft.diveMode as string | undefined;
+    return raw && isShoreMode(raw) ? "Shore Entry" : "Boat Entry";
+  });
+
+
   const [locations, setLocations] = useState<string[]>(() => {
     if (
       Array.isArray(initialDraft.locations) &&
@@ -206,10 +285,6 @@ export default function CreateManifestStep1() {
     }
     return [""];
   });
-  const [manualLocationIndexes, setManualLocationIndexes] = useState<
-    Record<number, boolean>
-  >({});
-
   const updateLocation = (index: number, value: string) => {
     const updated = [...locations];
     updated[index] = value;
@@ -228,24 +303,11 @@ export default function CreateManifestStep1() {
       return;
     }
     setLocations(locations.filter((_, i) => i !== index));
-    const nextManual: Record<number, boolean> = {};
-    Object.entries(manualLocationIndexes).forEach(([k, v]) => {
-      const i = Number(k);
-      if (i < index) nextManual[i] = v;
-      else if (i > index) nextManual[i - 1] = v;
-    });
-    setManualLocationIndexes(nextManual);
   };
 
-  const toggleManualLocation = (index: number, isManual: boolean) => {
-    setManualLocationIndexes((prev) => ({
-      ...prev,
-      [index]: isManual,
-    }));
-  };
   const [diveSiteOptions, setDiveSiteOptions] = useState<
     { label: string; value: string }[]
-  >([]);
+  >(FALLBACK_MABINI_DIVE_SITES);
   const [diveSitesLoading, setDiveSitesLoading] = useState(true);
   const [diveSitesError, setDiveSitesError] = useState(false);
   const [diveSitesReloadKey, setDiveSitesReloadKey] = useState(0);
@@ -276,9 +338,36 @@ export default function CreateManifestStep1() {
     (initialDraft.boatContact as string) ?? "",
   );
 
+  const handleDecrementCapacity = () => {
+    const current = parseInt(maxDivers, 10);
+    const valid = Number.isInteger(current) && current > 0 ? current : 1;
+    const next = Math.max(1, valid - 1);
+    setMaxDivers(String(next));
+  };
+
+  const handleIncrementCapacity = () => {
+    const current = parseInt(maxDivers, 10);
+    const valid = Number.isInteger(current) && current > 0 ? current : 1;
+    const next = valid + 1;
+    setMaxDivers(String(next));
+  };
+
+  const handleCapacityTextChange = (text: string) => {
+    const digitsOnly = text.replace(/[^0-9]/g, "");
+    setMaxDivers(digitsOnly);
+  };
+
+  const handleCapacityBlur = () => {
+    const num = parseInt(maxDivers, 10);
+    if (!Number.isInteger(num) || num < 1) {
+      setMaxDivers("1");
+    }
+  };
+
+
   // Instructor / Duty of Care
   const [instructorName, setInstructorName] = useState(
-    (initialDraft.instructorName as string) ?? "Instructor Marco Valerio",
+    (initialDraft.instructorName as string) ?? "",
   );
   const [diveMasters, setDiveMasters] = useState<string[]>(() => {
     if (
@@ -287,8 +376,7 @@ export default function CreateManifestStep1() {
     ) {
       return initialDraft.diveMasters as string[];
     }
-    const legacy =
-      (initialDraft.instructorName as string) || "Instructor Marco Valerio";
+    const legacy = (initialDraft.instructorName as string) || "";
     return legacy ? [legacy] : [""];
   });
   const [dutyNotes, setDutyNotes] = useState(
@@ -325,11 +413,15 @@ export default function CreateManifestStep1() {
   const [annualAssigned, setAnnualAssigned] = useState<string[]>([]);
   const [searchError, setSearchError] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+
+
   const scrollRef = useRef<ScrollView>(null);
-  const isBoatDive = diveMode === "Boat Dive";
+  const isBoatDive = isBoatMode(diveMode);
+
   const wizardSteps = isBoatDive
     ? ["Dive Details", "Boat & Crew", "Divers", "Safety & Review"]
     : ["Dive Details", "Divers", "Safety & Review"];
+
   const stepDescriptions = isBoatDive
     ? [
         "Set the date, dive type, and site",
@@ -345,12 +437,11 @@ export default function CreateManifestStep1() {
   const diverStepIndex = isBoatDive ? 2 : 1;
   const reviewStepIndex = wizardSteps.length - 1;
 
-  // Modal State for Select Dive Master
-  const [showDmModal, setShowDmModal] = useState(false);
-  const [dmSearchQuery, setDmSearchQuery] = useState("");
-  const [dmSearchResults, setDmSearchResults] = useState<any[]>([]);
-  const [dmSearching, setDmSearching] = useState(false);
-  const [dmSearchError, setDmSearchError] = useState(false);
+  // Accredited Dive Masters / Instructors for Searchable Combobox
+  const [diveMasterOptions, setDiveMasterOptions] = useState<
+    { label: string; value: string; subtitle?: string; badge?: string }[]
+  >(FALLBACK_MABINI_DIVEMASTERS);
+  const [diveMastersLoading, setDiveMastersLoading] = useState(false);
 
   // Modal State for Add Diver
   const [showAddModal, setShowAddModal] = useState(false);
@@ -395,12 +486,14 @@ export default function CreateManifestStep1() {
                 : site.name,
               value: site.name,
             }));
-          setDiveSiteOptions(options);
+          setDiveSiteOptions(
+            options.length > 0 ? options : FALLBACK_MABINI_DIVE_SITES,
+          );
           setDiveSitesLoading(false);
         } catch (sitesError) {
           console.warn("Failed to load dive sites:", sitesError);
           if (!active) return;
-          setDiveSitesError(true);
+          setDiveSiteOptions(FALLBACK_MABINI_DIVE_SITES);
           setDiveSitesLoading(false);
         }
       })();
@@ -421,6 +514,94 @@ export default function CreateManifestStep1() {
         ]
       : diveSiteOptions;
   };
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        setDiveMastersLoading(true);
+        const { data, error: dmError } = await supabase
+          .from("tourists")
+          .select(
+            "id, full_name, certification_level, pcssd_accreditation_no, pcssd_url, permit_to_operate_no, permit_to_operate_url",
+          )
+          .not("full_name", "is", null)
+          .or(
+            "certification_level.in.(dive-master,instructor),pcssd_accreditation_no.not.is.null,pcssd_url.not.is.null,permit_to_operate_no.not.is.null",
+          )
+          .limit(50);
+
+        if (dmError) throw dmError;
+        if (!active) return;
+
+        const dbOptions = (data || [])
+          .filter((d) => d.full_name && d.full_name.trim().length > 0)
+          .map((dm) => {
+            const creds: string[] = [];
+            const isInst =
+              dm.certification_level?.toLowerCase().includes("instructor");
+            const isDm =
+              dm.certification_level?.toLowerCase().includes("master");
+            const badge = isInst ? "Instructor" : isDm ? "Divemaster" : "Accredited";
+
+            if (dm.pcssd_accreditation_no) {
+              creds.push(`PCSSD #${dm.pcssd_accreditation_no}`);
+            } else if (dm.pcssd_url) {
+              creds.push("PCSSD Verified");
+            }
+            if (dm.permit_to_operate_no) {
+              creds.push(`Permit #${dm.permit_to_operate_no}`);
+            }
+
+            const credText = creds.length > 0 ? creds.join(" • ") : badge;
+            return {
+              label: `${dm.full_name} · ${credText}`,
+              value: dm.full_name,
+              subtitle: credText,
+              badge,
+            };
+          });
+
+        const mergedMap = new Map<
+          string,
+          { label: string; value: string; subtitle?: string; badge?: string }
+        >();
+        FALLBACK_MABINI_DIVEMASTERS.forEach((item) =>
+          mergedMap.set(item.value.toLowerCase(), item),
+        );
+        dbOptions.forEach((item) =>
+          mergedMap.set(item.value.toLowerCase(), item),
+        );
+
+        setDiveMasterOptions(Array.from(mergedMap.values()));
+      } catch (e) {
+        console.warn("Failed to load accredited divemasters:", e);
+        if (active) setDiveMasterOptions(FALLBACK_MABINI_DIVEMASTERS);
+      } finally {
+        if (active) setDiveMastersLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const getDiveMasterOptions = (currentVal: string) => {
+    return currentVal &&
+      !diveMasterOptions.some(
+        (dm) => dm.value.toLowerCase() === currentVal.trim().toLowerCase(),
+      )
+      ? [
+          ...diveMasterOptions,
+          {
+            label: `${currentVal} (current / draft)`,
+            value: currentVal,
+            subtitle: "Manifest Dive Professional",
+          },
+        ]
+      : diveMasterOptions;
+  };
+
 
   const loadLedger = async () => {
     if (!user) return;
@@ -569,88 +750,12 @@ export default function CreateManifestStep1() {
     divers.length > 0 &&
     locationValid &&
     boatDetailsValid &&
-    maxDiversValid &&
-    divers.length <= maxDiversNum &&
+    (!isBoatDive || (maxDiversValid && divers.length <= maxDiversNum)) &&
     hasEnoughPasses &&
+
     dateValid &&
     !saving,
   );
-
-  const searchDiveMasters = async (text: string) => {
-    setDmSearchQuery(text);
-    setDmSearchError(false);
-    const trimmed = text.trim();
-    if (trimmed.length < 1) {
-      setDmSearchResults([]);
-      setDmSearching(false);
-      return;
-    }
-    setDmSearching(true);
-    try {
-      const { data, error } = await supabase
-        .from("tourists")
-        .select(
-          "id, full_name, certification_level, pcssd_accreditation_no, pcssd_url, permit_to_operate_no, permit_to_operate_url",
-        )
-        .ilike("full_name", `%${trimmed}%`)
-        .not("full_name", "is", null)
-        .or(
-          "certification_level.in.(dive-master,instructor),pcssd_accreditation_no.not.is.null,pcssd_url.not.is.null,permit_to_operate_no.not.is.null",
-        )
-        .limit(10);
-
-      if (error) throw error;
-      const valid = (data || []).filter(
-        (d) => d.full_name && d.full_name.trim().length > 0,
-      );
-      setDmSearchResults(valid);
-    } catch (e) {
-      console.warn("Dive master search failed:", e);
-      setDmSearchResults([]);
-      setDmSearchError(true);
-    }
-    setDmSearching(false);
-  };
-
-  const handleSelectDiveMaster = (dm: {
-    id: string;
-    full_name: string;
-    certification_level?: string | null;
-    pcssd_accreditation_no?: string | null;
-    pcssd_url?: string | null;
-    permit_to_operate_no?: string | null;
-    permit_to_operate_url?: string | null;
-  }) => {
-    const credentials: string[] = [];
-    if (dm.pcssd_accreditation_no) {
-      credentials.push(`PCSSD #${dm.pcssd_accreditation_no}`);
-    } else if (dm.pcssd_url) {
-      credentials.push("PCSSD Verified");
-    }
-
-    if (dm.permit_to_operate_no) {
-      credentials.push(`Permit #${dm.permit_to_operate_no}`);
-    } else if (dm.permit_to_operate_url) {
-      credentials.push("Permit Verified");
-    }
-
-    const formattedName =
-      credentials.length > 0
-        ? `${dm.full_name} (${credentials.join(" • ")})`
-        : dm.full_name;
-
-    const currentList = diveMasters.filter((d) => d.trim().length > 0);
-    if (!currentList.includes(formattedName)) {
-      const updated = [...currentList, formattedName];
-      setDiveMasters(updated);
-      if (updated.length === 1) {
-        setInstructorName(dm.full_name);
-      }
-    }
-    setDmSearchQuery("");
-    setDmSearchResults([]);
-    setShowDmModal(false);
-  };
 
   // Search tourists in Supabase: name contains-match + exact Eco-Dive ID
   // match (Eco IDs look like ECO-2026-…, so only attempt the ID lookup for
@@ -959,12 +1064,13 @@ export default function CreateManifestStep1() {
         setError("Add at least one diver to continue.");
         return;
       }
-      if (!maxDiversValid || divers.length > maxDiversNum) {
+      if (isBoatDive && (!maxDiversValid || divers.length > maxDiversNum)) {
         setError(
-          "The diver roster exceeds the maximum group capacity. Update the capacity or roster.",
+          "The diver roster exceeds the boat capacity. Update the capacity or roster.",
         );
         return;
       }
+
     }
     setCurrentStep((step) => Math.min(wizardSteps.length - 1, step + 1));
     scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -1278,7 +1384,6 @@ export default function CreateManifestStep1() {
                   </View>
 
                   {locations.map((loc, idx) => {
-                    const isManual = Boolean(manualLocationIndexes[idx]);
                     const locOptions = getLocationOptions(loc);
                     const fieldLabel =
                       locations.length > 1
@@ -1290,7 +1395,10 @@ export default function CreateManifestStep1() {
                     return (
                       <View
                         key={`loc-item-${idx}`}
-                        style={styles.locationItemCard}
+                        style={[
+                          styles.locationItemCard,
+                          { zIndex: 100 - idx, position: "relative" },
+                        ]}
                       >
                         <View style={styles.locationItemHeader}>
                           <Text style={styles.locationItemLabel}>
@@ -1316,63 +1424,15 @@ export default function CreateManifestStep1() {
                           )}
                         </View>
 
-                        {isManual ? (
-                          <View style={styles.manualSiteWrap}>
-                            <TextInput
-                              label=""
-                              placeholder="e.g. Secret Garden Reef"
-                              value={loc}
-                              onChangeText={(val) => updateLocation(idx, val)}
-                            />
-                            <TouchableOpacity
-                              style={styles.manualSiteToggle}
-                              onPress={() => toggleManualLocation(idx, false)}
-                              accessibilityRole="button"
-                            >
-                              <Ionicons
-                                name="list-outline"
-                                size={14}
-                                color="#006bff"
-                              />
-                              <Text style={styles.manualSiteToggleText}>
-                                Choose from registered dive sites list
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        ) : (
-                          <View>
-                            <Dropdown
-                              label=""
-                              placeholder={
-                                diveSitesLoading
-                                  ? "Loading dive sites…"
-                                  : diveSitesError
-                                    ? "Dive sites unavailable"
-                                    : "Select a dive site"
-                              }
-                              value={loc}
-                              options={locOptions}
-                              onSelect={(val) => updateLocation(idx, val)}
-                            />
-                            <TouchableOpacity
-                              style={styles.manualSiteToggle}
-                              onPress={() => {
-                                toggleManualLocation(idx, true);
-                                updateLocation(idx, "");
-                              }}
-                              accessibilityRole="button"
-                            >
-                              <Ionicons
-                                name="create-outline"
-                                size={14}
-                                color="#006bff"
-                              />
-                              <Text style={styles.manualSiteToggleText}>
-                                Can&apos;t find your dive site? Enter manually
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        )}
+                        <SearchableCombobox
+                          placeholder="Search or enter dive location..."
+                          value={loc}
+                          onChangeText={(val) => updateLocation(idx, val)}
+                          options={locOptions}
+                          onSelect={(val) => updateLocation(idx, val)}
+                          loading={diveSitesLoading}
+                          fontFamily={FORM_FONT}
+                        />
                       </View>
                     );
                   })}
@@ -1412,13 +1472,15 @@ export default function CreateManifestStep1() {
                     No dive sites are available right now.
                   </Text>
                 ) : null}
-                <Dropdown
-                  label="Diving Difficulty"
-                  placeholder="Select difficulty"
-                  value={difficulty}
-                  options={difficulties}
-                  onSelect={setDifficulty}
-                />
+                <View style={{ zIndex: 1, position: "relative" }}>
+                  <Dropdown
+                    label="Diving Difficulty"
+                    placeholder="Select difficulty"
+                    value={difficulty}
+                    options={difficulties}
+                    onSelect={setDifficulty}
+                  />
+                </View>
               </View>
             )}
 
@@ -1432,18 +1494,18 @@ export default function CreateManifestStep1() {
                   <View style={styles.sectionTitleCopy}>
                     <Text style={styles.cardHeaderTitle}>Boat & Crew</Text>
                     <Text style={styles.sectionHint}>
-                      Required for a boat dive
+                      Required for boat entry manifests
                     </Text>
                   </View>
                 </View>
                 <TextInput
-                  label="Boat Name"
+                  label="Boat Name *"
                   placeholder="MV Bantay Dagat II"
                   value={boatName}
                   onChangeText={setBoatName}
                 />
                 <TextInput
-                  label="Captain Name"
+                  label="Captain Name *"
                   placeholder="Capt. Roberto Cruz"
                   value={captainName}
                   onChangeText={setCaptainName}
@@ -1452,7 +1514,7 @@ export default function CreateManifestStep1() {
                 <View style={styles.staffHeaderRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.staffHeaderTitle}>
-                      Boat Crew Members
+                      Boat Crew Members *
                     </Text>
                     <Text style={styles.staffHeaderHint}>
                       Add crew onboard (Exempt from dive pass fees)
@@ -1508,7 +1570,7 @@ export default function CreateManifestStep1() {
                   </Text>
                 </TouchableOpacity>
                 <TextInput
-                  label="Boat Contact #"
+                  label="Boat Contact # *"
                   placeholder="9XXXXXXXXX"
                   prefix="+63"
                   maxLength={10}
@@ -1530,7 +1592,9 @@ export default function CreateManifestStep1() {
                     <View style={styles.sectionTitleCopy}>
                       <Text style={styles.sectionHeading}>Divers</Text>
                       <Text style={styles.sectionHint}>
-                        {divers.length} added · {maxDiversDisplay} maximum
+                        {isBoatDive
+                          ? `${divers.length} added · ${maxDiversDisplay} maximum`
+                          : `${divers.length} diver${divers.length === 1 ? "" : "s"} added`}
                       </Text>
                     </View>
                   </View>
@@ -1546,42 +1610,81 @@ export default function CreateManifestStep1() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.capacityCard}>
-                  <View style={styles.capacityTopRow}>
-                    <View style={styles.capacityCopy}>
-                      <Text style={styles.capacityTitle}>Boat capacity</Text>
-                      <Text style={styles.capacityHint}>
-                        {divers.length} of {maxDiversDisplay} spots filled
-                      </Text>
+                {/* Boat capacity: Only visible on Boat Entry manifests, hidden on Shore Entry */}
+                {isBoatDive && (
+                  <View style={styles.capacityCard}>
+                    <View style={styles.capacityTopRow}>
+                      <View style={styles.capacityCopy}>
+                        <Text style={styles.capacityTitle}>Boat Capacity *</Text>
+                        <Text style={styles.capacityHint}>
+                          {divers.length} of {maxDiversDisplay} spots filled
+                        </Text>
+                      </View>
+                      <View style={styles.capacityInputWrap}>
+                        <TouchableOpacity
+                          style={[
+                            styles.capacityStepperBtn,
+                            (!maxDiversValid || maxDiversNum <= 1) &&
+                              styles.capacityStepperBtnDisabled,
+                          ]}
+                          onPress={handleDecrementCapacity}
+                          disabled={!maxDiversValid || maxDiversNum <= 1}
+                          accessibilityRole="button"
+                          accessibilityLabel="Decrease boat capacity"
+                          hitSlop={6}
+                        >
+                          <Ionicons
+                            name="remove"
+                            size={16}
+                            color={
+                              !maxDiversValid || maxDiversNum <= 1
+                                ? "#CBD5E1"
+                                : "#006bff"
+                            }
+                          />
+                        </TouchableOpacity>
+
+                        <NativeInput
+                          value={maxDivers}
+                          onChangeText={handleCapacityTextChange}
+                          onBlur={handleCapacityBlur}
+                          keyboardType="number-pad"
+                          style={styles.capacityInput}
+                          accessibilityLabel="Boat capacity (maximum divers)"
+                        />
+
+                        <TouchableOpacity
+                          style={styles.capacityStepperBtn}
+                          onPress={handleIncrementCapacity}
+                          accessibilityRole="button"
+                          accessibilityLabel="Increase boat capacity"
+                          hitSlop={6}
+                        >
+                          <Ionicons name="add" size={16} color="#006bff" />
+                        </TouchableOpacity>
+
+                        <Text style={styles.capacityUnit}>max</Text>
+                      </View>
                     </View>
-                    <View style={styles.capacityInputWrap}>
-                      <NativeInput
-                        value={maxDivers}
-                        onChangeText={setMaxDivers}
-                        keyboardType="number-pad"
-                        style={styles.capacityInput}
-                        accessibilityLabel="Maximum divers for this manifest"
-                      />
-                      <Text style={styles.capacityUnit}>max</Text>
-                    </View>
-                  </View>
-                  <View
-                    style={styles.capacityProgressTrack}
-                    accessibilityRole="progressbar"
-                    accessibilityValue={{
-                      min: 0,
-                      max: maxDiversValid ? maxDiversNum : 0,
-                      now: divers.length,
-                    }}
-                  >
                     <View
-                      style={[
-                        styles.capacityProgressFill,
-                        { width: `${capacityPercent}%` },
-                      ]}
-                    />
+                      style={styles.capacityProgressTrack}
+                      accessibilityRole="progressbar"
+                      accessibilityValue={{
+                        min: 0,
+                        max: maxDiversValid ? maxDiversNum : 0,
+                        now: divers.length,
+                      }}
+                    >
+                      <View
+                        style={[
+                          styles.capacityProgressFill,
+                          { width: `${capacityPercent}%` },
+                        ]}
+                      />
+                    </View>
                   </View>
-                </View>
+                )}
+
 
                 <View style={styles.diverCardList}>
                   {divers.length === 0 && (
@@ -1766,13 +1869,54 @@ export default function CreateManifestStep1() {
                       <Text style={styles.exemptTagText}>Fee Exempt</Text>
                     </View>
                   </View>
+                  {diveMasters.map((dm, idx) => {
+                    const dmOpts = getDiveMasterOptions(dm);
+                    const fieldLabel =
+                      idx === 0
+                        ? "Lead Dive Master / Instructor"
+                        : `Dive Master / Instructor #${idx + 1}`;
+                    return (
+                      <View
+                        key={`dm-${idx}`}
+                        style={[
+                          styles.locationItemCard,
+                          { zIndex: 100 - idx, position: "relative" },
+                        ]}
+                      >
+                        <View style={styles.locationItemHeader}>
+                          <Text style={styles.locationItemLabel}>
+                            {fieldLabel}
+                          </Text>
+                          {diveMasters.length > 1 && (
+                            <TouchableOpacity
+                              style={styles.locationDeleteBtn}
+                              onPress={() => {
+                                const updated = diveMasters.filter(
+                                  (_, i) => i !== idx,
+                                );
+                                setDiveMasters(
+                                  updated.length > 0 ? updated : [""],
+                                );
+                                if (updated[0]) setInstructorName(updated[0]);
+                              }}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Remove dive master ${idx + 1}`}
+                              hitSlop={8}
+                            >
+                              <Ionicons
+                                name="trash-outline"
+                                size={16}
+                                color="#FF3B30"
+                              />
+                              <Text style={styles.locationDeleteText}>
+                                Remove
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
 
-                  {diveMasters.map((dm, idx) => (
-                    <View key={`dm-${idx}`} style={styles.staffInputRow}>
-                      <View style={{ flex: 1 }}>
-                        <TextInput
-                          label={`Dive Master / Instructor #${idx + 1}`}
-                          placeholder="e.g. Instructor Marco Valerio"
+                        <SearchableCombobox
+                          placeholder="Search or enter Divemaster / Instructor name..."
                           value={dm}
                           onChangeText={(val) => {
                             const updated = [...diveMasters];
@@ -1780,73 +1924,57 @@ export default function CreateManifestStep1() {
                             setDiveMasters(updated);
                             if (idx === 0) setInstructorName(val);
                           }}
+                          options={dmOpts}
+                          onSelect={(val) => {
+                            const updated = [...diveMasters];
+                            updated[idx] = val;
+                            setDiveMasters(updated);
+                            if (idx === 0) setInstructorName(val);
+                          }}
+                          leftIconName="shield-checkmark-outline"
+                          itemIconName="person"
+                          customItemTitlePrefix="Use custom divemaster:"
+                          customItemSubtext="Tap to record as walk-in divemaster"
+                          emptyTitleText="No registered divemasters match"
+                          emptySubtext="Tap 'Use custom divemaster' above to record this name."
+                          recognizedLabel="Accredited Dive Professional"
+                          customLabel="Walk-in Divemaster · Exempt from pass fee"
+                          loading={diveMastersLoading}
+                          loadingText="Loading accredited divemasters…"
+                          fontFamily={FORM_FONT}
                         />
                       </View>
-                      {diveMasters.length > 1 && (
-                        <TouchableOpacity
-                          style={styles.staffDeleteBtn}
-                          onPress={() => {
-                            const updated = diveMasters.filter(
-                              (_, i) => i !== idx,
-                            );
-                            setDiveMasters(updated);
-                            if (updated[0]) setInstructorName(updated[0]);
-                          }}
-                          accessibilityLabel={`Remove dive master ${idx + 1}`}
-                        >
-                          <Ionicons
-                            name="trash-outline"
-                            size={18}
-                            color="#FF3B30"
-                          />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  ))}
+                    );
+                  })}
 
-                  <View style={styles.dmButtonsRow}>
+                  {diveMasters.length < 5 && (
                     <TouchableOpacity
-                      style={styles.selectDmBtn}
-                      onPress={() => {
-                        setDmSearchQuery("");
-                        setDmSearchResults([]);
-                        setDmSearchError(false);
-                        setDmSearching(false);
-                        setShowDmModal(true);
-                      }}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons
-                        name="shield-checkmark"
-                        size={16}
-                        color="#FFFFFF"
-                      />
-                      <Text style={styles.selectDmBtnText}>
-                        + Select Dive Master / Instructor
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.addStaffBtn}
+                      style={styles.addLocationBtn}
                       onPress={() => setDiveMasters([...diveMasters, ""])}
+                      accessibilityRole="button"
+                      accessibilityLabel="Add another dive master or instructor"
                     >
                       <Ionicons
                         name="add-circle-outline"
                         size={16}
                         color="#006bff"
                       />
-                      <Text style={styles.addStaffBtnText}>
-                        + Add Walk-in Dive Master / Instructor
+                      <Text style={styles.addLocationBtnText}>
+                        + Add Another Dive Master / Instructor
                       </Text>
                     </TouchableOpacity>
+                  )}
+
+                  <View style={{ zIndex: 1, position: "relative", marginTop: 4 }}>
+                    <TextInput
+                      label="Duty of Care Notes (optional)"
+                      placeholder="Briefing points or relevant safety notes"
+                      value={dutyNotes}
+                      onChangeText={setDutyNotes}
+                      multiline
+                    />
                   </View>
-                  <TextInput
-                    label="Duty of Care Notes (optional)"
-                    placeholder="Briefing points or relevant safety notes"
-                    value={dutyNotes}
-                    onChangeText={setDutyNotes}
-                    multiline
-                  />
+
                 </View>
 
                 <View style={styles.cardBox}>
@@ -2187,184 +2315,6 @@ export default function CreateManifestStep1() {
         </View>
       </Modal>
 
-      {/* Select Registered Dive Master Modal */}
-      <Modal
-        visible={showDmModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDmModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                marginBottom: 12,
-              }}
-            >
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.modalHeading}>
-                  Select Dive Master / Instructor
-                </Text>
-                <Text style={styles.modalSubheading}>
-                  Add accredited dive masters & instructors from tourist
-                  profiles
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setDmSearchQuery("");
-                  setDmSearchResults([]);
-                  setDmSearching(false);
-                  setDmSearchError(false);
-                  setShowDmModal(false);
-                }}
-                style={{ padding: 4 }}
-              >
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.dmSearchContainer}>
-              <View style={styles.searchBarWrap}>
-                <Ionicons
-                  name="search"
-                  size={18}
-                  color="#94A3B8"
-                  style={{ marginRight: 8 }}
-                />
-                <NativeInput
-                  style={styles.nativeSearchInput}
-                  placeholder="Search by name..."
-                  placeholderTextColor="#94A3B8"
-                  value={dmSearchQuery}
-                  onChangeText={searchDiveMasters}
-                />
-                {dmSearching && (
-                  <ActivityIndicator size="small" color={colors.primaryBlue} />
-                )}
-              </View>
-            </View>
-
-            <ScrollView
-              style={styles.dmResultsScroll}
-              contentContainerStyle={{
-                paddingHorizontal: 16,
-                paddingBottom: 24,
-                gap: 10,
-              }}
-              keyboardShouldPersistTaps="handled"
-            >
-              {dmSearchError && (
-                <Text style={styles.searchErrorText}>
-                  Failed to load dive masters. Check connection.
-                </Text>
-              )}
-              {dmSearchQuery.trim().length > 0 && dmSearchResults.length === 0 && !dmSearching && (
-                <View style={styles.dmEmptyBox}>
-                  <Ionicons
-                    name="search-outline"
-                    size={44}
-                    color="#94A3B8"
-                  />
-                  <Text style={styles.dmEmptyTitle}>
-                    No registered dive master found
-                  </Text>
-                  <Text style={styles.dmEmptySubtitle}>
-                    {dmSearchQuery.trim()
-                      ? `No registered dive master or instructor matched "${dmSearchQuery.trim()}". Check the spelling or add them manually as a walk-in.`
-                      : "Type a name to search for registered Dive Masters or Instructors."}
-                  </Text>
-                </View>
-              )}
-
-              {dmSearchResults.map((dm) => {
-                const hasPcssd = Boolean(
-                  dm.pcssd_url || dm.pcssd_accreditation_no,
-                );
-                const hasPermit = Boolean(
-                  dm.permit_to_operate_url || dm.permit_to_operate_no,
-                );
-                const levelLabel =
-                  dm.certification_level === "instructor"
-                    ? "Instructor"
-                    : dm.certification_level === "dive-master"
-                      ? "Dive Master"
-                      : "Dive Master / Instructor";
-
-                return (
-                  <TouchableOpacity
-                    key={dm.id}
-                    style={styles.dmResultCard}
-                    onPress={() => handleSelectDiveMaster(dm)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.dmResultAvatar}>
-                      <Ionicons name="person" size={20} color="#0066FF" />
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0, justifyContent: "center" }}>
-                      <Text style={styles.dmResultName}>
-                        {dm.full_name?.trim() || "Accredited Diver"}
-                      </Text>
-
-                      {/* Accreditation & Role Badges */}
-                      <View style={styles.dmBadgesRow}>
-                        <View style={styles.dmLevelBadge}>
-                          <Text style={styles.dmLevelBadgeText}>
-                            {levelLabel}
-                          </Text>
-                        </View>
-                        {hasPcssd ? (
-                          <View style={styles.dmPcssdBadge}>
-                            <Ionicons
-                              name="shield-checkmark"
-                              size={11}
-                              color="#15803D"
-                            />
-                            <Text style={styles.dmPcssdBadgeText}>
-                              PCSSD{" "}
-                              {dm.pcssd_accreditation_no
-                                ? `#${dm.pcssd_accreditation_no}`
-                                : "Accredited"}
-                            </Text>
-                          </View>
-                        ) : (
-                          <View style={styles.dmNoCertBadge}>
-                            <Text style={styles.dmNoCertBadgeText}>
-                              No PCSSD File
-                            </Text>
-                          </View>
-                        )}
-
-                        {hasPermit ? (
-                          <View style={styles.dmPermitBadge}>
-                            <Ionicons
-                              name="document-text"
-                              size={11}
-                              color="#0369A1"
-                            />
-                            <Text style={styles.dmPermitBadgeText}>
-                              Permit{" "}
-                              {dm.permit_to_operate_no
-                                ? `#${dm.permit_to_operate_no}`
-                                : "Verified"}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    </View>
-                    <View style={styles.dmAddPill}>
-                      <Text style={styles.dmAddPillText}>+ Add</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -2566,23 +2516,33 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   capacityInputWrap: {
-    minWidth: 86,
     height: 40,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
+    gap: 4,
+    paddingHorizontal: 6,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#dce6f1",
     backgroundColor: "#FFFFFF",
   },
+  capacityStepperBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  capacityStepperBtnDisabled: {
+    backgroundColor: "#F8FAFC",
+    opacity: 0.45,
+  },
   capacityInput: {
-    flex: 1,
-    minWidth: 0,
+    minWidth: 32,
     padding: 0,
     textAlign: "center",
-    fontSize: 13,
+    fontSize: 13.5,
     fontFamily: "Quicksand_700Bold",
     color: "#07156c",
     outlineStyle: "none" as any,
@@ -2592,7 +2552,10 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: "Quicksand_600SemiBold",
     color: "#7183a4",
+    marginLeft: 2,
+    marginRight: 2,
   },
+
   wizardFooter: {
     paddingHorizontal: 16,
     paddingTop: 11,
@@ -2726,6 +2689,8 @@ const styles = StyleSheet.create({
   },
   locationsContainer: {
     marginBottom: 4,
+    position: "relative",
+    zIndex: 100,
   },
   locationsHeaderRow: {
     flexDirection: "row",

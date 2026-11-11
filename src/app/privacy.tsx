@@ -96,7 +96,7 @@ export default function PrivacyScreen() {
     ? isOperator && !viewAsTourist
       ? "/(operator-tabs)/profile"
       : "/(tabs)/profile"
-    : "/(tabs)";
+    : "/loginpage";
 
   const goBack = () => safeBack(router, fallbackPath);
 
