@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -16,14 +16,51 @@ import {
   getOperatorApprovalSeenKey,
   shouldShowOperatorApprovalModal,
 } from "../lib/operatorApproval";
+import { supabase } from "../lib/supabase";
 
 export { getOperatorApprovalSeenKey };
 
 export function OperatorApprovalModal() {
   const router = useRouter();
-  const { operatorApplication, isOperator, setViewAsTourist } = useAuth();
+  const { user, operatorApplication, isOperator, notifications, setViewAsTourist } =
+    useAuth();
   const [visible, setVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const persistAcknowledged = useCallback(
+    async (applicationId: string) => {
+      const key = getOperatorApprovalSeenKey(applicationId);
+      if (typeof window !== "undefined" && window.localStorage) {
+        try {
+          window.localStorage.setItem(key, "true");
+        } catch {}
+      }
+      try {
+        await AsyncStorage.setItem(key, "true");
+      } catch (err) {
+        console.warn("Failed to save operator approval acknowledgement:", err);
+      }
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            operator_approval_seen_id: applicationId,
+            [key]: true,
+          },
+        });
+      } catch {}
+      if (user?.id) {
+        try {
+          await supabase
+            .from("notifications")
+            .update({ is_read: true })
+            .eq("tourist_id", user.id)
+            .eq("type", "operator_application_approved")
+            .eq("is_read", false);
+        } catch {}
+      }
+    },
+    [user?.id],
+  );
 
   useEffect(() => {
     let isCancelled = false;
@@ -35,15 +72,52 @@ export function OperatorApprovalModal() {
       }
 
       try {
-        const key = getOperatorApprovalSeenKey(operatorApplication.id);
-        const seen = await AsyncStorage.getItem(key);
+        const appId = operatorApplication.id;
+        const key = getOperatorApprovalSeenKey(appId);
+
+        let localSeen = false;
+        if (typeof window !== "undefined" && window.localStorage) {
+          try {
+            localSeen = window.localStorage.getItem(key) === "true";
+          } catch {}
+        }
+        if (!localSeen) {
+          const asyncSeen = await AsyncStorage.getItem(key);
+          localSeen = asyncSeen === "true";
+        }
+
+        const meta = user?.user_metadata as Record<string, unknown> | undefined;
+        const metaSeen =
+          meta?.operator_approval_seen_id === appId || meta?.[key] === true;
+
+        const notifAlreadyRead = notifications.some(
+          (n) => n.type === "operator_application_approved" && n.is_read === true,
+        );
+
+        const isAcknowledged = localSeen || metaSeen || notifAlreadyRead;
+
+        if (isAcknowledged && !localSeen) {
+          if (typeof window !== "undefined" && window.localStorage) {
+            try {
+              window.localStorage.setItem(key, "true");
+            } catch {}
+          }
+          await AsyncStorage.setItem(key, "true").catch(() => {});
+        }
+
         const shouldShow = shouldShowOperatorApprovalModal({
-          applicationId: operatorApplication.id,
+          applicationId: appId,
           applicationStatus: operatorApplication.status,
-          isAcknowledged: seen === "true",
+          isAcknowledged,
         });
+
         if (!isCancelled) {
           setVisible(shouldShow);
+          if (shouldShow) {
+            // Immediately record that this approval modal has been shown once
+            // so subsequent logins, refreshes, or sessions never re-show it.
+            void persistAcknowledged(appId);
+          }
         }
       } catch (err) {
         console.warn("Failed to check operator approval seen status:", err);
@@ -55,7 +129,7 @@ export function OperatorApprovalModal() {
     return () => {
       isCancelled = true;
     };
-  }, [operatorApplication, isOperator]);
+  }, [operatorApplication, isOperator, user?.user_metadata, notifications, persistAcknowledged]);
 
   if (!visible || !operatorApplication) {
     return null;
@@ -63,19 +137,10 @@ export function OperatorApprovalModal() {
 
   const resortName = operatorApplication.resort_name?.trim() || "your establishment";
 
-  const markAcknowledged = async () => {
-    try {
-      const key = getOperatorApprovalSeenKey(operatorApplication.id);
-      await AsyncStorage.setItem(key, "true");
-    } catch (err) {
-      console.warn("Failed to save operator approval acknowledgement:", err);
-    }
-  };
-
   const handleSwitchToOperator = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
-    await markAcknowledged();
+    await persistAcknowledged(operatorApplication.id);
     setViewAsTourist(false);
     setVisible(false);
     setIsProcessing(false);
@@ -85,7 +150,7 @@ export function OperatorApprovalModal() {
   const handleStayInTouristMode = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
-    await markAcknowledged();
+    await persistAcknowledged(operatorApplication.id);
     setViewAsTourist(true);
     setVisible(false);
     setIsProcessing(false);
@@ -105,9 +170,9 @@ export function OperatorApprovalModal() {
           accessibilityLabel="Operator approval notice"
           onPress={(e) => e.stopPropagation()}
         >
-          {/* Badge icon */}
+          {/* Larger Green Check Badge */}
           <View style={styles.iconCircle}>
-            <Ionicons name="checkmark-circle" size={32} color="#0D9488" />
+            <Ionicons name="checkmark-circle" size={48} color="#059669" />
           </View>
 
           {/* Eyebrow */}
@@ -124,8 +189,21 @@ export function OperatorApprovalModal() {
             manage dive manifests, procure dive passes, and handle resort guests.
           </Text>
 
-          {/* Actions */}
-          <View style={styles.actionColumn}>
+          {/* Side-by-Side Actions */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.secondaryBtn}
+              onPress={handleStayInTouristMode}
+              disabled={isProcessing}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Stay in Tourist Mode"
+            >
+              <Text style={styles.secondaryBtnText} numberOfLines={1}>
+                Stay in Tourist Mode
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.primaryBtn}
               onPress={handleSwitchToOperator}
@@ -134,23 +212,10 @@ export function OperatorApprovalModal() {
               accessibilityRole="button"
               accessibilityLabel="Switch to Operator Dashboard"
             >
-              <Text style={styles.primaryBtnText}>
-                Switch to Operator Dashboard
+              <Text style={styles.primaryBtnText} numberOfLines={1}>
+                Operator Dashboard
               </Text>
-              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryBtn}
-              onPress={handleStayInTouristMode}
-              disabled={isProcessing}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Stay in Tourist Mode"
-            >
-              <Text style={styles.secondaryBtnText}>
-                Stay in Tourist Mode
-              </Text>
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -165,94 +230,100 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15, 23, 42, 0.65)",
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: 18,
     zIndex: 99999,
   },
   card: {
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 370,
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 24,
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 18,
     alignItems: "center",
-    shadowColor: "#000000",
-    shadowOpacity: 0.18,
-    shadowRadius: 28,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
     shadowOffset: { width: 0, height: 10 },
     elevation: 16,
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#CCFBF1",
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#D1FAE5",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 12,
   },
   eyebrow: {
     fontFamily: "Quicksand_700Bold",
-    fontSize: 11,
-    letterSpacing: 1.2,
-    color: "#0D9488",
+    fontSize: 10,
+    letterSpacing: 1.1,
+    color: "#059669",
     textTransform: "uppercase",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   title: {
     fontFamily: "Quicksand_700Bold",
-    fontSize: 19,
-    lineHeight: 24,
+    fontSize: 16.5,
+    lineHeight: 21,
     color: "#0F172A",
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   message: {
     fontFamily: "Quicksand_500Medium",
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 12.5,
+    lineHeight: 18,
     color: "#475569",
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: 18,
   },
   resortHighlight: {
     fontFamily: "Quicksand_700Bold",
     color: "#0F172A",
   },
-  actionColumn: {
+  actionRow: {
     width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
+  secondaryBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  secondaryBtnText: {
+    fontFamily: "Quicksand_700Bold",
+    fontSize: 11.5,
+    color: "#334155",
+    textAlign: "center",
+  },
   primaryBtn: {
-    width: "100%",
-    height: 48,
-    borderRadius: 14,
+    flex: 1.15,
+    minHeight: 42,
+    borderRadius: 12,
     backgroundColor: colors.primaryBlue || "#005EEC",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 16,
+    gap: 5,
+    paddingHorizontal: 10,
   },
   primaryBtnText: {
     fontFamily: "Quicksand_700Bold",
-    fontSize: 14,
+    fontSize: 11.5,
     color: "#FFFFFF",
-  },
-  secondaryBtn: {
-    width: "100%",
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-  },
-  secondaryBtnText: {
-    fontFamily: "Quicksand_600SemiBold",
-    fontSize: 14,
-    color: "#334155",
+    textAlign: "center",
   },
 });
 

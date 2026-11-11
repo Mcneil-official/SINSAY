@@ -550,6 +550,11 @@ export function EcoDivePassportView() {
         DIVE_TYPE_LABELS[profile.type_of_dive.toLowerCase()]) ||
       profile?.type_of_dive ||
       "—";
+    const cardTypeOfDive = !isCertifiedDiver
+      ? profile?.type_of_dive
+        ? "Fun Dive / Guest"
+        : "—"
+      : typeOfDive;
     const certLevel =
       (profile?.certification_level &&
         CERT_LEVEL_LABELS[profile.certification_level.toLowerCase()]) ||
@@ -567,13 +572,14 @@ export function EcoDivePassportView() {
       fullName,
       nationality,
       typeOfDive,
+      cardTypeOfDive,
       certLevel,
       dateAccredited,
       renewalDate,
       emergencyName,
       emergencyNumber,
     };
-  }, [profile]);
+  }, [profile, isCertifiedDiver]);
 
   // Compute dive profile completion progress (0% - 100%)
   const { completionProgress, isProfileComplete, missingStepHint } =
@@ -673,6 +679,8 @@ export function EcoDivePassportView() {
   const colPad = Math.max(7, Math.round(cardWidth * 0.022));
   const midRowVerticalGap = Math.max(4, Math.round(u * 5.4));
   const rightRowVerticalGap = Math.max(2, Math.round(u * 2.8));
+  const funDiverMidGap = Math.max(10, Math.round(u * 10.5));
+  const funDiverRightGap = Math.max(6, Math.round(u * 6.0));
 
   // Responsive 9:16 story card size so the View Recap modal never overflows the viewport frame
   const storyCardHeight = Math.max(
@@ -875,14 +883,17 @@ export function EcoDivePassportView() {
                   </View>
                 </View>
 
-                {/* PART 2: Middle Identity Column (4 Icon + Label/Value Rows) */}
+                {/* PART 2: Middle Identity Column */}
                 <View
                   style={[
                     styles.middleIdentityCol,
                     {
+                      flex: isCertifiedDiver ? 1.04 : 0.88,
                       paddingLeft: colPad,
                       paddingRight: Math.max(4, Math.round(colPad * 0.65)),
-                      gap: midRowVerticalGap,
+                      gap: isCertifiedDiver
+                        ? midRowVerticalGap
+                        : funDiverMidGap,
                     },
                   ]}
                 >
@@ -944,32 +955,34 @@ export function EcoDivePassportView() {
                     </View>
                   </View>
 
-                  {/* Row 3: TYPE OF DIVE */}
-                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
-                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
-                      <DiveMaskIcon size={iconSz} color="#0D74E7" />
+                  {/* Row 3: TYPE OF DIVE (shown in middle column only for Certified Divers) */}
+                  {isCertifiedDiver && (
+                    <View style={[styles.cardFieldRow, { gap: rowGap }]}>
+                      <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
+                        <DiveMaskIcon size={iconSz} color="#0D74E7" />
+                      </View>
+                      <View style={styles.cardFieldTextCol}>
+                        <Text
+                          style={[
+                            styles.cardFieldLabel,
+                            { fontSize: labelFs, lineHeight: labelLh },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {t("label_type_of_dive")}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.cardFieldValue,
+                            { fontSize: valFs, lineHeight: valLh },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {cardData.typeOfDive}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.cardFieldTextCol}>
-                      <Text
-                        style={[
-                          styles.cardFieldLabel,
-                          { fontSize: labelFs, lineHeight: labelLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {t("label_type_of_dive")}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cardFieldValue,
-                          { fontSize: valFs, lineHeight: valLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {cardData.typeOfDive}
-                      </Text>
-                    </View>
-                  </View>
+                  )}
                 </View>
 
                 {/* Thin Vertical Light-Blue Divider */}
@@ -980,11 +993,48 @@ export function EcoDivePassportView() {
                   style={[
                     styles.rightCertCol,
                     {
+                      flex: isCertifiedDiver ? 1 : 1.2,
                       paddingLeft: colPad,
-                      gap: rightRowVerticalGap,
+                      gap: isCertifiedDiver
+                        ? rightRowVerticalGap
+                        : funDiverRightGap,
                     },
                   ]}
                 >
+                  {!isCertifiedDiver && (
+                    <>
+                      {/* Row 1 (Fun Diver): TYPE OF DIVE */}
+                      <View style={[styles.cardFieldRow, { gap: rowGap }]}>
+                        <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
+                          <DiveMaskIcon size={iconSz} color="#0D74E7" />
+                        </View>
+                        <View style={styles.cardFieldTextCol}>
+                          <Text
+                            style={[
+                              styles.cardFieldLabel,
+                              { fontSize: labelFs, lineHeight: labelLh },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {t("label_type_of_dive")}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.cardFieldValue,
+                              { fontSize: valFs, lineHeight: valLh },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {cardData.cardTypeOfDive}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Thin Horizontal Light-Blue Divider between Type of Dive & Emergency Contact */}
+                      <View style={styles.horizontalCardDivider} />
+                    </>
+                  )}
+
                   {isCertifiedDiver && (
                     <>
                       {/* Row 1: CERTIFICATION LEVEL */}
