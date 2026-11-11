@@ -97,7 +97,7 @@ export default function TabLayout() {
           <Tabs.Screen name="index" />
           <Tabs.Screen name="map" />
           <Tabs.Screen name="eco-dive-id" />
-          <Tabs.Screen name="dive-assistant" />
+          <Tabs.Screen name="dive-assistant" options={{ href: null }} />
           <Tabs.Screen name="profile" />
         </Tabs>
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">

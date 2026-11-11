@@ -13,6 +13,7 @@ export default function Next3Page() {
     if (user) {
       await markUserOnboardingCompleted(user.id);
     }
+    if (router.canDismiss()) router.dismissAll();
     router.replace(
       isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"
     );

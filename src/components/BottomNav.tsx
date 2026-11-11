@@ -91,9 +91,11 @@ export default function BottomNav({
 }: BottomNavProps) {
   const { isCompact } = useLayout();
   const activeKey = state.routes[state.index]?.key;
-  const visibleRoutes = hiddenRoutes?.length
-    ? state.routes.filter((r) => !hiddenRoutes.includes(r.name))
-    : state.routes;
+  const visibleRoutes = state.routes.filter(
+    (r) =>
+      !hiddenRoutes?.includes(r.name) &&
+      Boolean(tabLabels[r.name] || tabIcons[r.name]),
+  );
 
   const renderTab = (route: TabRoute) => {
     const isFocused = route.key === activeKey;
