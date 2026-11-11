@@ -14,7 +14,6 @@ import { colors } from "../constants/colors";
 import { useNotificationModal } from "../context/NotificationModalContext";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../context/LanguageContext";
-import { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 import { supabase } from "../lib/supabase";
 
 export interface SearchResultItem {
@@ -358,9 +357,6 @@ export default function WiderScreenNavbar({
               </View>
             )}
           </View>
-
-          {/* Language Switcher */}
-          <HeaderLanguageToggle />
 
           {/* Far Right: Notification Bell */}
           <TouchableOpacity

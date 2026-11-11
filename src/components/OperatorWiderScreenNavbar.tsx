@@ -12,7 +12,6 @@ import { colors } from "../constants/colors";
 import { useNotificationModal } from "../context/NotificationModalContext";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../context/LanguageContext";
-import { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 
 export default function OperatorWiderScreenNavbar() {
   const router = useRouter();
@@ -138,9 +137,6 @@ export default function OperatorWiderScreenNavbar() {
             </Text>
             {isProfileActive && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
-
-          {/* Quick Language Switcher */}
-          <HeaderLanguageToggle />
 
           {/* Far Right: Notification Bell */}
           <TouchableOpacity

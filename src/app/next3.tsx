@@ -24,6 +24,8 @@ export default function Next3Page() {
       <EcoOnboarding
         illustration={require("../../assets/onboarding/maintain-control.png")}
         illustrationAlt="Illustration for maintaining control underwater"
+        artContentPosition="top"
+        illustrationOffsetY={-130}
         title={"Maintain\nControl"}
         description={
           "Master your neutral buoyancy. Keep gauges clipped and never ground your fins on silt beds or fragile reefs."

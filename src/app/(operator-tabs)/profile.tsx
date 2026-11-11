@@ -20,7 +20,6 @@ import { usePWAInstall } from "../../context/PWAContext";
 import { useTutorial } from "../../context/TutorialContext";
 import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../context/LanguageContext";
-import { HeaderLanguageToggle } from "../../components/HeaderLanguageToggle";
 import { showAlert } from "../../lib/confirm";
 import { supabase } from "../../lib/supabase";
 
@@ -207,7 +206,6 @@ export default function OperatorProfileScreen() {
                 </Text>
                 <Text style={styles.headerTitle}>{t("profile_title")}</Text>
               </View>
-              <HeaderLanguageToggle />
             </View>
             <View style={styles.identityCard}>
               <View style={styles.identityTitleRow}>
