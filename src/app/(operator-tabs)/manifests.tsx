@@ -78,7 +78,7 @@ export default function ManifestsScreen() {
   const cardRef = useRef<View>(null);
   const [previewContainerWidth, setPreviewContainerWidth] = useState(0);
   const [customZoom, setCustomZoom] = useState<number | null>(null);
-  const [cardHeight, setCardHeight] = useState(1360);
+  const [cardHeight, setCardHeight] = useState(1040);
 
   const fitScale =
     previewContainerWidth > 0
@@ -725,9 +725,13 @@ export default function ManifestsScreen() {
                               },
                             ]}
                             onLayout={(e) => {
-                              const h = e.nativeEvent.layout.height;
-                              if (h > 1000 && Math.abs(h - cardHeight) > 10) {
-                                setCardHeight(h);
+                              const rawH = e.nativeEvent.layout.height;
+                              const unscaledH =
+                                rawH > 0 && rawH < 700 && currentZoom > 0
+                                  ? Math.round(rawH / currentZoom)
+                                  : Math.round(rawH);
+                              if (unscaledH > 600 && Math.abs(unscaledH - cardHeight) > 4) {
+                                setCardHeight(unscaledH);
                               }
                             }}
                           >

@@ -64,7 +64,7 @@ export default function ManifestConfirmedScreen() {
   const cardRef = useRef<View>(null);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const [previewContainerWidth, setPreviewContainerWidth] = useState(0);
-  const [cardHeight, setCardHeight] = useState(1150);
+  const [cardHeight, setCardHeight] = useState(1040);
 
   // DB-loaded manifest and divers
   const [manifestRecord, setManifestRecord] = useState<SnapshotManifest | null>(null);
@@ -416,31 +416,31 @@ export default function ManifestConfirmedScreen() {
                 </View>
               ) : null}
 
-              <ScrollView
-                style={styles.canvasVerticalScroll}
-                contentContainerStyle={styles.canvasVerticalContent}
-                showsVerticalScrollIndicator={true}
-              >
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={true}
-                  contentContainerStyle={styles.canvasHorizontalContent}
+              <View style={styles.canvasVerticalContent}>
+                <View
+                  style={{
+                    width: Math.round(1024 * currentZoom),
+                    height: Math.round(cardHeight * currentZoom),
+                    overflow: "hidden",
+                    alignSelf: "center",
+                  }}
                 >
                   <View
                     style={{
-                      width: 1024 * currentZoom,
-                      height: cardHeight * currentZoom,
+                      width: 1024,
+                      transform: [{ scale: currentZoom }],
+                      transformOrigin: "top left",
                     }}
                   >
                     <View
-                      style={{
-                        transform: [{ scale: currentZoom }],
-                        transformOrigin: "top left",
-                      }}
                       onLayout={(e) => {
-                        const h = e.nativeEvent.layout.height;
-                        if (h > 600 && Math.abs(h - cardHeight) > 10) {
-                          setCardHeight(h);
+                        const rawH = e.nativeEvent.layout.height;
+                        const unscaledH =
+                          rawH > 0 && rawH < 700 && currentZoom > 0
+                            ? Math.round(rawH / currentZoom)
+                            : Math.round(rawH);
+                        if (unscaledH > 600 && Math.abs(unscaledH - cardHeight) > 4) {
+                          setCardHeight(unscaledH);
                         }
                       }}
                     >
@@ -452,8 +452,8 @@ export default function ManifestConfirmedScreen() {
                       />
                     </View>
                   </View>
-                </ScrollView>
-              </ScrollView>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -496,7 +496,7 @@ export default function ManifestConfirmedScreen() {
               <View style={styles.creditIconBubble}>
                 <Ionicons name="ticket" size={16} color={colors.primaryBlue} />
               </View>
-              <View>
+              <View style={styles.creditStripTextCol}>
                 <Text style={styles.creditStripLabel}>Remaining Pass Credits</Text>
                 <Text style={styles.creditStripSub}>Available for future manifests</Text>
               </View>
@@ -751,7 +751,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   canvasViewport: {
-    height: 480,
     backgroundColor: "#F8FAFC",
     borderRadius: 12,
     borderWidth: 1,
@@ -778,14 +777,9 @@ const styles = StyleSheet.create({
     color: colors.primaryBlue,
     marginLeft: 6,
   },
-  canvasVerticalScroll: {
-    flex: 1,
-  },
   canvasVerticalContent: {
     padding: 8,
-  },
-  canvasHorizontalContent: {
-    alignItems: "flex-start",
+    alignItems: "center",
   },
   creditStrip: {
     flexDirection: "row",
@@ -797,12 +791,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     marginBottom: 16,
+    gap: 10,
   },
   creditStripLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    marginRight: 12,
+    minWidth: 0,
+  },
+  creditStripTextCol: {
+    flex: 1,
+    minWidth: 0,
   },
   creditIconBubble: {
     width: 36,
@@ -812,6 +811,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    flexShrink: 0,
   },
   creditStripLabel: {
     fontSize: 13,
@@ -834,6 +834,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#BFDBFE",
+    flexShrink: 0,
   },
   creditBalanceNumber: {
     fontSize: 17,
