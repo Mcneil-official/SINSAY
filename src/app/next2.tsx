@@ -22,15 +22,15 @@ export default function Next2Page() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <EcoOnboarding
-        illustration={require("../../assets/onboarding/protect-the-ocean transparent.png")}
+        illustration={require("../../assets/onboarding/protect-the-ocean.png")}
         illustrationAlt="Illustration for protecting the ocean"
-        artContentPosition="top"
         title={"Protect the\nOcean"}
         description={
           "Keep the Verde Island Passage clean. Strictly no single-use plastics on dive boats and only use reef-safe sunscreen."
         }
         index={1}
         wave="protect"
+        illustrationAspect={960 / 1280}
         onNext={() => router.push("/next3")}
         onBack={() => safeBack(router, "/next")}
         onSkip={handleSkip}

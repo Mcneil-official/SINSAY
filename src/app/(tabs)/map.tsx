@@ -1,12 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -18,13 +12,9 @@ import {
   View,
 } from "react-native";
 import { DidYouKnowCard, ErrorState, resolveSiteImage } from "../../components";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
-import { getDiveSiteMapCoordinates } from "../../lib/diveSiteCoordinates";
 import { supabase } from "../../lib/supabase";
 import { DiveSiteRow } from "../../types/supabase";
 
@@ -35,6 +25,8 @@ interface MarineSpecies {
 }
 
 interface SiteEnrichment {
+  lat: number;
+  lng: number;
   barangay: string;
   depthRange: string;
   featureTag: string;
@@ -75,11 +67,7 @@ const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
     description:
       "A protected coral slope descending from a shallow boulder reef into rich crinoid and soft-coral gardens, prized by underwater photographers for rare critters and vibrant reef life.",
     marineLife: [
-      {
-        name: "Pygmy Seahorse",
-        tag: "Gorgonian Fan",
-        icon: "sparkles-outline",
-      },
+      { name: "Pygmy Seahorse", tag: "Gorgonian Fan", icon: "sparkles-outline" },
       { name: "Harlequin Shrimp", tag: "Rare Critter", icon: "star-outline" },
       { name: "Banded Sea Krait", tag: "Reef Slope", icon: "water-outline" },
     ],
@@ -106,24 +94,6 @@ const SITE_ENRICHMENTS: Record<string, Partial<SiteEnrichment>> = {
       "Practice frog-kicking over sandy patches to avoid silting delicate table corals.",
     ],
   },
-  "Sombrero Island": {
-    barangay: "Maricaban Strait",
-    depthRange: "10–35m",
-    featureTag: "Offshore Island Sanctuary",
-    difficulty: "Intermediate",
-    isMpa: true,
-    description:
-      "Hat-shaped offshore island encircled by steep drop-offs, vibrant sea fan gardens, schooling jacks, and occasional reef sharks in brisk currents.",
-    marineLife: [
-      { name: "Whitetip Reef Shark", tag: "Pelagic", icon: "shield-outline" },
-      { name: "Schooling Jacks", tag: "Pelagic", icon: "fish-outline" },
-      { name: "Gorgonian Sea Fans", tag: "Deep Wall", icon: "leaf-outline" },
-    ],
-    ecoRules: [
-      "Carry a surface marker buoy (SMB) on every dive due to open-water current shears.",
-      "Stay close to your accredited dive guide when rounding the northern current ridge.",
-    ],
-  },
 };
 
 function getDifficultyColor(diff?: string | null): string {
@@ -131,19 +101,18 @@ function getDifficultyColor(diff?: string | null): string {
   const d = diff.toLowerCase();
   if (d.includes("beginner") || d.includes("open water")) return "#10B981";
   if (d.includes("intermediate") || d.includes("rescue")) return "#F59E0B";
-  if (
-    d.includes("advanced") ||
-    d.includes("divemaster") ||
-    d.includes("instructor")
-  )
-    return "#EF4444";
+  if (d.includes("advanced") || d.includes("divemaster") || d.includes("instructor")) return "#EF4444";
   return "#2563EB";
 }
 
 function getEnrichment(site: DiveSiteRow): SiteEnrichment {
   const known = SITE_ENRICHMENTS[site.name];
+  const lat = site.lat ?? 13.722;
+  const lng = site.lng ?? 120.875;
 
   return {
+    lat,
+    lng,
     barangay: site.barangay
       ? `${site.barangay}, Mabini, Batangas`
       : known?.barangay || "Mabini, Batangas",
@@ -161,11 +130,7 @@ function getEnrichment(site: DiveSiteRow): SiteEnrichment {
       { name: "Hawksbill Sea Turtle", tag: "Resident", icon: "shield-outline" },
       { name: "Painted Frogfish", tag: "Macro", icon: "eye-outline" },
       { name: "Nudibranchs", tag: "Reef Slope", icon: "color-palette-outline" },
-      {
-        name: "Anthias & Damselfish",
-        tag: "Coral Garden",
-        icon: "fish-outline",
-      },
+      { name: "Anthias & Damselfish", tag: "Coral Garden", icon: "fish-outline" },
     ],
     ecoRules: known?.ecoRules || [
       "Strict No-Touch Zone: Maintain neutral buoyancy at least 1.5m above live corals.",
@@ -179,7 +144,7 @@ function getEnrichment(site: DiveSiteRow): SiteEnrichment {
 // 100% Free, ZERO API keys, ZERO watermarks, smooth 60fps pan & pinch-to-zoom!
 function generateLeafletMapHtml(
   sitesJson: string,
-  initialSelectedId: string | null,
+  initialSelectedId: string | null
 ): string {
   return `<!DOCTYPE html>
 <html>
@@ -265,7 +230,7 @@ function generateLeafletMapHtml(
   <div id="map"></div>
   <script>
     const sites = ${sitesJson};
-    let selectedId = ${initialSelectedId ? `'${initialSelectedId}'` : "null"};
+    let selectedId = ${initialSelectedId ? `'${initialSelectedId}'` : 'null'};
 
     const map = L.map('map', {
       center: [13.722, 120.875],
@@ -508,6 +473,7 @@ export default function MapScreen() {
             const rawRows = (data ?? []).filter(
               (r) => !r.status || r.status !== "Restricted",
             );
+            // Registered dive sites only — the dashboard DB is the single source.
             setSites(rawRows);
             setError(false);
           }
@@ -595,7 +561,8 @@ export default function MapScreen() {
     [sites, selectedSiteId],
   );
 
-  const selectedSite = selectedSiteIndex >= 0 ? sites[selectedSiteIndex] : null;
+  const selectedSite =
+    selectedSiteIndex >= 0 ? sites[selectedSiteIndex] : null;
 
   const selectedEnrichment = useMemo(() => {
     if (!selectedSite) return null;
@@ -637,9 +604,7 @@ export default function MapScreen() {
     const requested = sites.find(
       (site) => site.name.toLowerCase() === requestedSite.toLowerCase(),
     );
-    if (requested && getDiveSiteMapCoordinates(requested)) {
-      handleSelectPin(requested.id);
-    }
+    if (requested) handleSelectPin(requested.id);
   }, [requestedSite, sites, selectedSiteId, handleSelectPin]);
 
   const handleCloseDrawer = useCallback(() => {
@@ -675,22 +640,25 @@ export default function MapScreen() {
   // dropped instead of being stacked at a fake default center.
   const sitesForMap = useMemo(() => {
     return sites.flatMap((s) => {
-      const coordinates = getDiveSiteMapCoordinates(s);
-      if (!coordinates) return [];
-      const enrichment = getEnrichment(s);
+      if (typeof s.lat !== "number" || typeof s.lng !== "number") return [];
+      if (!isFinite(s.lat) || !isFinite(s.lng)) return [];
       return [
         {
           id: s.id,
           name: s.name,
-          difficulty: s.difficulty || enrichment.difficulty,
-          ...coordinates,
+          difficulty: s.difficulty || getEnrichment(s).difficulty,
+          lat: s.lat,
+          lng: s.lng,
         },
       ];
     });
   }, [sites]);
 
   const leafletHtml = useMemo(() => {
-    return generateLeafletMapHtml(JSON.stringify(sitesForMap), selectedSiteId);
+    return generateLeafletMapHtml(
+      JSON.stringify(sitesForMap),
+      selectedSiteId,
+    );
   }, [selectedSiteId, sitesForMap]);
 
   return (
@@ -744,7 +712,7 @@ export default function MapScreen() {
                 <View>
                   <Text style={styles.topTitle}>Mabini Peninsula Dive Map</Text>
                   <Text style={styles.topSubtitle}>
-                    {sitesForMap.length} Dive Sites • Tap any pin to explore
+                    {sites.length} Dive Sites • Tap any pin to explore
                   </Text>
                 </View>
               </View>
@@ -857,7 +825,11 @@ export default function MapScreen() {
               accessibilityRole="button"
               accessibilityLabel="Locate my position"
             >
-              <Ionicons name="locate" size={17} color={colors.primaryBlue} />
+              <Ionicons
+                name="locate"
+                size={17}
+                color={colors.primaryBlue}
+              />
             </TouchableOpacity>
             <View style={styles.mapCtrlDivider} />
             <TouchableOpacity

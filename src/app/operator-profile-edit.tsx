@@ -12,21 +12,14 @@ import { uploadFile } from "../lib/storage";
 import { supabase } from "../lib/supabase";
 import { toLocalPhDigits, toDbPhPhone } from "../lib/phone";
 import { BookingLinkItem, BookingPlatformType } from "../types/supabase";
-import {
-  detectTravelPlatform,
-  findDuplicateBookingPlatform,
-  getAvailableBookingPlatforms,
-  getNextAvailableBookingPlatform,
-  PLATFORM_NAMES,
-  sanitizeBookingLinks,
-} from "../lib/bookingChannels";
+import { detectTravelPlatform, PLATFORM_NAMES, normalizeTravelUrl } from "../components/EstablishmentBookingSection";
 
 type Photo = { uri: string; path: string | null; file?: DocumentPicker.DocumentPickerAsset };
 type EditorTab = "resort" | "photos" | "account";
 const publicUrl = (path?: string | null) => path ? supabase.storage.from("operator_media").getPublicUrl(path).data.publicUrl : "";
 
 const PLATFORM_OPTIONS: { label: string; value: BookingPlatformType }[] = [
-  { label: "Facebook", value: "messenger" },
+  { label: "Messenger (Facebook)", value: "messenger" },
   { label: "Agoda", value: "agoda" },
   { label: "WhatsApp", value: "whatsapp" },
   { label: "Booking.com", value: "booking" },
@@ -48,7 +41,6 @@ export default function OperatorProfileEditScreen() {
   const [covers, setCovers] = useState<Photo[]>([]);
   const [avatar, setAvatar] = useState<Photo | null>(null);
   const [busy, setBusy] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
@@ -79,53 +71,44 @@ export default function OperatorProfileEditScreen() {
     });
   }, [profile, app, user?.email, avatarUri]);
 
-  const addBookingLink = () => {
-    setBookingLinks((previous) => {
-      const platform = getNextAvailableBookingPlatform(previous);
-      if (!platform) return previous;
-      return [...previous, {
+      const addBookingLink = () => {
+    setBookingLinks((prev) => [
+      ...prev,
+      {
         id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        platform,
-        label: PLATFORM_NAMES[platform],
+        platform: "agoda",
+        label: "Agoda",
         url: "",
-      }];
-    });
-    setError("");
+      },
+    ]);
   };
 
   const updateBookingLink = (id: string, updates: Partial<BookingLinkItem>) => {
-    const current = bookingLinks.find((item) => item.id === id);
-    if (!current) return;
-    if (updates.platform) {
-      const available = getAvailableBookingPlatforms(bookingLinks, id);
-      if (!available.includes(updates.platform)) {
-        setError(`${PLATFORM_NAMES[updates.platform]} is already configured. Choose another channel.`);
-        return;
-      }
-      setError("");
-      setBookingLinks((previous) => previous.map((item) => item.id === id
-        ? { ...item, platform: updates.platform!, label: PLATFORM_NAMES[updates.platform!] }
-        : item));
-      return;
-    }
+    setBookingLinks((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const next = { ...item, ...updates };
 
-    let platform = current.platform;
-    if (updates.url !== undefined) {
-      const detected = detectTravelPlatform(updates.url);
-      if (detected !== "direct" && detected !== current.platform) {
-        if (getAvailableBookingPlatforms(bookingLinks, id).includes(detected)) {
-          platform = detected;
-          setError("");
-        } else {
-          setError(`${PLATFORM_NAMES[detected]} is already configured. Choose another channel or enter a different URL.`);
+        // If user manually switched the platform dropdown:
+        if (updates.platform && updates.platform !== item.platform) {
+          if (!next.label || next.label === PLATFORM_NAMES[item.platform]) {
+            next.label = PLATFORM_NAMES[updates.platform];
+          }
         }
-      } else {
-        setError("");
-      }
-    }
-    setBookingLinks((previous) => previous.map((item) => item.id === id
-      ? { ...item, ...updates, platform, label: PLATFORM_NAMES[platform] }
-      : item));
+
+        // If user entered URL, auto-detect platform if still default/direct:
+        if (updates.url !== undefined) {
+          const auto = detectTravelPlatform(updates.url);
+          if (auto !== "direct") {
+            next.platform = auto;
+            if (!next.label || Object.values(PLATFORM_NAMES).includes(next.label)) {
+              next.label = PLATFORM_NAMES[auto];
+            }
+          }
+        }
+        return next;
+      })
+    );
   };
 
   const removeBookingLink = (id: string) => {
@@ -143,22 +126,6 @@ export default function OperatorProfileEditScreen() {
   const move = (index: number, direction: number) => setCovers((prev) => { const next = [...prev]; const target = index + direction; if (target < 0 || target >= next.length) return prev; [next[index], next[target]] = [next[target], next[index]]; return next; });
   const save = async () => {
     if (!user || !app) return;
-    const duplicatePlatform = findDuplicateBookingPlatform(bookingLinks);
-    if (duplicatePlatform) {
-      setActiveTab("resort");
-      setError(`Only one ${PLATFORM_NAMES[duplicatePlatform]} channel is allowed. Change or remove the duplicate before saving.`);
-      return;
-    }
-    const mismatchedLink = bookingLinks.find((link) => {
-      if (!link.url.trim()) return false;
-      const detected = detectTravelPlatform(link.url);
-      return detected !== "direct" && detected !== link.platform;
-    });
-    if (mismatchedLink) {
-      setActiveTab("resort");
-      setError(`The URL for ${PLATFORM_NAMES[mismatchedLink.platform]} appears to belong to ${PLATFORM_NAMES[detectTravelPlatform(mismatchedLink.url)]}.`);
-      return;
-    }
     const missingResort = [!values.resortName.trim() && "resort name", !values.location.trim() && "location", !values.resortPhone.trim() && "resort phone"].filter(Boolean);
     const missingAccount = !values.fullName.trim();
     if (missingResort.length || missingAccount) {
@@ -195,7 +162,13 @@ export default function OperatorProfileEditScreen() {
       };
       const coverPaths = (await Promise.all(covers.map((photo) => savePhoto(photo, "profile-cover")))).filter((path): path is string => !!path);
       const avatarPath = avatar ? await savePhoto(avatar, "profile-avatar") : null;
-      const cleanedLinks = sanitizeBookingLinks(bookingLinks);
+                  const cleanedLinks = bookingLinks
+        .filter((l) => l.url.trim().length > 0)
+        .map((l) => ({
+          ...l,
+          label: l.label.trim() || PLATFORM_NAMES[l.platform] || "Book Online",
+          url: normalizeTravelUrl(l.url, l.platform),
+        }));
       const { error: saveError } = await supabase.rpc("save_operator_profile", {
         p_application_id: app.id, p_resort_name: values.resortName.trim(), p_resort_location: values.location.trim(), p_resort_description: values.description.trim() || null,
         p_resort_contact_number: toDbPhPhone(values.resortPhone) || "", p_resort_email: values.resortEmail.trim() || null, p_facebook_url: values.facebook.trim() || null, p_website_url: values.website.trim() || null, p_booking_url: cleanedLinks[0]?.url || values.bookingUrl.trim() || null,
@@ -261,7 +234,7 @@ export default function OperatorProfileEditScreen() {
               <View style={styles.sectionIcon}><Ionicons name="calendar-outline" size={19} color="#087BFF" /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.section}>Booking & Channels</Text>
-                <Text style={styles.helper}>Add channels where divers can book (Agoda, Facebook, WhatsApp, etc.)</Text>
+                <Text style={styles.helper}>Add channels where divers can book (Agoda, Messenger, WhatsApp, etc.)</Text>
               </View>
             </View>
 
@@ -285,20 +258,18 @@ export default function OperatorProfileEditScreen() {
 
                 <Dropdown
                   label="Platform Channel"
-                  options={PLATFORM_OPTIONS.filter((option) => option.value === item.platform || getAvailableBookingPlatforms(bookingLinks, item.id).includes(option.value))}
+                  options={PLATFORM_OPTIONS}
                   value={item.platform}
                   onSelect={(val) => updateBookingLink(item.id, { platform: val as BookingPlatformType })}
                   placeholder="Select Platform"
                 />
 
-                <View style={styles.generatedLabel} accessibilityLabel={`Public button label: ${PLATFORM_NAMES[item.platform]}`}>
-                  <Text style={styles.generatedLabelHint}>Public button label</Text>
-                  <View style={styles.generatedLabelValue}>
-                    <Ionicons name={item.platform === "whatsapp" ? "logo-whatsapp" : item.platform === "instagram" ? "logo-instagram" : item.platform === "messenger" ? "logo-facebook" : item.platform === "website" ? "globe-outline" : item.platform === "direct" ? "link-outline" : "business-outline"} size={16} color="#087BFF" />
-                    <Text style={styles.generatedLabelText}>{PLATFORM_NAMES[item.platform]}</Text>
-                    <Text style={styles.autoLabel}>AUTO</Text>
-                  </View>
-                </View>
+                <TextInput
+                  label="Button Display Label"
+                  value={item.label}
+                  onChangeText={(val) => updateBookingLink(item.id, { label: val })}
+                  placeholder={`e.g. ${PLATFORM_NAMES[item.platform] || "Agoda"}`}
+                />
 
                 <TextInput
                   label="Booking / Profile Link URL"
@@ -308,25 +279,13 @@ export default function OperatorProfileEditScreen() {
                     item.platform === "agoda"
                       ? "https://www.agoda.com/your-resort"
                       : item.platform === "messenger"
-                      ? "https://facebook.com/your-resort"
+                      ? "https://m.me/your-resort"
                       : item.platform === "whatsapp"
                       ? "https://wa.me/639XXXXXXXXX"
                       : item.platform === "booking"
                       ? "https://www.booking.com/hotel/ph/..."
                       : item.platform === "instagram"
                       ? "https://instagram.com/your-resort"
-                      : item.platform === "viber"
-                      ? "https://invite.viber.com/your-resort"
-                      : item.platform === "tripadvisor"
-                      ? "https://www.tripadvisor.com/your-resort"
-                      : item.platform === "klook"
-                      ? "https://www.klook.com/your-resort"
-                      : item.platform === "airbnb"
-                      ? "https://www.airbnb.com/rooms/your-listing"
-                      : item.platform === "website"
-                      ? "https://your-resort.com"
-                      : item.platform === "direct"
-                      ? "https://your-booking-page.com"
                       : "https://your-link.com"
                   }
                   autoCapitalize="none"
@@ -337,12 +296,11 @@ export default function OperatorProfileEditScreen() {
             <TouchableOpacity
               style={styles.addLinkButton}
               onPress={addBookingLink}
-              disabled={!getNextAvailableBookingPlatform(bookingLinks)}
               accessibilityRole="button"
-              accessibilityLabel={getNextAvailableBookingPlatform(bookingLinks) ? "Add another booking link" : "All 11 booking channels configured"}
+              accessibilityLabel="Add another booking link"
             >
-              <Ionicons name={getNextAvailableBookingPlatform(bookingLinks) ? "add-circle-outline" : "checkmark-circle-outline"} size={18} color="#087BFF" />
-              <Text style={styles.addLinkButtonText}>{getNextAvailableBookingPlatform(bookingLinks) ? "Add Booking Link" : "All 11 booking channels configured"}</Text>
+              <Ionicons name="add-circle-outline" size={18} color="#087BFF" />
+              <Text style={styles.addLinkButtonText}>Add Booking Link</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -398,11 +356,6 @@ const styles = StyleSheet.create({
     fontFamily: "Quicksand_700Bold",
     color: "#087BFF",
   },
-  generatedLabel: { marginTop: 2, gap: 5 },
-  generatedLabelHint: { fontSize: 10, color: "#647797", fontFamily: "Quicksand_600SemiBold" },
-  generatedLabelValue: { minHeight: 38, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, paddingHorizontal: 10, backgroundColor: "#EEF6FF", borderWidth: 1, borderColor: "#D8E9FC" },
-  generatedLabelText: { flex: 1, color: "#174B91", fontSize: 12, fontFamily: "Quicksand_700Bold" },
-  autoLabel: { color: "#6684A8", fontSize: 8, letterSpacing: 0.6, fontFamily: "Quicksand_700Bold" },
   deleteLinkBtn: {
     padding: 4,
   },

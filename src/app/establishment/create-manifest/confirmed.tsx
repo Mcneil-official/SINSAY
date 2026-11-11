@@ -65,7 +65,6 @@ export default function ManifestConfirmedScreen() {
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const [previewContainerWidth, setPreviewContainerWidth] = useState(0);
   const [cardHeight, setCardHeight] = useState(1150);
-  const [customZoom, setCustomZoom] = useState<number | null>(null);
 
   // DB-loaded manifest and divers
   const [manifestRecord, setManifestRecord] = useState<SnapshotManifest | null>(null);
@@ -282,7 +281,7 @@ export default function ManifestConfirmedScreen() {
     previewContainerWidth > 0
       ? Math.min(1, Math.max(0.25, (previewContainerWidth - 20) / 1024))
       : 0.38;
-  const currentZoom = customZoom ?? fitScale;
+  const currentZoom = fitScale;
 
   const snapshotFileName = `manifesto-${effectiveManifest.dive_date || "today"}-${(
     effectiveManifest.boat_name ||
@@ -352,7 +351,7 @@ export default function ManifestConfirmedScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <ContentContainer maxWidth={540} style={styles.container}>
+        <ContentContainer maxWidth={520} paddingH={16} style={styles.container}>
           {/* Hero Celebration Visual */}
           <View style={styles.heroSection}>
             <Animated.View
@@ -378,10 +377,10 @@ export default function ManifestConfirmedScreen() {
             </Text>
           </View>
 
-          {/* LGU Real-Time Activation Banner */}
+          {/* LGU Real-Time Activation Banner (Compact) */}
           <View style={styles.lguBanner}>
             <View style={styles.lguIconWrap}>
-              <Ionicons name="shield-checkmark" size={20} color="#16A34A" />
+              <Ionicons name="shield-checkmark" size={15} color="#16A34A" />
             </View>
             <View style={styles.lguContent}>
               <View style={styles.lguTitleRow}>
@@ -398,80 +397,8 @@ export default function ManifestConfirmedScreen() {
             </View>
           </View>
 
-          {/* Download & Share Action Buttons */}
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.downloadActionBtn]}
-              onPress={handleDownload}
-              disabled={snapshotBusy}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Download Manifesto PNG image"
-            >
-              {snapshotBusy ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="download-outline" size={19} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.downloadActionBtnText}>Download Manifesto</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.shareActionBtn]}
-              onPress={handleShare}
-              disabled={snapshotBusy}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Share Manifesto"
-            >
-              <Ionicons name="share-social-outline" size={19} color={colors.primaryBlue} style={{ marginRight: 8 }} />
-              <Text style={styles.shareActionBtnText}>Share</Text>
-            </TouchableOpacity>
-          </View>
-
           {/* Visual Manifesto Document Section */}
           <View style={styles.previewCardSection}>
-            <View style={styles.previewHeaderRow}>
-              <View style={styles.previewHeaderLeft}>
-                <Ionicons name="document-text" size={18} color={colors.primaryBlue} style={{ marginRight: 6 }} />
-                <Text style={styles.previewHeaderTitle}>Official Dive Manifest</Text>
-              </View>
-
-              {/* Viewport Zoom Controls */}
-              <View style={styles.zoomControlRow}>
-                <TouchableOpacity
-                  style={[styles.zoomPill, customZoom === null && styles.zoomPillActive]}
-                  onPress={() => setCustomZoom(null)}
-                  accessibilityLabel="Fit to screen"
-                >
-                  <Text style={[styles.zoomPillText, customZoom === null && styles.zoomPillTextActive]}>Fit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.zoomPill, customZoom === 1.0 && styles.zoomPillActive]}
-                  onPress={() => setCustomZoom(1.0)}
-                  accessibilityLabel="Zoom to 100%"
-                >
-                  <Text style={[styles.zoomPillText, customZoom === 1.0 && styles.zoomPillTextActive]}>100%</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.zoomIconBtn}
-                  onPress={() => setCustomZoom(Math.max(0.25, Number((currentZoom - 0.1).toFixed(2))))}
-                  accessibilityLabel="Zoom out"
-                >
-                  <Ionicons name="remove" size={16} color="#0F172A" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.zoomIconBtn}
-                  onPress={() => setCustomZoom(Math.min(1.5, Number((currentZoom + 0.1).toFixed(2))))}
-                  accessibilityLabel="Zoom in"
-                >
-                  <Ionicons name="add" size={16} color="#0F172A" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
             {/* Scaled Preview Viewport */}
             <View
               style={styles.canvasViewport}
@@ -528,6 +455,39 @@ export default function ManifestConfirmedScreen() {
                 </ScrollView>
               </ScrollView>
             </View>
+          </View>
+
+          {/* Download & Share Action Buttons (placed below preview) */}
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.downloadActionBtn]}
+              onPress={handleDownload}
+              disabled={snapshotBusy}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Download Manifesto PNG image"
+            >
+              {snapshotBusy ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="download-outline" size={19} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.downloadActionBtnText}>Download Manifesto</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.shareActionBtn]}
+              onPress={handleShare}
+              disabled={snapshotBusy}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Share Manifesto"
+            >
+              <Ionicons name="share-social-outline" size={19} color={colors.primaryBlue} style={{ marginRight: 8 }} />
+              <Text style={styles.shareActionBtnText}>Share</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Pass Credit Summary Strip */}
@@ -614,8 +574,9 @@ const styles = StyleSheet.create({
     width: 36,
   },
   scrollContent: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 36,
+    paddingHorizontal: 0,
   },
   container: {
     alignSelf: "center",
@@ -676,20 +637,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0FDF4",
     borderWidth: 1,
     borderColor: "#BBF7D0",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-    alignItems: "flex-start",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 12,
+    alignItems: "center",
   },
   lguIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
-    marginTop: 2,
+    marginRight: 8,
   },
   lguContent: {
     flex: 1,
@@ -698,12 +659,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: 2,
     flexWrap: "wrap",
-    gap: 6,
+    gap: 4,
   },
   lguTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: "Quicksand_700Bold",
     color: "#15803D",
   },
@@ -711,43 +672,45 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#DCFCE7",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#86EFAC",
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
   },
   liveSyncDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 4.5,
+    height: 4.5,
+    borderRadius: 2.5,
     backgroundColor: "#16A34A",
-    marginRight: 5,
+    marginRight: 3.5,
   },
   liveSyncText: {
-    fontSize: 10,
+    fontSize: 8.5,
     fontFamily: "Quicksand_700Bold",
     color: "#15803D",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   lguBody: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: "Quicksand_500Medium",
     color: "#166534",
-    lineHeight: 18,
+    lineHeight: 15,
   },
   boldText: {
     fontFamily: "Quicksand_700Bold",
   },
   actionButtonsRow: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 16,
   },
   actionBtn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
+    height: 48,
     paddingHorizontal: 14,
     borderRadius: 12,
   },
@@ -755,7 +718,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryBlue,
     shadowColor: colors.primaryBlue,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.22,
     shadowRadius: 6,
     elevation: 3,
   },
@@ -766,9 +729,8 @@ const styles = StyleSheet.create({
   },
   shareActionBtn: {
     backgroundColor: "#EFF6FF",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#BFDBFE",
-    flex: 0.7,
   },
   shareActionBtnText: {
     fontSize: 14,
@@ -780,67 +742,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    padding: 12,
-    marginBottom: 16,
+    padding: 8,
+    marginBottom: 14,
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
-  },
-  previewHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  previewHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  previewHeaderTitle: {
-    fontSize: 15,
-    fontFamily: "Quicksand_700Bold",
-    color: "#0F172A",
-  },
-  zoomControlRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#F1F5F9",
-    padding: 3,
-    borderRadius: 8,
-  },
-  zoomPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  zoomPillActive: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  zoomPillText: {
-    fontSize: 11,
-    fontFamily: "Quicksand_600SemiBold",
-    color: "#64748B",
-  },
-  zoomPillTextActive: {
-    color: colors.primaryBlue,
-    fontFamily: "Quicksand_700Bold",
-  },
-  zoomIconBtn: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 4,
   },
   canvasViewport: {
     height: 480,
@@ -886,23 +794,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFF6FF",
     borderWidth: 1,
     borderColor: "#BFDBFE",
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 16,
   },
   creditStripLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+    marginRight: 12,
   },
   creditIconBubble: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#DBEAFE",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
+    marginRight: 12,
   },
   creditStripLabel: {
     fontSize: 13,
@@ -913,23 +822,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Quicksand_500Medium",
     color: "#3B82F6",
+    marginTop: 1,
   },
   creditBalanceBadge: {
-    alignItems: "flex-end",
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 4,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#BFDBFE",
   },
   creditBalanceNumber: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: "Quicksand_700Bold",
     color: "#1E40AF",
   },
   creditBalanceUnit: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: "Quicksand_600SemiBold",
     color: "#64748B",
   },

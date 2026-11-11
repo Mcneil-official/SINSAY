@@ -2,12 +2,14 @@ import React, { useId, useState } from "react";
 import {
   Image,
   ImageResizeMode,
+  Platform,
   StyleProp,
   StyleSheet,
   Text,
   View,
   ViewStyle,
 } from "react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { getResortInitials } from "../lib/resortInitials";
 
 export { getResortInitials };
@@ -73,13 +75,41 @@ export function ResortLogoBadge({
           width: size,
           height: size,
           borderRadius: radius,
-          backgroundColor: "#FFFFFF",
         },
+        Platform.OS === "web"
+          ? ({
+              backgroundImage:
+                "linear-gradient(135deg, #006BFF 0%, #0047C2 50%, #07156C 100%)",
+            } as any)
+          : null,
         style,
       ]}
       accessibilityRole="image"
       accessibilityLabel={`${name} logo initials`}
     >
+      <Svg
+        width={size}
+        height={size}
+        style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+      >
+        <Defs>
+          <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0%" stopColor="#006BFF" />
+            <Stop offset="50%" stopColor="#0047C2" />
+            <Stop offset="100%" stopColor="#07156C" />
+          </LinearGradient>
+        </Defs>
+        <Rect
+          x="0"
+          y="0"
+          width={size}
+          height={size}
+          rx={radius}
+          ry={radius}
+          fill={`url(#${gradId})`}
+        />
+      </Svg>
+
       <Text
         style={[
           styles.initialsText,
@@ -103,7 +133,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   initialsText: {
-    color: "#005EEC",
+    color: "#FFFFFF",
     fontWeight: "700",
     fontFamily: "Quicksand_700Bold",
     letterSpacing: 0.5,
