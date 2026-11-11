@@ -430,7 +430,6 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
 const styles = StyleSheet.create({
   canvas: {
     width: 1024,
-    minHeight: 1320,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 48,
     paddingTop: 44,
@@ -660,7 +659,7 @@ const styles = StyleSheet.create({
   },
   waveGraphicWrap: {
     height: 100,
-    marginTop: "auto",
+    marginTop: 28,
     marginHorizontal: -48,
     marginBottom: 0,
   },

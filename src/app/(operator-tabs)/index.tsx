@@ -631,17 +631,17 @@ export default function OperatorDashboardScreen() {
                 <Rect
                   width="100%"
                   height="100%"
-                  rx={12}
+                  rx={10}
                   fill="url(#ctaGrad1)"
                 />
               </Svg>
               <View style={styles.actionSymbol}>
-                <Ionicons name="add" size={18} color="#0061f6" />
+                <Ionicons name="add" size={15} color="#0061f6" />
               </View>
               <Text style={styles.actionBtnText} numberOfLines={2}>
                 {t("action_create_manifest")}
               </Text>
-              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+              <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
             </TouchableOpacity>
 
             {/* Action 2: Buy Dive Credits */}
@@ -666,17 +666,17 @@ export default function OperatorDashboardScreen() {
                 <Rect
                   width="100%"
                   height="100%"
-                  rx={12}
+                  rx={10}
                   fill="url(#ctaGrad2)"
                 />
               </Svg>
               <View style={styles.actionSymbol}>
-                <Ionicons name="card" size={16} color="#0061f6" />
+                <Ionicons name="card" size={13} color="#0061f6" />
               </View>
               <Text style={styles.actionBtnText} numberOfLines={2}>
                 {t("action_buy_credits")}
               </Text>
-              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+              <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </ContentContainer>
@@ -752,7 +752,7 @@ export default function OperatorDashboardScreen() {
                               ? "moon"
                               : "umbrella"
                         }
-                        size={20}
+                        size={16}
                         color="#006bff"
                       />
                     </View>
@@ -1074,15 +1074,16 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: "row",
     gap: 8,
-    marginTop: 2,
-    marginBottom: 16,
+    marginTop: 0,
+    marginBottom: 10,
   },
   actionBtn: {
     flex: 1,
-    minHeight: 60,
-    borderRadius: 12,
+    minHeight: 44,
+    paddingVertical: 8,
+    borderRadius: 10,
     overflow: "hidden",
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1094,17 +1095,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   actionSymbol: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   actionBtnText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 16,
+    fontSize: 11.5,
+    lineHeight: 14,
     fontFamily: "Quicksand_700Bold",
     color: "#FFFFFF",
     textAlign: "center",
@@ -1113,33 +1114,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 18,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 8,
     paddingHorizontal: 2,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14.5,
     fontFamily: "Quicksand_700Bold",
     color: "#0b206b",
   },
   seeAllLink: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: "Quicksand_600SemiBold",
     color: "#006bff",
   },
   manifestList: {
-    gap: 8,
+    gap: 6,
   },
   manifestCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 16,
-    minHeight: 56,
-    padding: 16,
+    borderRadius: 12,
+    minHeight: 46,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: "rgba(111, 185, 237, 0.24)",
-    gap: 12,
+    gap: 10,
     shadowColor: "#4089dc",
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -1147,9 +1149,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   manifestSymbol: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: "#e7f3ff",
     alignItems: "center",
     justifyContent: "center",
@@ -1164,21 +1166,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   manifestTitle: {
-    fontSize: 15,
+    fontSize: 13.5,
     fontFamily: "Quicksand_700Bold",
     color: "#0F172A",
-    marginBottom: 2,
+    marginBottom: 1,
   },
   manifestMeta: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Quicksand_500Medium",
     color: "#64748B",
   },
   statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3.5,
-    borderRadius: 8,
-    minHeight: 22,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    minHeight: 20,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1195,7 +1197,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#d9eaff",
   },
   statusPillText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: "Quicksand_700Bold",
     letterSpacing: 0.1,
   },

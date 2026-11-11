@@ -2519,6 +2519,7 @@ const styles = StyleSheet.create({
     height: 40,
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 0,
     gap: 4,
     paddingHorizontal: 6,
     borderRadius: 12,
@@ -2539,6 +2540,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   capacityInput: {
+    width: 38,
     minWidth: 32,
     padding: 0,
     textAlign: "center",

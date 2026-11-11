@@ -57,7 +57,7 @@ export function detectTravelPlatform(url: string): BookingPlatformType {
 }
 
 export const PLATFORM_NAMES: Record<BookingPlatformType, string> = {
-  messenger: "Messenger",
+  messenger: "Facebook",
   agoda: "Agoda",
   whatsapp: "WhatsApp",
   booking: "Booking.com",
@@ -77,9 +77,9 @@ export function normalizeTravelUrl(
   const trimmed = url.trim();
   if (type === "messenger") {
     if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-      return trimmed.startsWith("m.me/")
+      return trimmed.toLowerCase().startsWith("m.me/")
         ? `https://${trimmed}`
-        : `https://m.me/${trimmed.replace(/^@/, "")}`;
+        : `https://www.facebook.com/${trimmed.replace(/^@/, "")}`;
     }
   }
   if (type === "whatsapp") {
@@ -115,13 +115,17 @@ export function EstablishmentBookingSection({
       if (item && item.url && item.url.trim().length > 0) {
         const pType = item.platform || detectTravelPlatform(item.url);
         const norm = normalizeTravelUrl(item.url, pType);
+        const rawLabel = item.label?.trim();
+        const displayName =
+          rawLabel && rawLabel.length > 0
+            ? rawLabel.toLowerCase() === "messenger"
+              ? "Facebook"
+              : rawLabel
+            : PLATFORM_NAMES[pType];
         if (!channels.some((c) => c.url.toLowerCase() === norm.toLowerCase())) {
           channels.push({
             id: item.id || `booking-link-${idx}`,
-            name:
-              item.label && item.label.trim().length > 0
-                ? item.label.trim()
-                : PLATFORM_NAMES[pType],
+            name: displayName,
             url: norm,
             type: pType,
           });
@@ -150,7 +154,7 @@ export function EstablishmentBookingSection({
     if (!channels.some((c) => c.url.toLowerCase() === norm.toLowerCase())) {
       channels.push({
         id: "messenger",
-        name: "Messenger",
+        name: "Facebook",
         url: norm,
         type: "messenger",
       });
@@ -194,8 +198,8 @@ export function EstablishmentBookingSection({
     switch (type) {
       case "messenger":
         return (
-          <View style={[styles.logoBadge, { backgroundColor: "#0084FF" }]}>
-            <Ionicons name="chatbubble-ellipses" size={26} color="#FFFFFF" />
+          <View style={[styles.logoBadge, { backgroundColor: "#1877F2" }]}>
+            <Ionicons name="logo-facebook" size={28} color="#FFFFFF" />
           </View>
         );
 
