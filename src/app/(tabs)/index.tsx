@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -13,16 +13,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  ContentContainer,
+  AnnouncementDetailModal,
   CardRailSkeleton,
+  ContentContainer,
+  DEFAULT_CONSERVATION_ADVISORY,
   DiveSiteCard,
   EmptyState,
   ErrorState,
   EstablishmentCard,
-  resolveEstablishmentMedia,
   HeroCarousel,
-  AnnouncementDetailModal,
-  DEFAULT_CONSERVATION_ADVISORY,
+  resolveEstablishmentMedia,
   SearchBar,
   Skeleton,
 } from "../../components";
@@ -31,6 +31,8 @@ import { colors } from "../../constants/colors";
 import { useLayout } from "../../context/LayoutContext";
 import { useNotificationModal } from "../../context/NotificationModalContext";
 import { useAuth } from "../../hooks/useAuth";
+import { useLanguage } from "../../context/LanguageContext";
+import { HeaderLanguageToggle } from "../../components/HeaderLanguageToggle";
 import { supabase } from "../../lib/supabase";
 import {
   AnnouncementRow,
@@ -86,6 +88,43 @@ export default function HomeScreen() {
     user,
   } = useAuth();
   const { isDesktop, isCompact } = useLayout();
+  const { t, locale } = useLanguage();
+
+  const categories = useMemo(
+    () => [
+      {
+        key: "all",
+        label: t("category_all"),
+        icon: "compass-outline" as const,
+        matches: () => true,
+      },
+      {
+        key: "Beginner",
+        label: t("category_beginner"),
+        icon: "sunny-outline" as const,
+        matches: (s: DiveSiteRow) =>
+          s.difficulty === "Beginner" || s.difficulty === "Open Water",
+      },
+      {
+        key: "Intermediate",
+        label: t("category_intermediate"),
+        icon: "water-outline" as const,
+        matches: (s: DiveSiteRow) =>
+          s.difficulty === "Intermediate" || s.difficulty === "Rescue",
+      },
+      {
+        key: "Advanced",
+        label: t("category_advanced"),
+        icon: "flash-outline" as const,
+        matches: (s: DiveSiteRow) =>
+          s.difficulty === "Advanced" ||
+          s.difficulty === "Divemaster" ||
+          s.difficulty === "Instructor",
+      },
+    ],
+    [t, locale]
+  );
+
   const firstName =
     profile?.full_name?.trim().split(" ")[0] ||
     user?.user_metadata?.full_name?.trim().split(" ")[0] ||
@@ -113,7 +152,7 @@ export default function HomeScreen() {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   const activeCategoryConfig =
-    categoryOptions.find((c) => c.key === activeCategory) ?? categoryOptions[0];
+    categories.find((c) => c.key === activeCategory) ?? categories[0];
   const filteredDiveSites = diveSites.filter((s) =>
     activeCategoryConfig.matches(s),
   );
@@ -374,7 +413,11 @@ export default function HomeScreen() {
         <ContentContainer maxWidth={900} paddingH={isCompact ? 14 : 20}>
           {/* Top Bar: SINSAY blue logo on upper left, Notification + Profile on upper right */}
           {!isDesktop && (
-            <View style={styles.topBar}>
+            <View
+              style={styles.topBar}
+              nativeID="tutorial-top-bar"
+              testID="tutorial-top-bar"
+            >
               <Image
                 source={require("../../../assets/sinsay-blue-home.webp")}
                 style={[styles.logoImage, isCompact && styles.compactLogoImage]}
@@ -386,6 +429,7 @@ export default function HomeScreen() {
               />
 
               <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
+                <HeaderLanguageToggle />
                 <TouchableOpacity
                   style={[
                     styles.iconButton,
@@ -394,7 +438,7 @@ export default function HomeScreen() {
                   onPress={openNotifications}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel={`Notifications, ${unreadCount} unread`}
+                  accessibilityLabel={t("notifications_title")}
                 >
                   <Ionicons
                     name="notifications-outline"
@@ -415,7 +459,7 @@ export default function HomeScreen() {
                   onPress={() => router.push("/(tabs)/profile")}
                   activeOpacity={0.85}
                   accessibilityRole="button"
-                  accessibilityLabel="User profile"
+                  accessibilityLabel={t("profile_title")}
                 >
                   {avatarUri ? (
                     <Image
@@ -437,15 +481,17 @@ export default function HomeScreen() {
 
           {/* Greeting Section */}
           <View style={styles.greetingBlock}>
-            <Text style={styles.greetingTitle}>Hi {firstName}!</Text>
+            <Text style={styles.greetingTitle}>
+              {t("home_greeting", { name: firstName })}
+            </Text>
             <Text style={styles.greetingSubtitle}>
-              Welcome to Mabini, Batangas
+              {t("home_welcome_subtitle")}
             </Text>
           </View>
 
           {/* Full-width rounded search bar underneath */}
           <SearchBar
-            placeholder="Search dive sites, resorts, or activities..."
+            placeholder={t("search_placeholder")}
             results={searchResults}
             loading={searchLoading}
             onSearch={handleSearch}
@@ -496,7 +542,7 @@ export default function HomeScreen() {
             style={styles.categoryScroll}
             contentContainerStyle={styles.categoryRow}
           >
-            {categoryOptions.map((cat) => {
+            {categories.map((cat) => {
               const isActive = activeCategory === cat.key;
               return (
                 <TouchableOpacity
@@ -580,13 +626,13 @@ export default function HomeScreen() {
             <>
               {/* Popular Dive Sites: Horizontal Carousel of Large Photographic Cards */}
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Popular Dive Sites</Text>
+                <Text style={styles.sectionTitle}>{t("popular_dive_sites")}</Text>
                 <TouchableOpacity
                   onPress={() => router.push("/dive-sites")}
                   accessibilityRole="button"
-                  accessibilityLabel="See all popular dive sites"
+                  accessibilityLabel={t("see_all")}
                 >
-                  <Text style={styles.seeAll}>See all</Text>
+                  <Text style={styles.seeAll}>{t("see_all")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -596,18 +642,18 @@ export default function HomeScreen() {
                 </View>
               ) : diveSitesError ? (
                 <ErrorState
-                  message="Failed to load dive sites."
+                  message={t("home_error_dive_sites")}
                   onRetry={handleRetryDiveSites}
                 />
               ) : diveSites.length === 0 ? (
                 <EmptyState
                   icon="map-outline"
-                  message="No dive sites available yet."
+                  message={t("no_dive_sites")}
                 />
               ) : filteredDiveSites.length === 0 ? (
                 <EmptyState
                   icon="funnel-outline"
-                  message="No dive sites match this filter."
+                  message={t("home_no_filter_match")}
                 />
               ) : (
                 <ScrollView
@@ -642,13 +688,13 @@ export default function HomeScreen() {
 
               {/* Dive Resorts: Horizontal Information-Card Layout */}
               <View style={[styles.sectionHeaderRow, { marginTop: 26 }]}>
-                <Text style={styles.sectionTitle}>Dive Resorts</Text>
+                <Text style={styles.sectionTitle}>{t("verified_establishments")}</Text>
                 <TouchableOpacity
                   onPress={() => router.push("/establishments")}
                   accessibilityRole="button"
-                  accessibilityLabel="See all dive resorts"
+                  accessibilityLabel={t("see_all")}
                 >
-                  <Text style={styles.seeAll}>See all</Text>
+                  <Text style={styles.seeAll}>{t("see_all")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -658,13 +704,13 @@ export default function HomeScreen() {
                 </View>
               ) : establishmentsError ? (
                 <ErrorState
-                  message="Failed to load dive resorts."
+                  message={t("home_error_resorts")}
                   onRetry={handleRetryEstablishments}
                 />
               ) : establishments.length === 0 ? (
                 <EmptyState
                   icon="business-outline"
-                  message="No dive resorts yet."
+                  message={t("home_no_resorts")}
                 />
               ) : (
                 <View style={styles.resortsGrid}>
@@ -686,7 +732,6 @@ export default function HomeScreen() {
                             item.dot_url && item.dot_url.trim().length > 0,
                           )}
                           imageUrl={imageUrl}
-                          logoUrl={logoUrl}
                           index={idx}
                           onPress={() =>
                             router.push({

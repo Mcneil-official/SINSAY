@@ -89,7 +89,6 @@ export const ManifestSnapshotCard = forwardRef<View, ManifestSnapshotCardProps>(
       : "0001";
 
     const manifestNumber = `2026-${shortId}`;
-    const permitNumber = manifest.dive_date || `2026-11-${shortId}`;
 
     const rawDate = manifest.dive_date || "";
     let formattedDate = rawDate;

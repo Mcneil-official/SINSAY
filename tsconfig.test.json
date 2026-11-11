@@ -15,6 +15,9 @@
     "src/lib/phone.ts",
     "src/lib/notifications.ts",
     "src/lib/resortInitials.ts",
+    "src/lib/operatorApproval.ts", 
+    "src/lib/savedItineraries.ts", 
+    "src/lib/i18n.ts",
     "src/lib/diveSiteCoordinates.ts",
     "src/lib/bookingChannels.ts",
     "tests/**/*.ts"

@@ -11,12 +11,15 @@ import {
 import { colors } from "../constants/colors";
 import { useNotificationModal } from "../context/NotificationModalContext";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../context/LanguageContext";
+import { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 
 export default function OperatorWiderScreenNavbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { unreadCount } = useAuth();
   const { openNotifications } = useNotificationModal();
+  const { t } = useLanguage();
 
   // Active state determination for operator links
   const isHomeActive =
@@ -46,7 +49,7 @@ export default function OperatorWiderScreenNavbar() {
             onPress={() => router.push("/(operator-tabs)")}
             accessibilityRole="link"
             accessibilityState={{ selected: isHomeActive }}
-            accessibilityLabel="Home"
+            accessibilityLabel={t("tab_dashboard")}
             activeOpacity={0.7}
           >
             <Text
@@ -55,7 +58,7 @@ export default function OperatorWiderScreenNavbar() {
                 isHomeActive && styles.navTextActive,
               ]}
             >
-              Home
+              {t("tab_dashboard")}
             </Text>
             {isHomeActive && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
@@ -65,7 +68,7 @@ export default function OperatorWiderScreenNavbar() {
             onPress={() => router.push("/(operator-tabs)/manifests")}
             accessibilityRole="link"
             accessibilityState={{ selected: isManifestsActive }}
-            accessibilityLabel="Dive Manifesto"
+            accessibilityLabel={t("tab_manifests")}
             activeOpacity={0.7}
           >
             <Text
@@ -74,7 +77,7 @@ export default function OperatorWiderScreenNavbar() {
                 isManifestsActive && styles.navTextActive,
               ]}
             >
-              Dive Manifesto
+              {t("tab_manifests")}
             </Text>
             {isManifestsActive && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
@@ -96,14 +99,14 @@ export default function OperatorWiderScreenNavbar() {
           />
         </TouchableOpacity>
 
-        {/* Right Wing: Buy Dive Pass, Profile, and Notification Bell */}
+        {/* Right Wing: Buy Dive Pass, Profile, Language, and Notification Bell */}
         <View style={styles.navGroupRight}>
           <TouchableOpacity
             style={styles.navLink}
             onPress={() => router.push("/(operator-tabs)/buy-pass")}
             accessibilityRole="link"
             accessibilityState={{ selected: isBuyPassActive }}
-            accessibilityLabel="Buy Dive Pass"
+            accessibilityLabel={t("tab_buy_pass")}
             activeOpacity={0.7}
           >
             <Text
@@ -112,7 +115,7 @@ export default function OperatorWiderScreenNavbar() {
                 isBuyPassActive && styles.navTextActive,
               ]}
             >
-              Buy Dive Pass
+              {t("tab_buy_pass")}
             </Text>
             {isBuyPassActive && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
@@ -122,7 +125,7 @@ export default function OperatorWiderScreenNavbar() {
             onPress={() => router.push("/(operator-tabs)/profile")}
             accessibilityRole="link"
             accessibilityState={{ selected: isProfileActive }}
-            accessibilityLabel="Profile"
+            accessibilityLabel={t("tab_profile")}
             activeOpacity={0.7}
           >
             <Text
@@ -131,17 +134,20 @@ export default function OperatorWiderScreenNavbar() {
                 isProfileActive && styles.navTextActive,
               ]}
             >
-              Profile
+              {t("tab_profile")}
             </Text>
             {isProfileActive && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
+
+          {/* Quick Language Switcher */}
+          <HeaderLanguageToggle />
 
           {/* Far Right: Notification Bell */}
           <TouchableOpacity
             style={styles.iconCircle}
             onPress={openNotifications}
             accessibilityRole="button"
-            accessibilityLabel="Notifications"
+            accessibilityLabel={t("notifications_title")}
             activeOpacity={0.7}
           >
             <Ionicons name="notifications-outline" size={18} color="#334155" />

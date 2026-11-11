@@ -50,6 +50,8 @@ export default function OperatorProfileEditScreen() {
   const [busy, setBusy] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("resort");
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof values, string>>>({});
   const handleBack = () => safeBack(router, "/(operator-tabs)/profile");
@@ -210,7 +212,8 @@ export default function OperatorProfileEditScreen() {
       const removed = [...(app.cover_image_paths || []).filter((p) => !coverPaths.includes(p)), ...(profile?.avatar_path && profile.avatar_path !== avatarPath ? [profile.avatar_path] : [])];
       if (removed.length) await supabase.storage.from("operator_media").remove(removed);
       await refreshProfile();
-      setSuccessMessage(emailNotice || "Your resort and account details have been saved.");
+      setSaveSuccessMessage(emailNotice || "Your resort and account details have been saved.");
+      setShowSaveSuccess(true);
     } catch (e) {
       if (uploaded.length) await supabase.storage.from("operator_media").remove(uploaded);
       setError(e instanceof Error ? e.message : "Could not save profile. Please try again.");
@@ -350,15 +353,15 @@ export default function OperatorProfileEditScreen() {
     <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>{!!error && <Text style={styles.error}>{error}</Text>}<View style={styles.actions}><TouchableOpacity style={styles.cancel} onPress={handleBack}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity style={[styles.save, busy && { opacity: .65 }]} disabled={busy} onPress={save}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save changes</Text>}</TouchableOpacity></View></View>
   </KeyboardAvoidingView>
   <ConfirmModal
-    visible={successMessage !== null}
+    visible={showSaveSuccess}
     title="Profile updated"
-    message={successMessage || ""}
+    message={saveSuccessMessage}
+    cancelText="Continue editing"
+    confirmText="Back to profile"
     icon="checkmark-circle-outline"
-    confirmText="Done"
-    cancelText="Stay here"
-    onCancel={() => setSuccessMessage(null)}
+    onCancel={() => setShowSaveSuccess(false)}
     onConfirm={() => {
-      setSuccessMessage(null);
+      setShowSaveSuccess(false);
       handleBack();
     }}
   />

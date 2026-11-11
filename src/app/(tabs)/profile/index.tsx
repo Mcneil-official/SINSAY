@@ -18,6 +18,8 @@ import { colors } from "../../../constants/colors";
 import { usePWAInstall } from "../../../context/PWAContext";
 import { useTutorial } from "../../../context/TutorialContext";
 import { useAuth } from "../../../hooks/useAuth";
+import { useLanguage } from "../../../context/LanguageContext";
+import { HeaderLanguageToggle } from "../../../components/HeaderLanguageToggle";
 import { Locale, t } from "../../../lib/i18n";
 
 interface ProfileRowProps {
@@ -73,7 +75,7 @@ export default function ProfileScreen() {
   } = useAuth();
   const { isInstalled, promptInstall } = usePWAInstall();
   const { startTutorial } = useTutorial();
-  const locale: Locale = (profile?.language_preference as Locale) || "en";
+  const { locale, toggleLocale, t } = useLanguage();
   const [returnToOperator, setReturnToOperator] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -124,12 +126,15 @@ export default function ProfileScreen() {
           <View style={styles.screenHeader}>
             <View style={styles.headerTextCol}>
               <Text style={styles.headerTitle}>
-                {t("profile_title", locale)}
+                {t("profile_title")}
               </Text>
               <Text style={styles.headerSubtitle}>
-                Manage your diver identity &amp; account preferences.
+                {locale === "fil"
+                  ? "Pamahalaan ang iyong diver identity at mga preference."
+                  : "Manage your diver identity & account preferences."}
               </Text>
             </View>
+            <HeaderLanguageToggle />
           </View>
 
           {/* Profile Identity Card */}
@@ -139,7 +144,7 @@ export default function ProfileScreen() {
               onPress={() => router.push("/profile/edit-profile")}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Edit profile photo"
+                    accessibilityLabel={t("a11y_change_photo")}
             >
               {avatarUri ? (
                 <Image
@@ -241,7 +246,7 @@ export default function ProfileScreen() {
                 size={14}
                 color={colors.primaryBlue}
               />
-              <Text style={styles.editPillText}>Edit</Text>
+                  <Text style={styles.editPillText}>{t("edit")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -249,7 +254,7 @@ export default function ProfileScreen() {
           {operatorApplication && (
             <>
               <Text style={styles.sectionLabel}>
-                {t("operator_title", locale)}
+                {t("operator_title")}
               </Text>
               <View style={[styles.sectionCard, { marginBottom: 8 }]}>
                 <ProfileRow
@@ -262,18 +267,18 @@ export default function ProfileScreen() {
                   }
                   label={
                     operatorApplication.status === "approved"
-                      ? t("operator_approved", locale)
+                      ? t("operator_approved")
                       : operatorApplication.status === "rejected"
-                        ? t("operator_rejected", locale)
-                        : t("operator_pending", locale)
+                        ? t("operator_rejected")
+                        : t("operator_pending")
                   }
                   subtitle={
                     operatorApplication.status === "approved"
-                      ? t("operator_approved_sub", locale)
+                      ? t("operator_approved_sub")
                       : operatorApplication.status === "rejected"
                         ? operatorApplication.rejection_reason ||
-                          t("operator_rejected_sub", locale)
-                        : t("operator_pending_sub", locale)
+                          t("operator_rejected_sub")
+                        : t("operator_pending_sub")
                   }
                   onPress={() => {
                     if (isOperator) {
@@ -287,41 +292,39 @@ export default function ProfileScreen() {
           )}
 
           {/* Account section */}
-          <Text style={styles.sectionLabel}>{t("account", locale)}</Text>
+          <Text style={styles.sectionLabel}>{t("account")}</Text>
           <View style={styles.sectionCard}>
             <ProfileRow
               icon="settings-outline"
-              label={t("my_account", locale)}
-              subtitle={t("my_account_sub", locale)}
+              label={t("my_account")}
+              subtitle={t("my_account_sub")}
               onPress={() => router.push("/profile/edit-profile")}
             />
             <View style={styles.divider} />
             <ProfileRow
               icon="heart-outline"
-              label="Favorites"
-              subtitle="View and manage your saved dive sites"
+                  label={t("favorites")}
+                  subtitle={t("favorites_sub")}
               onPress={() => router.push("/profile/favorites")}
             />
             <View style={styles.divider} />
             <ProfileRow
               icon="id-card-outline"
-              label="Dive Pass & Certification"
-              subtitle="Update nationality, emergency contact & dive type"
+                  label={t("dive_pass_certification")}
+                  subtitle={t("dive_pass_certification_sub")}
               onPress={() => router.push("/tourist/dive-details/step1")}
             />
             <View style={styles.divider} />
             <ProfileRow
               icon="language-outline"
-              label={t("language", locale)}
+              label={t("language")}
               subtitle={
-                profile?.language_preference === "fil"
-                  ? t("language_fil", locale)
-                  : t("language_en", locale)
+                locale === "fil"
+                  ? t("language_fil")
+                  : t("language_en")
               }
               onPress={() => {
-                const next =
-                  profile?.language_preference === "fil" ? "en" : "fil";
-                updateProfile({ language_preference: next } as any);
+                toggleLocale();
               }}
             />
             {!isOperator && (
@@ -331,17 +334,17 @@ export default function ProfileScreen() {
                   icon="business-outline"
                   label={
                     !operatorApplication
-                      ? t("apply_operator", locale)
+                      ? t("apply_operator")
                       : operatorApplication.status === "pending"
-                        ? t("app_pending", locale)
-                        : t("app_rejected", locale)
+                        ? t("app_pending")
+                        : t("app_rejected")
                   }
                   subtitle={
                     !operatorApplication
-                      ? t("apply_operator_sub", locale)
+                      ? t("apply_operator_sub")
                       : operatorApplication.status === "pending"
-                        ? t("app_pending_sub", locale)
-                        : t("app_rejected_sub", locale)
+                        ? t("app_pending_sub")
+                        : t("app_rejected_sub")
                   }
                   onPress={() => {
                     if (
@@ -357,20 +360,20 @@ export default function ProfileScreen() {
             <View style={styles.divider} />
             <ProfileRow
               icon="log-out-outline"
-              label={t("log_out", locale)}
-              subtitle={t("log_out_sub", locale)}
+              label={t("log_out")}
+              subtitle={t("log_out_sub")}
               onPress={() => setShowLogoutModal(true)}
               destructive
             />
           </View>
 
           {/* More section */}
-          <Text style={styles.sectionLabel}>{t("more", locale)}</Text>
+          <Text style={styles.sectionLabel}>{t("more")}</Text>
           <View style={styles.sectionCard}>
             <ProfileRow
               icon="compass-outline"
-              label="App Navigation Tutorial"
-              subtitle="Interactive guide on how to navigate SINSAY"
+                  label={t("app_navigation_tutorial")}
+                  subtitle={t("app_navigation_tutorial_sub")}
               onPress={() => {
                 router.replace("/(tabs)");
                 startTutorial();
@@ -390,29 +393,29 @@ export default function ProfileScreen() {
             <View style={styles.divider} />
             <ProfileRow
               icon="help-circle-outline"
-              label={t("help_support", locale)}
-              subtitle={t("help_support_sub", locale)}
+              label={t("help_support")}
+              subtitle={t("help_support_sub")}
               onPress={() => router.push("/profile/help")}
             />
             <View style={styles.divider} />
             <ProfileRow
               icon="document-text-outline"
-              label={t("faq", locale)}
-              subtitle={t("faq_sub", locale)}
+              label={t("faq")}
+              subtitle={t("faq_sub")}
               onPress={() => router.push("/profile/faq")}
             />
             <View style={styles.divider} />
             <ProfileRow
               icon="shield-checkmark-outline"
-              label={t("privacy_policy", locale)}
-              subtitle={t("privacy_policy_sub", locale)}
+              label={t("privacy_policy")}
+              subtitle={t("privacy_policy_sub")}
               onPress={() => router.push("/privacy")}
             />
             <View style={styles.divider} />
             <ProfileRow
               icon="reader-outline"
-              label={t("terms_service", locale)}
-              subtitle={t("terms_service_sub", locale)}
+              label={t("terms_service")}
+              subtitle={t("terms_service_sub")}
               onPress={() => router.push("/terms")}
             />
           </View>
@@ -421,10 +424,10 @@ export default function ProfileScreen() {
 
       <ConfirmModal
         visible={showLogoutModal}
-        title={t("logout_confirm_title", locale)}
-        message={t("logout_confirm_message", locale)}
-        cancelText={t("cancel", locale)}
-        confirmText={t("confirm", locale)}
+        title={t("logout_confirm_title")}
+        message={t("logout_confirm_message")}
+        cancelText={t("cancel")}
+        confirmText={t("confirm")}
         icon="log-out-outline"
         destructive
         isLoading={isLoggingOut}

@@ -152,7 +152,7 @@ function getMockPlan(params: {
     (params.budget?.trim() ? `💰 Budget: ₱${params.budget.trim()}\n` : "") +
     `\n` +
     `Day 1:\n` +
-    `  • 08:00 - Morning dive at Anilao Cove\n` +
+    `  • 08:00 - Morning dive at Cathedral Rock\n` +
     `  • 12:00 - Lunch break at resort\n` +
     `  • 14:00 - Reef exploration at Sombrero Island\n\n` +
     `Day 2:\n` +

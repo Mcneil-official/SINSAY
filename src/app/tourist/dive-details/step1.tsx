@@ -374,7 +374,7 @@ export default function DiveDetailsStep1() {
                   <View style={styles.uploadCard}>
                     <Text style={styles.uploadTitle}>Permit to Operate</Text>
                     <Text style={styles.sectionHint}>
-                      "Mandatory municipal guide permit number & document for commercial dives."
+                      Mandatory municipal guide permit number &amp; document for commercial dives.
                     </Text>
                     <TextInput
                       label="Permit to Operate Number"

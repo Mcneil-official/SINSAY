@@ -19,6 +19,12 @@ import { checkPasswordRules, validatePasswordForSignup } from "../lib/password";
 
 type AuthMode = "login" | "signup";
 
+function isDuplicateEmailError(message: string): boolean {
+  return /already\s+(?:been\s+)?registered|already\s+(?:in use|exists|taken)|email_exists/i.test(
+    message
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -206,6 +212,13 @@ export default function LoginPage() {
     );
     setLoading(false);
     if (authError) {
+      if (isDuplicateEmailError(authError)) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          email: "An account with this email already exists",
+        }));
+        return;
+      }
       setError(authError);
       return;
     }
@@ -257,7 +270,7 @@ export default function LoginPage() {
         {fieldError ? (
           <Text
             style={styles.fieldErrorText}
-            numberOfLines={1}
+            numberOfLines={2}
             accessibilityLiveRegion="polite"
           >
             {fieldError}

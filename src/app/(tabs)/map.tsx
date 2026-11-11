@@ -15,7 +15,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { DidYouKnowCard, ErrorState, resolveSiteImage } from "../../components";
@@ -314,12 +313,13 @@ function generateLeafletMapHtml(
       fillOpacity: 0.18
     }).addTo(map);
 
-    // Twin Rocks Core Sanctuary
+    // Twin Rocks Core Sanctuary (Sitio Balanoy, Brgy. San Teodoro;
+    // ~22.9 ha per Mabini CDP — redrawn around the LGU/boat-GPS pin 13.6906/120.8893)
     L.polygon([
-      [13.706, 120.893],
-      [13.706, 120.903],
-      [13.698, 120.903],
-      [13.698, 120.893]
+      [13.6930, 120.8865],
+      [13.6930, 120.8920],
+      [13.6895, 120.8920],
+      [13.6895, 120.8865]
     ], {
       color: '#059669',
       weight: 1.5,
@@ -459,19 +459,22 @@ function generateLeafletMapHtml(
         }
       }
     });
+
+    // Keep tiles and markers aligned if the iframe size changes after init
+    // (safe-area insets, drawer layout, orientation).
+    setTimeout(() => map.invalidateSize(), 200);
+    window.addEventListener('resize', () => map.invalidateSize());
   </script>
 </body>
 </html>`;
 }
 
 export default function MapScreen() {
-  const insets = useSafeAreaInsets();
   const mapBottomOffset = 16;
   const drawerScrollBottom = 28;
   const router = useRouter();
   const { site: requestedSite } = useLocalSearchParams<{ site?: string }>();
   const { user } = useAuth();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const [sites, setSites] = useState<DiveSiteRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -668,7 +671,8 @@ export default function MapScreen() {
     }
   }, []);
 
-  // Format sites payload for Leaflet
+  // Format sites payload for Leaflet. Sites without coordinates are
+  // dropped instead of being stacked at a fake default center.
   const sitesForMap = useMemo(() => {
     return sites.flatMap((s) => {
       const coordinates = getDiveSiteMapCoordinates(s);

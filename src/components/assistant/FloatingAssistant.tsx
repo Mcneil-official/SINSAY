@@ -23,7 +23,13 @@ import { AssistantPlannerPanel } from "./AssistantPlannerPanel";
 type AssistantMode = "closed" | "chooser" | "open" | "minimized";
 type AssistantTab = "chat" | "planner";
 
-function BotIcon({ size = 25, color = colors.white }: { size?: number; color?: string }) {
+function BotIcon({
+  size = 25,
+  color = colors.white,
+}: {
+  size?: number;
+  color?: string;
+}) {
   return (
     <Svg
       width={size}
@@ -44,7 +50,13 @@ function BotIcon({ size = 25, color = colors.white }: { size?: number; color?: s
   );
 }
 
-function MapSvgIcon({ size = 18, color = colors.primaryBlue }: { size?: number; color?: string }) {
+function MapSvgIcon({
+  size = 18,
+  color = colors.primaryBlue,
+}: {
+  size?: number;
+  color?: string;
+}) {
   return (
     <Svg
       width={size}
@@ -237,6 +249,8 @@ export function FloatingAssistant() {
       {/* Floating Action Button (closed or chooser state) */}
       {!hideFloatingTrigger && (mode === "closed" || mode === "chooser") && (
         <TouchableOpacity
+          nativeID="tutorial-assistant-btn"
+          testID="tutorial-assistant-btn"
           style={[styles.fab, { bottom: fabBottom }]}
           onPress={handleFabPress}
           activeOpacity={0.85}
