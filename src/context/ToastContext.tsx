@@ -155,7 +155,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         >
           <View
             style={styles.content}
-            pointerEvents={toast.action ? "box-none" : "none"}
+            pointerEvents={toast.action ? "auto" : "none"}
           >
             <Ionicons name={config.icon} size={20} color={config.color} />
             <Text

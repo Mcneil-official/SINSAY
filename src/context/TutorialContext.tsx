@@ -1,12 +1,28 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
+import { useAuth } from "../hooks/useAuth";
+import {
+  clearFirstTimeOperatorTutorialPending,
+  clearFirstTimeTutorialPending,
+  isFirstTimeOperatorTutorialPending,
+  isFirstTimeTutorialPending,
+  isOperatorApprovalModalOpen,
+  subscribeTutorialTrigger,
+} from "../lib/onboarding";
+import { supabase } from "../lib/supabase";
 
-const TUTORIAL_STORAGE_KEY = "@sinsay_tutorial_completed_v1";
+export type TutorialRole = "tourist" | "operator";
+
+const TUTORIAL_ROLE_STORAGE_PREFIX = "@sinsay_tutorial_v3_";
+
+const shownTutorialKeys = new Set<string>();
 
 export interface TutorialContextType {
   isTutorialActive: boolean;
@@ -18,10 +34,38 @@ export interface TutorialContextType {
 
 const TutorialContext = createContext<TutorialContextType | undefined>(undefined);
 
-function checkCompletedLocally(): boolean {
+function getStorageKey(role: TutorialRole, userId: string): string {
+  return `${TUTORIAL_ROLE_STORAGE_PREFIX}${role}_${userId}`;
+}
+
+function getMetaKey(role: TutorialRole): string {
+  return role === "operator"
+    ? "operator_tutorial_completed"
+    : "tourist_tutorial_completed";
+}
+
+function checkCompletedSync(
+  role: TutorialRole,
+  userId?: string | null,
+  userMetadata?: Record<string, unknown>,
+): boolean {
+  if (!userId) return false;
+  const memKey = `${role}:${userId}`;
+  if (shownTutorialKeys.has(memKey)) {
+    return true;
+  }
+  const metaKey = getMetaKey(role);
+  if (userMetadata?.[metaKey] === true) {
+    shownTutorialKeys.add(memKey);
+    return true;
+  }
   if (typeof window !== "undefined" && window.localStorage) {
     try {
-      return window.localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true";
+      const storageKey = getStorageKey(role, userId);
+      if (window.localStorage.getItem(storageKey) === "true") {
+        shownTutorialKeys.add(memKey);
+        return true;
+      }
     } catch {
       return false;
     }
@@ -29,37 +73,125 @@ function checkCompletedLocally(): boolean {
   return false;
 }
 
-function saveCompletedLocally(): void {
+function persistCompletedForUser(
+  role: TutorialRole,
+  userId?: string | null,
+  syncRemote = true,
+): void {
+  if (!userId) return;
+  const memKey = `${role}:${userId}`;
+  shownTutorialKeys.add(memKey);
+  if (role === "operator") {
+    clearFirstTimeOperatorTutorialPending(userId);
+  } else {
+    clearFirstTimeTutorialPending(userId);
+  }
+
+  const storageKey = getStorageKey(role, userId);
   if (typeof window !== "undefined" && window.localStorage) {
     try {
-      window.localStorage.setItem(TUTORIAL_STORAGE_KEY, "true");
+      window.localStorage.setItem(storageKey, "true");
     } catch {}
+  }
+  AsyncStorage.setItem(storageKey, "true").catch(() => {});
+
+  if (syncRemote) {
+    const metaKey = getMetaKey(role);
+    supabase.auth
+      .updateUser({
+        data: { [metaKey]: true },
+      })
+      .catch(() => {});
   }
 }
 
 export function TutorialProvider({
   children,
   autoPrompt = true,
+  role = "tourist",
 }: {
   children: React.ReactNode;
   autoPrompt?: boolean;
+  role?: TutorialRole;
 }) {
-  const [hasCompleted, setHasCompleted] = useState<boolean>(checkCompletedLocally);
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const userMetaRef = useRef<Record<string, unknown> | undefined>(
+    user?.user_metadata as Record<string, unknown> | undefined,
+  );
+  userMetaRef.current = user?.user_metadata as
+    | Record<string, unknown>
+    | undefined;
+
+  const [hasCompleted, setHasCompleted] = useState<boolean>(() =>
+    checkCompletedSync(role, userId, userMetaRef.current),
+  );
   const [isTutorialActive, setIsTutorialActive] = useState<boolean>(false);
+  const [triggerTick, setTriggerTick] = useState(0);
 
-  // Initial check on mount
   useEffect(() => {
-    const completed = checkCompletedLocally();
-    setHasCompleted(completed);
+    return subscribeTutorialTrigger(() => {
+      setTriggerTick((t) => t + 1);
+    });
+  }, []);
 
-    if (!completed && autoPrompt) {
-      // Gentle settling delay so the home screen settles before spotlight appears
-      const timer = setTimeout(() => {
-        setIsTutorialActive(true);
-      }, 750);
-      return () => clearTimeout(timer);
-    }
-  }, [autoPrompt]);
+  // Auto-prompt once after first-time tourist onboarding or first-time operator approval
+  useEffect(() => {
+    if (!userId) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const evaluateTutorial = async () => {
+      const isPending =
+        role === "operator"
+          ? isFirstTimeOperatorTutorialPending(userId)
+          : isFirstTimeTutorialPending(userId);
+
+      // While OperatorApprovalModal is still open on screen, wait until the user closes it
+      if (role === "operator" && isOperatorApprovalModalOpen()) {
+        return;
+      }
+
+      const syncDone = checkCompletedSync(role, userId, userMetaRef.current);
+      if (syncDone && !isPending) {
+        if (!cancelled) setHasCompleted(true);
+        return;
+      }
+
+      if (!isPending) {
+        try {
+          const storageKey = getStorageKey(role, userId);
+          const asyncVal = await AsyncStorage.getItem(storageKey);
+          if (cancelled) return;
+          if (asyncVal === "true") {
+            shownTutorialKeys.add(`${role}:${userId}`);
+            setHasCompleted(true);
+            return;
+          }
+        } catch {}
+        return;
+      }
+
+      if (autoPrompt && isPending) {
+        timer = setTimeout(() => {
+          if (!cancelled) {
+            // Mark completed locally & remotely only once the tutorial actually opens
+            persistCompletedForUser(role, userId, true);
+            setHasCompleted(true);
+            setIsTutorialActive(true);
+          }
+        }, 650);
+      }
+    };
+
+    void evaluateTutorial();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [autoPrompt, role, userId, triggerTick]);
 
   const startTutorial = useCallback(() => {
     setIsTutorialActive(true);
@@ -68,18 +200,24 @@ export function TutorialProvider({
   const dismissTutorial = useCallback(() => {
     setIsTutorialActive(false);
     setHasCompleted(true);
-    saveCompletedLocally();
-  }, []);
+    persistCompletedForUser(role, userId, true);
+  }, [role, userId]);
 
   const resetTutorial = useCallback(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      try {
-        window.localStorage.removeItem(TUTORIAL_STORAGE_KEY);
-      } catch {}
+    if (userId) {
+      const memKey = `${role}:${userId}`;
+      const storageKey = getStorageKey(role, userId);
+      shownTutorialKeys.delete(memKey);
+      AsyncStorage.removeItem(storageKey).catch(() => {});
+      if (typeof window !== "undefined" && window.localStorage) {
+        try {
+          window.localStorage.removeItem(storageKey);
+        } catch {}
+      }
     }
     setHasCompleted(false);
     setIsTutorialActive(true);
-  }, []);
+  }, [role, userId]);
 
   return (
     <TutorialContext.Provider

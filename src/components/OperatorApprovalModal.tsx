@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -12,6 +12,11 @@ import {
 } from "react-native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
+import {
+  markFirstTimeOperatorTutorialPending,
+  notifyTutorialTrigger,
+  setOperatorApprovalModalOpen,
+} from "../lib/onboarding";
 import {
   getOperatorApprovalSeenKey,
   shouldShowOperatorApprovalModal,
@@ -26,9 +31,10 @@ export function OperatorApprovalModal() {
     useAuth();
   const [visible, setVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const activeModalAppIdRef = useRef<string | null>(null);
 
   const persistAcknowledged = useCallback(
-    async (applicationId: string) => {
+    async (applicationId: string, syncRemote = true) => {
       const key = getOperatorApprovalSeenKey(applicationId);
       if (typeof window !== "undefined" && window.localStorage) {
         try {
@@ -40,6 +46,7 @@ export function OperatorApprovalModal() {
       } catch (err) {
         console.warn("Failed to save operator approval acknowledgement:", err);
       }
+      if (!syncRemote) return;
       try {
         await supabase.auth.updateUser({
           data: {
@@ -67,12 +74,19 @@ export function OperatorApprovalModal() {
 
     async function checkApprovalSeen() {
       if (!operatorApplication || operatorApplication.status !== "approved") {
+        activeModalAppIdRef.current = null;
         setVisible(false);
+        setOperatorApprovalModalOpen(false);
+        return;
+      }
+
+      const appId = operatorApplication.id;
+      // If the modal is already open for this application, keep it open until the user clicks a CTA button
+      if (activeModalAppIdRef.current === appId) {
         return;
       }
 
       try {
-        const appId = operatorApplication.id;
         const key = getOperatorApprovalSeenKey(appId);
 
         let localSeen = false;
@@ -111,13 +125,16 @@ export function OperatorApprovalModal() {
           isAcknowledged,
         });
 
-        if (!isCancelled) {
-          setVisible(shouldShow);
-          if (shouldShow) {
-            // Immediately record that this approval modal has been shown once
-            // so subsequent logins, refreshes, or sessions never re-show it.
-            void persistAcknowledged(appId);
+        if (!isCancelled && shouldShow) {
+          activeModalAppIdRef.current = appId;
+          setVisible(true);
+          setOperatorApprovalModalOpen(true);
+          if (user?.id) {
+            markFirstTimeOperatorTutorialPending(user.id);
           }
+          // Save locally right away so page reloads don't re-show the modal,
+          // and sync remote metadata when the user clicks a CTA button.
+          void persistAcknowledged(appId, false);
         }
       } catch (err) {
         console.warn("Failed to check operator approval seen status:", err);
@@ -129,7 +146,7 @@ export function OperatorApprovalModal() {
     return () => {
       isCancelled = true;
     };
-  }, [operatorApplication, isOperator, user?.user_metadata, notifications, persistAcknowledged]);
+  }, [operatorApplication, isOperator, user?.id, user?.user_metadata, notifications, persistAcknowledged]);
 
   if (!visible || !operatorApplication) {
     return null;
@@ -137,23 +154,33 @@ export function OperatorApprovalModal() {
 
   const resortName = operatorApplication.resort_name?.trim() || "your establishment";
 
-  const handleSwitchToOperator = async () => {
+  const handleSwitchToOperator = () => {
     if (isProcessing) return;
     setIsProcessing(true);
-    await persistAcknowledged(operatorApplication.id);
+    if (user?.id) {
+      markFirstTimeOperatorTutorialPending(user.id);
+    }
+    setOperatorApprovalModalOpen(false);
     setViewAsTourist(false);
     setVisible(false);
     setIsProcessing(false);
+    notifyTutorialTrigger();
+    void persistAcknowledged(operatorApplication.id, true);
     router.replace("/(operator-tabs)");
   };
 
-  const handleStayInTouristMode = async () => {
+  const handleStayInTouristMode = () => {
     if (isProcessing) return;
     setIsProcessing(true);
-    await persistAcknowledged(operatorApplication.id);
+    if (user?.id) {
+      markFirstTimeOperatorTutorialPending(user.id);
+    }
+    setOperatorApprovalModalOpen(false);
     setViewAsTourist(true);
     setVisible(false);
     setIsProcessing(false);
+    notifyTutorialTrigger();
+    void persistAcknowledged(operatorApplication.id, true);
   };
 
   return (

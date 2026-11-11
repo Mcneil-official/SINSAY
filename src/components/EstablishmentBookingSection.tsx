@@ -115,13 +115,7 @@ export function EstablishmentBookingSection({
       if (item && item.url && item.url.trim().length > 0) {
         const pType = item.platform || detectTravelPlatform(item.url);
         const norm = normalizeTravelUrl(item.url, pType);
-        const rawLabel = item.label?.trim();
-        const displayName =
-          rawLabel && rawLabel.length > 0
-            ? rawLabel.toLowerCase() === "messenger"
-              ? "Facebook"
-              : rawLabel
-            : PLATFORM_NAMES[pType];
+        const displayName = PLATFORM_NAMES[pType] || "Book Online";
         if (!channels.some((c) => c.url.toLowerCase() === norm.toLowerCase())) {
           channels.push({
             id: item.id || `booking-link-${idx}`,

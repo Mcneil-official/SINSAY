@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useEffect, useMemo, useRef, useState
 import { Platform } from "react-native";
 import { deleteAvatarBlob, loadAvatarBlob, saveAvatarBlob } from "../lib/avatarStore";
 import { isGoogleGisConfigured, triggerGoogleGisSignIn } from "../lib/googleAuth";
+import { markFirstTimeTutorialPending } from "../lib/onboarding";
 import { supabase } from "../lib/supabase";
 import { EcoDiveIDRow, NotificationRow, OperatorApplicationRow, TouristRow, TouristUpdate } from "../types/supabase";
 
@@ -641,16 +642,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchNotifications, fetchUnreadCount, fetchProfile]);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return { error: error.message };
+    }
     setIsLoading(true);
     setRoleReady(false);
     setAvatarOverrides({});
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        // Failed login: nothing is resolving — unblock gates immediately.
-        setRoleReady(true);
-        return { error: error.message };
-      }
       let isOperator = false;
       if (data.user) {
         isOperator = await fetchProfile(data.user.id);
@@ -667,7 +666,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string, fullName: string) => {
       const emailRedirectTo =
         typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -676,6 +675,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
       if (error) return { error: error.message };
+      if (data.user?.id) {
+        markFirstTimeTutorialPending(data.user.id);
+        await supabase
+          .from("tourists")
+          .update({ onboarding_completed: false })
+          .eq("id", data.user.id);
+      }
       return {};
     },
     []
@@ -687,18 +693,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogleIdToken = useCallback(
     async (idToken: string, rawNonce?: string) => {
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: "google",
+        token: idToken,
+        ...(rawNonce ? { nonce: rawNonce } : {}),
+      });
+      if (error) {
+        return { error: error.message };
+      }
       setIsLoading(true);
       setRoleReady(false);
       try {
-        const { data, error } = await supabase.auth.signInWithIdToken({
-          provider: "google",
-          token: idToken,
-          ...(rawNonce ? { nonce: rawNonce } : {}),
-        });
-        if (error) {
-          setRoleReady(true);
-          return { error: error.message };
-        }
         let isOp = false;
         if (data.user) {
           isOp = await fetchProfile(data.user.id);

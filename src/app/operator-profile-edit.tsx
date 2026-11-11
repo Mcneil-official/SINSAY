@@ -19,7 +19,7 @@ type EditorTab = "resort" | "photos" | "account";
 const publicUrl = (path?: string | null) => path ? supabase.storage.from("operator_media").getPublicUrl(path).data.publicUrl : "";
 
 const PLATFORM_OPTIONS: { label: string; value: BookingPlatformType }[] = [
-  { label: "Messenger (Facebook)", value: "messenger" },
+  { label: "Facebook", value: "messenger" },
   { label: "Agoda", value: "agoda" },
   { label: "WhatsApp", value: "whatsapp" },
   { label: "Booking.com", value: "booking" },
@@ -89,23 +89,15 @@ export default function OperatorProfileEditScreen() {
         if (item.id !== id) return item;
         const next = { ...item, ...updates };
 
-        // If user manually switched the platform dropdown:
-        if (updates.platform && updates.platform !== item.platform) {
-          if (!next.label || next.label === PLATFORM_NAMES[item.platform]) {
-            next.label = PLATFORM_NAMES[updates.platform];
-          }
-        }
-
         // If user entered URL, auto-detect platform if still default/direct:
         if (updates.url !== undefined) {
           const auto = detectTravelPlatform(updates.url);
           if (auto !== "direct") {
             next.platform = auto;
-            if (!next.label || Object.values(PLATFORM_NAMES).includes(next.label)) {
-              next.label = PLATFORM_NAMES[auto];
-            }
           }
         }
+
+        next.label = PLATFORM_NAMES[next.platform] || "Book Online";
         return next;
       })
     );
@@ -162,13 +154,20 @@ export default function OperatorProfileEditScreen() {
       };
       const coverPaths = (await Promise.all(covers.map((photo) => savePhoto(photo, "profile-cover")))).filter((path): path is string => !!path);
       const avatarPath = avatar ? await savePhoto(avatar, "profile-avatar") : null;
-                  const cleanedLinks = bookingLinks
+      const cleanedLinks = bookingLinks
         .filter((l) => l.url.trim().length > 0)
-        .map((l) => ({
-          ...l,
-          label: l.label.trim() || PLATFORM_NAMES[l.platform] || "Book Online",
-          url: normalizeTravelUrl(l.url, l.platform),
-        }));
+        .map((l) => {
+          const resolvedPlatform =
+            l.platform === "direct"
+              ? detectTravelPlatform(l.url)
+              : l.platform;
+          return {
+            ...l,
+            platform: resolvedPlatform,
+            label: PLATFORM_NAMES[resolvedPlatform] || "Book Online",
+            url: normalizeTravelUrl(l.url, resolvedPlatform),
+          };
+        });
       const { error: saveError } = await supabase.rpc("save_operator_profile", {
         p_application_id: app.id, p_resort_name: values.resortName.trim(), p_resort_location: values.location.trim(), p_resort_description: values.description.trim() || null,
         p_resort_contact_number: toDbPhPhone(values.resortPhone) || "", p_resort_email: values.resortEmail.trim() || null, p_facebook_url: values.facebook.trim() || null, p_website_url: values.website.trim() || null, p_booking_url: cleanedLinks[0]?.url || values.bookingUrl.trim() || null,
@@ -234,7 +233,7 @@ export default function OperatorProfileEditScreen() {
               <View style={styles.sectionIcon}><Ionicons name="calendar-outline" size={19} color="#087BFF" /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.section}>Booking & Channels</Text>
-                <Text style={styles.helper}>Add channels where divers can book (Agoda, Messenger, WhatsApp, etc.)</Text>
+                <Text style={styles.helper}>Add channels where divers can book (Agoda, Facebook, WhatsApp, etc.)</Text>
               </View>
             </View>
 
@@ -265,13 +264,6 @@ export default function OperatorProfileEditScreen() {
                 />
 
                 <TextInput
-                  label="Button Display Label"
-                  value={item.label}
-                  onChangeText={(val) => updateBookingLink(item.id, { label: val })}
-                  placeholder={`e.g. ${PLATFORM_NAMES[item.platform] || "Agoda"}`}
-                />
-
-                <TextInput
                   label="Booking / Profile Link URL"
                   value={item.url}
                   onChangeText={(val) => updateBookingLink(item.id, { url: val })}
@@ -279,7 +271,7 @@ export default function OperatorProfileEditScreen() {
                     item.platform === "agoda"
                       ? "https://www.agoda.com/your-resort"
                       : item.platform === "messenger"
-                      ? "https://m.me/your-resort"
+                      ? "https://www.facebook.com/your-resort"
                       : item.platform === "whatsapp"
                       ? "https://wa.me/639XXXXXXXXX"
                       : item.platform === "booking"

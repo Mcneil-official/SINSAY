@@ -212,7 +212,7 @@ export type BookingPlatformType =
 export interface BookingLinkItem {
   id: string;
   platform: BookingPlatformType;
-  label: string;
+  label?: string;
   url: string;
 }
 

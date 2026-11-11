@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs, useRouter } from "expo-router";
+import { Tabs, usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import BottomNav from "../../components/BottomNav";
@@ -12,18 +12,33 @@ import { useLayout } from "../../context/LayoutContext";
 import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../context/LanguageContext";
 
+function isOnboardingOrAuthPath(pathname: string): boolean {
+  return (
+    pathname === "/" ||
+    pathname === "/index" ||
+    pathname === "/loginpage" ||
+    pathname === "/signup" ||
+    pathname === "/next" ||
+    pathname === "/next2" ||
+    pathname === "/next3" ||
+    pathname.startsWith("/auth/")
+  );
+}
+
 function OperatorGate() {
   const { user, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (isLoading || !roleReady) return;
+    if (isOnboardingOrAuthPath(pathname)) return;
     if (!user) {
       router.replace("/loginpage");
     } else if (!isOperator || viewAsTourist) {
       router.replace("/(tabs)");
     }
-  }, [isLoading, roleReady, user, isOperator, viewAsTourist, router]);
+  }, [isLoading, roleReady, user, isOperator, viewAsTourist, pathname, router]);
 
   return null;
 }
@@ -72,7 +87,7 @@ export default function OperatorTabLayout() {
   }
 
   return (
-    <TutorialProvider>
+    <TutorialProvider role="operator">
       <View style={styles.container}>
         <OperatorGate />
         {isDesktop && ENABLE_DESKTOP_LAYOUT && <OperatorWiderScreenNavbar />}
