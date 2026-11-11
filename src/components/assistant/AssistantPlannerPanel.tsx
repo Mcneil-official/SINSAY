@@ -13,11 +13,17 @@ import {
 } from "react-native";
 import { colors } from "../../constants/colors";
 import { useAuth } from "../../hooks/useAuth";
+import { useToast } from "../../context/ToastContext";
+import { shareText } from "../../lib/snapshot";
 import {
   ACTIVITY_OPTIONS,
   LENGTH_OF_STAY_OPTIONS,
   generateDivePlan,
 } from "../../lib/gemini";
+import {
+  formatItineraryForShare,
+  saveDiveItinerary,
+} from "../../lib/savedItineraries";
 import { resolvePlannerSites, PlannerSite } from "../../lib/plannerSites";
 import { supabase } from "../../lib/supabase";
 import { Button } from "../Button";
@@ -171,6 +177,7 @@ function fallbackPlan(inputs: {
 export function AssistantPlannerPanel() {
   const router = useRouter();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [budget, setBudget] = useState("");
   const [groupSize, setGroupSize] = useState("");
   const [activity, setActivity] = useState("");
@@ -184,6 +191,9 @@ export function AssistantPlannerPanel() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -283,9 +293,82 @@ export function AssistantPlannerPanel() {
 
   const handleCopy = async () => {
     if (!plan || planError) return;
-    await Clipboard.setStringAsync(stripMarkdown(plan));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await Clipboard.setStringAsync(stripMarkdown(plan));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      showToast("Itinerary copied to clipboard!", { tone: "success" });
+    } catch (e) {
+      console.warn("Failed to copy dive itinerary:", e);
+      showToast("Couldn't copy the itinerary. Please try again.", {
+        tone: "error",
+      });
+    }
+  };
+
+  const handleShare = async () => {
+    if (!plan || planError || isSharing) return;
+    setIsSharing(true);
+    try {
+      const shareBody = structuredPlan
+        ? formatItineraryForShare({
+            budget,
+            groupSize,
+            activity,
+            lengthOfStay,
+            plan: structuredPlan,
+          })
+        : stripMarkdown(plan);
+
+      const activityLabel =
+        ACTIVITY_OPTIONS.find((o) => o.value === activity)?.label || activity || "Mabini Dive";
+      const result = await shareText(
+        `SINSAY Dive Itinerary: ${activityLabel}`,
+        shareBody
+      );
+      if (result === "shared") {
+        showToast("Itinerary shared successfully!", { tone: "success" });
+      } else if (result === "copied") {
+        showToast("Itinerary copied to clipboard!", { tone: "success" });
+      } else {
+        await Clipboard.setStringAsync(shareBody);
+        showToast("Itinerary copied to clipboard!", { tone: "success" });
+      }
+    } catch {
+      showToast("Unable to share itinerary. Please try again.", { tone: "error" });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!structuredPlan || isSaving) return;
+    setIsSaving(true);
+    try {
+      const res = await saveDiveItinerary({
+        userId: user?.id,
+        budget,
+        groupSize,
+        activity,
+        lengthOfStay,
+        plan: structuredPlan,
+      });
+      setIsSaved(true);
+      const msg = res.syncedToCloud
+        ? "Itinerary saved to your profile!"
+        : "Itinerary saved to this device!";
+      showToast(msg, {
+        tone: "success",
+        action: {
+          label: "View Saved",
+          onPress: () => router.push("/(tabs)/profile/favorites"),
+        },
+      });
+    } catch {
+      showToast("Could not save this itinerary. Please try again.", { tone: "error" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleStartOver = () => {
@@ -297,6 +380,7 @@ export function AssistantPlannerPanel() {
     setStructuredPlan(null);
     setPlanError(false);
     setErrors({});
+    setIsSaved(false);
   };
 
   return (
@@ -428,9 +512,6 @@ export function AssistantPlannerPanel() {
               </TouchableOpacity>
             </View>
           </View>
-          {copied && (
-            <Text style={styles.copiedNote}>Copied to clipboard ✓</Text>
-          )}
           <View style={styles.contextPill}>
             <Text style={styles.contextPillText}>
               ₱{Number(budget).toLocaleString()} Budget ·{" "}
@@ -574,29 +655,52 @@ export function AssistantPlannerPanel() {
           </View>
           <View style={styles.footerActions}>
             <TouchableOpacity
-              style={styles.saveButton}
-              onPress={() => Clipboard.setStringAsync(JSON.stringify(structuredPlan))}
+              style={[
+                styles.saveButton,
+                isSaved && { backgroundColor: "#059669" },
+              ]}
+              onPress={handleSave}
+              disabled={isSaving}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Save Itinerary"
             >
-              <Ionicons
-                name="bookmark-outline"
-                size={17}
-                color={colors.white}
-              />
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons
+                  name={isSaved ? "checkmark-circle" : "bookmark-outline"}
+                  size={18}
+                  color={colors.white}
+                />
+              )}
               <Text style={styles.saveButtonText}>
-                Save Itinerary on Device
+                {isSaving
+                  ? "Saving Itinerary..."
+                  : isSaved
+                  ? "Saved to Profile ✓"
+                  : "Save Itinerary"}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.shareButton}
-              onPress={handleCopy}
+              onPress={handleShare}
+              disabled={isSharing}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Share Itinerary"
             >
-              <Ionicons
-                name="share-outline"
-                size={17}
-                color={colors.primaryBlue}
-              />
+              {isSharing ? (
+                <ActivityIndicator size="small" color={colors.primaryBlue} />
+              ) : (
+                <Ionicons
+                  name="share-social-outline"
+                  size={18}
+                  color={colors.primaryBlue}
+                />
+              )}
               <Text style={styles.shareButtonText}>
-                Share / Export Recap Card
+                {isSharing ? "Sharing..." : "Share Itinerary"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -725,12 +829,6 @@ const styles = StyleSheet.create({
     borderColor: colors.grayBorder,
     alignItems: "center",
     justifyContent: "center",
-  },
-  copiedNote: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.green,
-    marginBottom: 8,
   },
   resultText: {
     fontSize: 13,

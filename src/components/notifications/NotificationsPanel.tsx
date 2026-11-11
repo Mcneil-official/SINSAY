@@ -60,7 +60,7 @@ export function NotificationsPanel({
   onOpenAnnouncement,
 }: NotificationsPanelProps) {
   const router = useRouter();
-  const { notifications, fetchNotifications, markAllNotificationsRead, isLoading } = useAuth();
+  const { notifications, fetchNotifications, isLoading } = useAuth();
   const [activeAnnouncements, setActiveAnnouncements] = useState<{ id: string; title: string }[]>([]);
 
   useEffect(() => {

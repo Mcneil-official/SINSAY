@@ -21,6 +21,7 @@ import {
   SnapshotManifest,
 } from "../../../components/ManifestSnapshotCard";
 import { useAuth } from "../../../hooks/useAuth";
+import { useToast } from "../../../context/ToastContext";
 import { deriveManifestStatus } from "../../../lib/diveDate";
 import { captureAndDownload, captureAndShare } from "../../../lib/snapshot";
 import { supabase } from "../../../lib/supabase";
@@ -56,12 +57,12 @@ export default function ManifestConfirmedScreen() {
   }>();
 
   const { user, profile, operatorApplication } = useAuth();
+  const { showToast } = useToast();
   const [balance, setBalance] = useState<string | undefined>(remainingBalance);
 
   // Snapshot card reference & interaction state
   const cardRef = useRef<View>(null);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
-  const [snapshotMsg, setSnapshotMsg] = useState("");
   const [previewContainerWidth, setPreviewContainerWidth] = useState(0);
   const [cardHeight, setCardHeight] = useState(1150);
   const [customZoom, setCustomZoom] = useState<number | null>(null);
@@ -294,31 +295,38 @@ export default function ManifestConfirmedScreen() {
   const handleDownload = async () => {
     if (!cardRef.current) return;
     setSnapshotBusy(true);
-    setSnapshotMsg("");
     try {
       await captureAndDownload(cardRef.current, snapshotFileName);
-      setSnapshotMsg("Manifest image saved to device!");
+      showToast("Manifest image saved to device!", { tone: "success" });
     } catch (e) {
-      setSnapshotMsg(e instanceof Error ? e.message : "Couldn't download manifest image.");
+      showToast(
+        e instanceof Error ? e.message : "Couldn't download manifest image.",
+        { tone: "error" },
+      );
+    } finally {
+      setSnapshotBusy(false);
     }
-    setSnapshotBusy(false);
   };
 
   const handleShare = async () => {
     if (!cardRef.current) return;
     setSnapshotBusy(true);
-    setSnapshotMsg("");
     try {
       const result = await captureAndShare(cardRef.current, snapshotFileName);
-      setSnapshotMsg(
+      showToast(
         result === "shared"
           ? "Manifest shared successfully!"
-          : "Manifest downloaded to device (sharing unavailable)."
+          : "Manifest downloaded to device (sharing unavailable).",
+        { tone: result === "shared" ? "success" : "info" },
       );
     } catch (e) {
-      setSnapshotMsg(e instanceof Error ? e.message : "Couldn't share manifest image.");
+      showToast(
+        e instanceof Error ? e.message : "Couldn't share manifest image.",
+        { tone: "error" },
+      );
+    } finally {
+      setSnapshotBusy(false);
     }
-    setSnapshotBusy(false);
   };
 
   return (
@@ -422,14 +430,6 @@ export default function ManifestConfirmedScreen() {
               <Text style={styles.shareActionBtnText}>Share</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Feedback Toast Banner */}
-          {snapshotMsg ? (
-            <View style={styles.feedbackBanner}>
-              <Ionicons name="checkmark-circle" size={18} color="#16A34A" style={{ marginRight: 8 }} />
-              <Text style={styles.feedbackBannerText}>{snapshotMsg}</Text>
-            </View>
-          ) : null}
 
           {/* Visual Manifesto Document Section */}
           <View style={styles.previewCardSection}>
@@ -774,22 +774,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Quicksand_700Bold",
     color: colors.primaryBlue,
-  },
-  feedbackBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F0FDF4",
-    borderWidth: 1,
-    borderColor: "#86EFAC",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 14,
-  },
-  feedbackBannerText: {
-    fontSize: 13,
-    fontFamily: "Quicksand_600SemiBold",
-    color: "#15803D",
   },
   previewCardSection: {
     backgroundColor: "#FFFFFF",

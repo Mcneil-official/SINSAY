@@ -13,6 +13,8 @@ import {
 import { colors } from "../constants/colors";
 import { useNotificationModal } from "../context/NotificationModalContext";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../context/LanguageContext";
+import { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 import { supabase } from "../lib/supabase";
 
 export interface SearchResultItem {
@@ -48,6 +50,7 @@ export default function WiderScreenNavbar({
   const pathname = usePathname();
   const { unreadCount } = useAuth();
   const { openNotifications } = useNotificationModal();
+  const { t } = useLanguage();
 
   // Search state
   const [localQuery, setLocalQuery] = useState(searchQuery || "");
@@ -187,7 +190,7 @@ export default function WiderScreenNavbar({
                 isHomeActive && styles.navTextActive,
               ]}
             >
-              Home
+              {t("tab_home")}
             </Text>
             {isHomeActive && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
@@ -197,7 +200,7 @@ export default function WiderScreenNavbar({
             onPress={() => router.push("/(tabs)/eco-dive-id")}
             accessibilityRole="link"
             accessibilityState={{ selected: isEcoDiveActive }}
-            accessibilityLabel="Eco-Dive ID"
+            accessibilityLabel={t("tab_eco_id")}
             activeOpacity={0.7}
           >
             <Text
@@ -206,7 +209,7 @@ export default function WiderScreenNavbar({
                 isEcoDiveActive && styles.navTextActive,
               ]}
             >
-              Eco-Dive ID
+              {t("tab_eco_id")}
             </Text>
             {isEcoDiveActive && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
@@ -216,7 +219,7 @@ export default function WiderScreenNavbar({
             onPress={() => router.push("/(tabs)/dive-assistant")}
             accessibilityRole="link"
             accessibilityState={{ selected: isAssistantActive }}
-            accessibilityLabel="Dive Assistant"
+            accessibilityLabel={t("tab_assistant")}
             activeOpacity={0.7}
           >
             <Text
@@ -225,7 +228,7 @@ export default function WiderScreenNavbar({
                 isAssistantActive && styles.navTextActive,
               ]}
             >
-              Dive Assistant
+              {t("tab_assistant")}
             </Text>
             {isAssistantActive && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
@@ -263,7 +266,7 @@ export default function WiderScreenNavbar({
                 isProfileActive && styles.navTextActive,
               ]}
             >
-              Profile
+              {t("tab_profile")}
             </Text>
             {isProfileActive && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
@@ -284,7 +287,7 @@ export default function WiderScreenNavbar({
               />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search dive sites, shops..."
+                placeholder={t("search_placeholder")}
                 placeholderTextColor="#94A3B8"
                 value={activeQuery}
                 onChangeText={handleQueryChange}
@@ -356,12 +359,15 @@ export default function WiderScreenNavbar({
             )}
           </View>
 
+          {/* Language Switcher */}
+          <HeaderLanguageToggle />
+
           {/* Far Right: Notification Bell */}
           <TouchableOpacity
             style={styles.iconCircle}
             onPress={openNotifications}
             accessibilityRole="button"
-            accessibilityLabel="Notifications"
+            accessibilityLabel={t("notifications_title")}
             activeOpacity={0.7}
           >
             <Ionicons name="notifications-outline" size={18} color="#334155" />

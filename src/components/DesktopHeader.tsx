@@ -3,6 +3,8 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../hooks/useAuth";
 import { useNotificationModal } from "../context/NotificationModalContext";
+import { useLanguage } from "../context/LanguageContext";
+import { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 import { colors } from "../constants/colors";
 
 interface DesktopHeaderProps {
@@ -12,21 +14,26 @@ interface DesktopHeaderProps {
 export default function DesktopHeader({ sidebarWidth }: DesktopHeaderProps) {
   const { profile, unreadCount } = useAuth();
   const { openNotifications } = useNotificationModal();
+  const { t } = useLanguage();
+
+  const greeting = getGreeting(t);
+  const diverName = profile?.full_name?.split(" ")[0] || t("header_diver");
 
   return (
     <View style={[styles.header, { marginLeft: sidebarWidth }]}>
       <View style={styles.leftSection}>
         <Text style={styles.greeting}>
-          {getGreeting()}, {profile?.full_name?.split(" ")[0] || "Diver"}
+          {greeting}, {diverName}
         </Text>
       </View>
       <View style={styles.rightSection}>
+        <HeaderLanguageToggle />
         <TouchableOpacity
           style={styles.notifWrapper}
           onPress={openNotifications}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Notifications"
+          accessibilityLabel={t("notifications_title")}
         >
           <Ionicons name="notifications-outline" size={22} color={colors.darkText} />
           {unreadCount > 0 && (
@@ -43,11 +50,11 @@ export default function DesktopHeader({ sidebarWidth }: DesktopHeaderProps) {
   );
 }
 
-function getGreeting(): string {
+function getGreeting(t: (k: string) => string): string {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return t("greeting_morning");
+  if (hour < 17) return t("greeting_afternoon");
+  return t("greeting_evening");
 }
 
 const styles = StyleSheet.create({

@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
+declare const process: { env: Record<string, string | undefined> };
+
 const supabaseUrl =
   process.env.EXPO_PUBLIC_SUPABASE_URL ||
   "https://placeholder-project.supabase.co";

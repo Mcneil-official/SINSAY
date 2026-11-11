@@ -19,6 +19,8 @@ import { colors } from "../../constants/colors";
 import { usePWAInstall } from "../../context/PWAContext";
 import { useTutorial } from "../../context/TutorialContext";
 import { useAuth } from "../../hooks/useAuth";
+import { useLanguage } from "../../context/LanguageContext";
+import { HeaderLanguageToggle } from "../../components/HeaderLanguageToggle";
 import { showAlert } from "../../lib/confirm";
 import { supabase } from "../../lib/supabase";
 
@@ -75,6 +77,7 @@ export default function OperatorProfileScreen() {
   } = useAuth();
   const { isInstalled, promptInstall } = usePWAInstall();
   const { startTutorial } = useTutorial();
+  const { locale, toggleLocale, t } = useLanguage();
   const router = useRouter();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -197,9 +200,14 @@ export default function OperatorProfileScreen() {
       <View style={styles.fixedProfileHeader}>
         <ContentContainer maxWidth={720}>
           <View style={styles.profileTopSection}>
-            <View style={styles.pageHeading}>
-              <Text style={styles.eyebrow}>OPERATOR ACCOUNT</Text>
-              <Text style={styles.headerTitle}>Profile</Text>
+            <View style={[styles.pageHeading, { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }]}>
+              <View>
+                <Text style={styles.eyebrow}>
+                  {t("operator_account_eyebrow")}
+                </Text>
+                <Text style={styles.headerTitle}>{t("profile_title")}</Text>
+              </View>
+              <HeaderLanguageToggle />
             </View>
             <View style={styles.identityCard}>
               <View style={styles.identityTitleRow}>
@@ -222,7 +230,7 @@ export default function OperatorProfileScreen() {
                 <View style={styles.identityText}>
                   <View style={styles.identityNameRow}>
                     <Text style={styles.profileName}>
-                      {operatorApplication?.resort_name || "Your dive resort"}
+                      {operatorApplication?.resort_name || t("your_dive_resort")}
                     </Text>
                     <View style={styles.verifiedMark}>
                       <Ionicons
@@ -240,8 +248,8 @@ export default function OperatorProfileScreen() {
                       color="#087BFF"
                     />
                     <Text style={styles.profileEmail}>
-                      {operatorApplication?.resort_location ||
-                        "Add your resort location"}
+                        {operatorApplication?.resort_location ||
+                          t("add_resort_location")}
                     </Text>
                   </View>
                   {hasPcssd || hasDot ? (
@@ -301,21 +309,21 @@ export default function OperatorProfileScreen() {
                 />
               </View>
               <View>
-                <Text style={styles.sectionCardTitle}>About the resort</Text>
+                <Text style={styles.sectionCardTitle}>{t("about_resort")}</Text>
                 <Text style={styles.sectionCardSubtitle}>
-                  A short introduction for divers
+                  {t("about_resort_sub")}
                 </Text>
               </View>
             </View>
             <Text style={styles.resortDescription}>
               {operatorApplication?.resort_description ||
-                "Add a resort description so divers can learn more about your place."}
+                t("resort_description_empty")}
             </Text>
             {!operatorApplication?.resort_description ? (
               <TouchableOpacity
                 onPress={() => router.push("/operator-profile-edit")}
               >
-                <Text style={styles.inlineAction}>Add description</Text>
+                <Text style={styles.inlineAction}>{t("add_description")}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -329,9 +337,9 @@ export default function OperatorProfileScreen() {
                 />
               </View>
               <View>
-                <Text style={styles.sectionCardTitle}>Contact & links</Text>
+                <Text style={styles.sectionCardTitle}>{t("contact_links")}</Text>
                 <Text style={styles.sectionCardSubtitle}>
-                  Ways to reach your resort
+                  {t("contact_links_sub")}
                 </Text>
               </View>
             </View>
@@ -362,31 +370,44 @@ export default function OperatorProfileScreen() {
           <View style={styles.sectionCard}>
             <ProfileRow
               icon="people-outline"
-              label="Switch to Tourist View"
-              subtitle="Browse the app as a diver"
+              label={t("switch_tourist")}
+              subtitle={t("switch_tourist_sub")}
               onPress={() => {
                 setViewAsTourist(true);
               }}
             />
           </View>
 
-          <Text style={styles.sectionLabel}>ACCOUNT & SUPPORT</Text>
+          <Text style={styles.sectionLabel}>
+            {t("account_support")}
+          </Text>
           <View style={styles.sectionCard}>
             <Text style={styles.accountSummary}>
-              Signed in as {profile?.full_name || "Operator"}
+            {t("signed_in_as", { name: profile?.full_name || "Operator" })}
             </Text>
             <Text style={styles.accountEmail}>{user?.email || ""}</Text>
             <ProfileRow
               icon="settings-outline"
-              label="My Account"
-              subtitle="Manage resort and account details"
+              label={t("my_account")}
+              subtitle={t("my_account_sub")}
               onPress={() => router.push("/operator-profile-edit")}
             />
             <View style={styles.divider} />
             <ProfileRow
+              icon="language-outline"
+              label={t("language")}
+              subtitle={
+                locale === "fil"
+                  ? t("language_fil")
+                  : t("language_en")
+              }
+              onPress={toggleLocale}
+            />
+            <View style={styles.divider} />
+            <ProfileRow
               icon="log-out-outline"
-              label="Log out"
-              subtitle="Secure your account"
+              label={t("log_out")}
+              subtitle={t("log_out_sub")}
               onPress={() => setShowLogoutModal(true)}
               destructive
             />
@@ -395,8 +416,8 @@ export default function OperatorProfileScreen() {
           <View style={styles.sectionCard}>
             <ProfileRow
               icon="compass-outline"
-              label="App Navigation Tutorial"
-              subtitle="Interactive guide on how to navigate SINSAY"
+              label={t("app_navigation_tutorial")}
+              subtitle={t("app_navigation_tutorial_sub")}
               onPress={() => {
                 router.replace("/(operator-tabs)");
                 startTutorial();
@@ -405,32 +426,32 @@ export default function OperatorProfileScreen() {
             <View style={styles.divider} />
             <ProfileRow
               icon="download-outline"
-              label={isInstalled ? "App Installed" : "Install SINSAY App"}
+              label={isInstalled ? t("app_installed") : t("install_app")}
               subtitle={
                 isInstalled
-                  ? "Running on this device"
-                  : "Add to home screen for fast & offline access"
+                  ? t("running_on_device")
+                  : t("add_to_home")
               }
               onPress={() => promptInstall()}
             />
             <View style={styles.divider} />
             <ProfileRow
               icon="help-circle-outline"
-              label="Help & Support"
-              subtitle="Get help"
+              label={t("help_support")}
+              subtitle={t("get_help")}
               onPress={() =>
                 showAlert(
-                  "Help & Support",
-                  "Operator help is coming soon. Contact tourism@sinsay.gov.ph for assistance.",
+                  t("help_support"),
+                  t("operator_help_body"),
                 )
               }
             />
             <View style={styles.divider} />
             <ProfileRow
               icon="document-text-outline"
-              label="FAQ"
-              subtitle="Frequently asked questions"
-              onPress={() => showAlert("FAQ", "Operator FAQ is coming soon.")}
+              label={t("faq")}
+              subtitle={t("faq_sub")}
+              onPress={() => showAlert(t("faq"), t("operator_faq_body"))}
             />
           </View>
         </ContentContainer>
@@ -438,10 +459,10 @@ export default function OperatorProfileScreen() {
 
       <ConfirmModal
         visible={showLogoutModal}
-        title="Log out"
-        message="Are you sure you want to log out?"
-        cancelText="Cancel"
-        confirmText="Log out"
+          title={t("logout_confirm_title")}
+          message={t("logout_confirm_message")}
+          cancelText={t("cancel")}
+          confirmText={t("log_out")}
         icon="log-out-outline"
         destructive
         isLoading={isLoggingOut}

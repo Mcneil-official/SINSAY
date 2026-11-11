@@ -22,10 +22,12 @@ import Svg, {
 } from "react-native-svg";
 import { BuyPassProgress, ContentContainer, GCashLogo } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { useToast } from "../../../context/ToastContext";
 import { supabase } from "../../../lib/supabase";
 
 export default function PaymentScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { passId, passLabel, passCount, quantity, total, unitPrice } =
     useLocalSearchParams<{
       passId?: string;
@@ -73,9 +75,17 @@ export default function PaymentScreen() {
   const handleCopy = async () => {
     const textToCopy = config?.account_number || "";
     if (!textToCopy) return;
-    await Clipboard.setStringAsync(textToCopy);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2200);
+    try {
+      await Clipboard.setStringAsync(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+      showToast("GCash account number copied.", { tone: "success" });
+    } catch (e) {
+      console.warn("Failed to copy GCash account number:", e);
+      showToast("Couldn't copy the account number. Please try again.", {
+        tone: "error",
+      });
+    }
   };
 
   const handleProceedUpload = () => {

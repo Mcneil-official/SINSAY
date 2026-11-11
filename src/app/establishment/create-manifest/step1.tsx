@@ -59,6 +59,12 @@ const difficulties = [
   { label: "All Levels", value: "All Levels" },
 ];
 
+function generateFallbackEcoId(): string {
+  const year = new Date().getFullYear();
+  const suffix = Math.floor(100000 + Math.random() * 900000);
+  return `ECO-${year}-${suffix}`;
+}
+
 const nationalities = [
   { label: "Filipino", value: "Filipino" },
   { label: "American", value: "American" },
@@ -732,8 +738,7 @@ export default function CreateManifestStep1() {
       ecoId = eco?.eco_id_number ?? undefined;
       // Auto-provision fallback if missing
       if (!ecoId && tourist.id) {
-        const year = new Date().getFullYear();
-        const fallbackNum = `ECO-${year}-${Math.floor(100000 + Math.random() * 900000)}`;
+        const fallbackNum = generateFallbackEcoId();
         const { data: createdEco } = await supabase
           .from("eco_dive_ids")
           .insert({
