@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import { CheckCircle, Eye, EyeSlash, WarningCircle } from "phosphor-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -31,6 +31,7 @@ function isDuplicateEmailError(message: string): boolean {
 
 export default function LoginPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useLocalSearchParams<{
     error?: string;
     mode?: string;
@@ -81,13 +82,15 @@ export default function LoginPage() {
 
   // Already signed in (e.g. after GIS ID token sign-in or back-nav after OAuth): route by role.
   useEffect(() => {
+    if (pathname !== "/loginpage" && pathname !== "/signup") return;
     if (isLoading || !roleReady || !user) return;
     if (profile && profile.onboarding_completed === false) {
       router.replace("/next");
       return;
     }
+    if (router.canDismiss()) router.dismissAll();
     router.replace(isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)");
-  }, [isLoading, roleReady, user, profile, isOperator, viewAsTourist, router]);
+  }, [pathname, isLoading, roleReady, user, profile, isOperator, viewAsTourist, router]);
 
   useEffect(() => {
     if (!isGoogleGisConfigured || !isSupabaseConfigured) return;

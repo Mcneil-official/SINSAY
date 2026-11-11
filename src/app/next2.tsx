@@ -13,6 +13,7 @@ export default function Next2Page() {
     if (user) {
       await markUserOnboardingCompleted(user.id);
     }
+    if (router.canDismiss()) router.dismissAll();
     router.replace(
       isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"
     );
@@ -22,8 +23,8 @@ export default function Next2Page() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <EcoOnboarding
-        illustration={require("../../assets/onboarding/protect-the-ocean.webp")}
-        nextIllustration={require("../../assets/onboarding/maintain-control.webp")}
+        illustration={require("../../assets/onboarding/protect-the-ocean transparent.png")}
+        nextIllustration={require("../../assets/onboarding/maintain-control transparent.png")}
         illustrationAlt="Illustration for protecting the ocean"
         title={"Protect the\nOcean"}
         description={
@@ -31,7 +32,6 @@ export default function Next2Page() {
         }
         index={1}
         wave="protect"
-        illustrationAspect={960 / 1280}
         onNext={() => router.push("/next3")}
         onBack={() => safeBack(router, "/next")}
         onSkip={handleSkip}

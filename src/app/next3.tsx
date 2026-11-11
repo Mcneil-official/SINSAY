@@ -13,6 +13,7 @@ export default function Next3Page() {
     if (user) {
       await markUserOnboardingCompleted(user.id);
     }
+    if (router.canDismiss()) router.dismissAll();
     router.replace(
       isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"
     );
@@ -22,16 +23,14 @@ export default function Next3Page() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <EcoOnboarding
-        illustration={require("../../assets/onboarding/maintain-control.webp")}
+        illustration={require("../../assets/onboarding/maintain-control transparent.png")}
         illustrationAlt="Illustration for maintaining control underwater"
-        illustrationOffsetY={-130}
         title={"Maintain\nControl"}
         description={
           "Master your neutral buoyancy. Keep gauges clipped and never ground your fins on silt beds or fragile reefs."
         }
         index={2}
         wave="control"
-        illustrationAspect={960 / 1280}
         onBack={() => safeBack(router, "/next2")}
         onFinish={handleFinish}
       />

@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { Stack, useRouter } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
@@ -18,6 +18,7 @@ import { useAuth } from "../hooks/useAuth";
 
 export default function Index() {
   const router = useRouter();
+  const pathname = usePathname();
   const { isTablet, isDesktop } = useLayout();
   const isWide = ENABLE_DESKTOP_LAYOUT && (isTablet || isDesktop);
   const { user, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
@@ -27,6 +28,7 @@ export default function Index() {
 
   // When already authenticated and role is resolved, route immediately to Home
   useEffect(() => {
+    if (pathname !== "/" && pathname !== "/index") return;
     if (!authSettled) return;
 
     if (user && !showSplash) {
@@ -34,7 +36,7 @@ export default function Index() {
         isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"
       );
     }
-  }, [authSettled, showSplash, user, isOperator, viewAsTourist, router]);
+  }, [pathname, authSettled, showSplash, user, isOperator, viewAsTourist, router]);
 
   if (isWide) {
     if (user && roleReady) {
