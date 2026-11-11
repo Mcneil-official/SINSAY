@@ -1,5 +1,6 @@
 import { Afacad_700Bold } from "@expo-google-fonts/afacad/700Bold";
 import { Jost_400Regular } from "@expo-google-fonts/jost/400Regular";
+import { Asset } from "expo-asset";
 import { useFonts } from "expo-font";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
@@ -50,6 +51,7 @@ const WAVE_PATHS: Record<
 
 interface EcoOnboardingProps {
   illustration: number;
+  nextIllustration?: number;
   illustrationAlt: string;
   title: string;
   description: string;
@@ -70,6 +72,7 @@ interface EcoOnboardingProps {
 
 export default function EcoOnboarding({
   illustration,
+  nextIllustration,
   illustrationAlt,
   title,
   description,
@@ -281,6 +284,11 @@ export default function EcoOnboarding({
 
           <Image
             source={illustration}
+            onLoad={() => {
+              if (nextIllustration === undefined) return;
+              const nextUri = Asset.fromModule(nextIllustration).uri;
+              void Image.prefetch(nextUri, "disk").catch(() => undefined);
+            }}
             style={{
               position: "absolute",
               zIndex: 0,
