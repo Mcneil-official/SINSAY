@@ -29,10 +29,7 @@ const WAVE_HEIGHT = 170;
 const CONTENT_SIDE = 30;
 const FOOTER_SIDE = 24;
 const BUTTON_HEIGHT = 52;
-const ART_MAX_HEIGHT = 300; // artwork cap: max-h-[300px]
-const ART_MAX_VH = 0.35; // artwork cap: max-h-[35vh]
-const ART_MIN_ZONE = 160; // never collapse the art zone — scroll instead
-const TEXT_ART_GAP = 40; // gap between body text and artwork (AC min 16px)
+const ILLUSTRATION_HEIGHT = 590; // full-bleed 2:3 height in 393x832 design space — never shrinks with screen height
 const TITLE_GAP = 24;
 // Lift the protect wave so its right-side dip clears the Skip label
 // (design-space px; scaled with frame width like everything else).
@@ -104,17 +101,18 @@ export default function EcoOnboarding({
   const safeTop = insets.top;
   const safeBottom =
     insets.bottom > 0 ? Math.max(insets.bottom, 16) : 16;
-  const isCompact = frameHeight < 740;
 
-  // Top-zone clearance so the progress row and title clear the wave header.
-  const contentTop = Math.max(
-    safeTop + (isCompact ? 104 : 116),
-    (isCompact ? 154 : 168) * scale,
-  );
-  const footerBottom = safeBottom + (isCompact ? 10 : 14);
-  const artMaxHeight = Math.min(
-    ART_MAX_HEIGHT,
-    Math.round(frameHeight * ART_MAX_VH),
+  // Fixed top-zone clearance so the progress row, title, and description stay
+  // in a fixed position and never jump when viewport height changes.
+  const contentTop = Math.max(safeTop + 116, 168 * scale);
+  const footerBottom = safeBottom + 14;
+
+  // Fixed illustration size and top position: covers bottom-up and both sides
+  // on full screens, and stays locked in position (without shrinking or rising)
+  // when the screen height gets smaller.
+  const illustrationHeight = Math.round(ILLUSTRATION_HEIGHT * scale);
+  const illustrationTop = Math.round(
+    Math.max(frameHeight, DESIGN_HEIGHT * scale) - illustrationHeight,
   );
 
   const safeTotal = Math.max(total, 1);
@@ -279,8 +277,8 @@ export default function EcoOnboarding({
             </Svg>
           </Animated.View>
 
-          {/* Page: 3-tier flex column inside a scroll fallback wrapper so
-              text, artwork, and CTA can never overlap each other. */}
+          {/* Page: fixed top text + fixed-position full-width illustration +
+              bottom-anchored CTA button (only the CTA moves up on shorter screens). */}
           <Animated.View
             style={[
               styles.page,
@@ -290,6 +288,29 @@ export default function EcoOnboarding({
               },
             ]}
           >
+            {/* Illustration — fixed size and locked top offset so it covers
+                both sides and the bottom, and neither shrinks nor moves up
+                when the screen height gets smaller. */}
+            <Image
+              source={illustration}
+              style={[
+                styles.illustrationAbs,
+                {
+                  top: illustrationTop,
+                  height: illustrationHeight,
+                },
+              ]}
+              contentFit="contain"
+              contentPosition="bottom"
+              pointerEvents="none"
+              accessibilityLabel={illustrationAlt}
+              onLoad={() => {
+                if (nextIllustration === undefined) return;
+                const nextUri = Asset.fromModule(nextIllustration).uri;
+                void Image.prefetch(nextUri, "disk").catch(() => undefined);
+              }}
+            />
+
             <ScrollView
               ref={scrollRef}
               style={styles.scroll}
@@ -355,8 +376,8 @@ export default function EcoOnboarding({
                     fontsLoaded && styles.titleFont,
                     {
                       marginTop: TITLE_GAP * scale,
-                      fontSize: (isCompact ? 38 : 42) * scale,
-                      lineHeight: (isCompact ? 42 : 46) * scale,
+                      fontSize: 42 * scale,
+                      lineHeight: 46 * scale,
                       letterSpacing: -0.8 * scale,
                     },
                   ]}
@@ -369,7 +390,7 @@ export default function EcoOnboarding({
                     styles.description,
                     fontsLoaded && styles.descriptionFont,
                     {
-                      marginTop: (isCompact ? 12 : 14) * scale,
+                      marginTop: 14 * scale,
                       maxWidth: 330 * scale,
                       fontSize: 15 * scale,
                       lineHeight: 22 * scale,
@@ -379,80 +400,59 @@ export default function EcoOnboarding({
                   {description}
                 </Text>
               </View>
+            </ScrollView>
 
-              {/* Middle zone (flex-1): contained artwork, bottom-aligned,
-                  capped at min(300px, 35vh) so it scales down instead of
-                  pushing into the text. minHeight floor forces the scroll
-                  fallback on ultra-short viewports. */}
-              <View style={styles.middleZone}>
-                <Image
-                  source={illustration}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    maxHeight: artMaxHeight,
-                  }}
-                  contentFit="contain"
-                  onLoad={() => {
-                    if (nextIllustration === undefined) return;
-                    const nextUri = Asset.fromModule(nextIllustration).uri;
-                    void Image.prefetch(nextUri, "disk").catch(() => undefined);
-                  }}
-                  accessibilityLabel={illustrationAlt}
-                />
-              </View>
-
-              {/* Bottom zone (flex-none): CTA with bottom safe-area inset */}
-              <View
-                style={[
-                  styles.bottomZone,
+            {/* Bottom zone: pinned to bottom of viewport so ONLY the CTA button
+                moves up when the screen height gets smaller. */}
+            <View
+              style={[
+                styles.bottomZone,
+                {
+                  paddingHorizontal: FOOTER_SIDE * scale,
+                  paddingTop: 8 * scale,
+                  paddingBottom: footerBottom,
+                },
+              ]}
+            >
+              <Pressable
+                onPress={advance}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isLast ? "Finish onboarding" : "Continue to next tip"
+                }
+                accessibilityHint="Or swipe left to continue, right to go back."
+                style={({ pressed }) => [
+                  styles.button,
+                  styles.buttonPrimary,
                   {
-                    paddingHorizontal: FOOTER_SIDE * scale,
-                    paddingTop: 8 * scale,
-                    paddingBottom: footerBottom,
+                    minHeight: BUTTON_HEIGHT * scale,
+                    borderRadius: 16 * scale,
+                    backgroundColor: pressed ? "#164e9b" : "#1c5eb9",
+                    shadowColor: "#1c5eb9",
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 10,
+                    elevation: 6,
                   },
                 ]}
               >
-                <Pressable
-                  onPress={advance}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    isLast ? "Finish onboarding" : "Continue to next tip"
-                  }
-                  accessibilityHint="Or swipe left to continue, right to go back."
-                  style={({ pressed }) => [
-                    styles.button,
-                    styles.buttonPrimary,
-                    {
-                      minHeight: BUTTON_HEIGHT * scale,
-                      borderRadius: 16 * scale,
-                      backgroundColor: pressed ? "#164e9b" : "#1c5eb9",
-                      shadowColor: "#1c5eb9",
-                      shadowOffset: { width: 0, height: 8 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 10,
-                      elevation: 6,
-                    },
+                <Text
+                  style={[
+                    styles.buttonLabel,
+                    styles.buttonPrimaryLabel,
+                    { fontSize: 15 * scale },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.buttonLabel,
-                      styles.buttonPrimaryLabel,
-                      { fontSize: 15 * scale },
-                    ]}
-                  >
-                    {nextLabel}
-                  </Text>
-                  <Text
-                    style={[styles.buttonArrow, { fontSize: 15 * scale }]}
-                    accessible={false}
-                  >
-                    →
-                  </Text>
-                </Pressable>
-              </View>
-            </ScrollView>
+                  {nextLabel}
+                </Text>
+                <Text
+                  style={[styles.buttonArrow, { fontSize: 15 * scale }]}
+                  accessible={false}
+                >
+                  →
+                </Text>
+              </Pressable>
+            </View>
           </Animated.View>
         </View>
       </View>
@@ -487,27 +487,33 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
     zIndex: 2,
+    backgroundColor: "transparent",
   },
   scroll: {
     flex: 1,
+    backgroundColor: "transparent",
   },
   scrollContent: {
     flexGrow: 1,
+    backgroundColor: "transparent",
   },
   topZone: {
     flexGrow: 0,
     flexShrink: 0,
   },
-  middleZone: {
-    flex: 1,
-    minHeight: ART_MIN_ZONE,
-    marginTop: TEXT_ART_GAP,
-    justifyContent: "flex-end",
-    overflow: "hidden",
+  illustrationAbs: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    width: "100%",
+    zIndex: 0,
   },
   bottomZone: {
-    flexGrow: 0,
-    flexShrink: 0,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 3,
   },
   progressRow: {
     flexDirection: "row",

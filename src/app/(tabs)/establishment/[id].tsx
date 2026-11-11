@@ -13,7 +13,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from "react-native";
 import {
   ContentContainer,
@@ -192,8 +191,6 @@ export default function EstablishmentDetailScreen() {
   const router = useRouter();
   const [est, setEst] = useState<EstablishmentRow | null>(null);
   const [loading, setLoading] = useState(true);
-  const { width } = useWindowDimensions();
-  const wideLayout = width >= 800;
   const goBack = () =>
     router.replace(returnTo === "home" ? "/(tabs)" : "/establishments");
 
@@ -279,7 +276,6 @@ export default function EstablishmentDetailScreen() {
                   avatarUrl={logoUrl}
                   fallbackImageUrl={imageUrl}
                   resortName={est.name}
-                  wide={wideLayout}
                 />
               );
             })()}
