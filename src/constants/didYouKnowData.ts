@@ -2,7 +2,7 @@ export const MABINI_GENERAL_FACTS = [
   "Mabini, Batangas, is home to Anilao, a well-known destination for scuba diving and underwater photography.",
   "The Verde Island Passage surrounding Mabini is recognized by marine scientists as the Center of the Center of Marine Shorefish Biodiversity on Earth.",
   "Anilao is celebrated as the birthplace of Philippine sport diving, with pioneers exploring its reefs since the mid-1960s.",
-  "Mabini features over 24 registered dive sites and Marine Protected Areas (MPAs) actively monitored for coral health.",
+  "Mabini's registered dive sites and Marine Protected Areas (MPAs) are actively monitored for coral health.",
   "The SINSAY Eco-Dive Pass directly supports local coastal law enforcement, reef patrols, and community marine conservation projects.",
   "Night diving in Anilao reveals bioluminescent plankton, hunting moray eels, and rare nocturnal nudibranchs found nowhere else.",
   "Mabini's coral reefs provide essential shoreline protection and sustain the livelihood of local coastal communities.",
@@ -40,12 +40,13 @@ export const DEFAULT_SITE_DID_YOU_KNOW =
 
 export function getSiteDidYouKnow(siteName: string): string {
   if (!siteName) return DEFAULT_SITE_DID_YOU_KNOW;
-  // Match exact name or partial substring
-  if (SITE_DID_YOU_KNOW[siteName]) {
-    return SITE_DID_YOU_KNOW[siteName];
-  }
+  // Match exact name or partial substring; tolerate ' vs ’ apostrophes
+  // (DB stores "Arthur’s Rock" with U+2019).
+  const normalize = (s: string) =>
+    s.replace(/[\u2018\u2019]/g, "'").toLowerCase();
+  const target = normalize(siteName);
   const matchedKey = Object.keys(SITE_DID_YOU_KNOW).find((k) =>
-    siteName.toLowerCase().includes(k.toLowerCase())
+    target.includes(normalize(k))
   );
   return matchedKey ? SITE_DID_YOU_KNOW[matchedKey] : DEFAULT_SITE_DID_YOU_KNOW;
 }

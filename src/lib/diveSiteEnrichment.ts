@@ -128,27 +128,6 @@ export const SITE_ENRICHMENTS: Record<string, SiteEnrichment> = {
       "Maintain at least 2m viewing distance from resident green sea turtles.",
     ],
   },
-  "Anilao Cove": {
-    coords: { x: 202, y: 140 },
-    barangay: "Anilao Proper, Mabini",
-    depthRange: "5–18m",
-    featureTag: "Calm Lagoon & Macro Muck",
-    difficulty: "Beginner",
-    isMpa: true,
-    description:
-      "Sheltered cove in Mabini renowned for gentle currents, juvenile reef fish nurseries, and world-class twilight/night macro diving along black-sand patches.",
-    marineLife: [
-      { name: "Wonderpus Octopus", tag: "Night / Muck", icon: "moon-outline" },
-      { name: "Flamboyant Cuttlefish", tag: "Bottom Dweller", icon: "color-palette-outline" },
-      { name: "Mandarin Fish", tag: "Dusk Rubble", icon: "sparkles-outline" },
-      { name: "Juvenile Batfish", tag: "Shallow Reef", icon: "fish-outline" },
-    ],
-    ecoRules: [
-      "Use red focus lights during dusk mandarin fish dives—avoid continuous bright white beams.",
-      "Maintain trim buoyancy above black-sand muck habitats to protect burrowing cephalopods.",
-      "Do not disturb rubble piles where mandarin fish mate at sunset.",
-    ],
-  },
   "Sombrero Island": {
     coords: { x: 86, y: 246 },
     barangay: "Maricaban Strait",
