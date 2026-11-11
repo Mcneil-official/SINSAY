@@ -13,11 +13,17 @@ import {
 } from "react-native";
 import { AuthLayout } from "../components";
 import AuthFooter from "../components/AuthFooter";
+import { useToast } from "../context/ToastContext";
 import { useAuth } from "../hooks/useAuth";
 import {
   isGoogleGisConfigured,
   mountGoogleOverlayButton,
 } from "../lib/googleAuth";
+import {
+  clearFirstTimeTutorialPending,
+  isFirstTimeTutorialPending,
+  markFirstTimeTutorialPending,
+} from "../lib/onboarding";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { checkPasswordRules, validatePasswordForSignup } from "../lib/password";
 
@@ -29,9 +35,16 @@ function isDuplicateEmailError(message: string): boolean {
   );
 }
 
+function isInvalidLoginCredentialsError(message: string): boolean {
+  return /invalid\s+login\s+credentials|invalid\s+email\s+or\s+password|user\s+not\s+found|no\s+account/i.test(
+    message
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const { showToast } = useToast();
   const params = useLocalSearchParams<{
     error?: string;
     mode?: string;
@@ -83,14 +96,30 @@ export default function LoginPage() {
   // Already signed in (e.g. after GIS ID token sign-in or back-nav after OAuth): route by role.
   useEffect(() => {
     if (pathname !== "/loginpage" && pathname !== "/signup") return;
-    if (isLoading || !roleReady || !user) return;
-    if (profile && profile.onboarding_completed === false) {
+    if (loading || googleLoading || isLoading || !roleReady || !user) return;
+    if (
+      mode === "signup" ||
+      isFirstTimeTutorialPending(user.id) ||
+      (profile && profile.onboarding_completed === false)
+    ) {
       router.replace("/next");
       return;
     }
     if (router.canDismiss()) router.dismissAll();
     router.replace(isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)");
-  }, [pathname, isLoading, roleReady, user, profile, isOperator, viewAsTourist, router]);
+  }, [
+    pathname,
+    loading,
+    googleLoading,
+    isLoading,
+    roleReady,
+    user,
+    profile,
+    mode,
+    isOperator,
+    viewAsTourist,
+    router,
+  ]);
 
   useEffect(() => {
     if (!isGoogleGisConfigured || !isSupabaseConfigured) return;
@@ -238,8 +267,36 @@ export default function LoginPage() {
       );
       setLoading(false);
       if (authError) {
-        setError(authError);
+        if (isInvalidLoginCredentialsError(authError)) {
+          const friendlyMsg =
+            "No account found with this email, or incorrect password. Tap Sign Up if you're new.";
+          setError(friendlyMsg);
+          setFieldErrors((prev) => ({
+            ...prev,
+            email: "Account not found or wrong password",
+          }));
+          showToast(
+            "Account not found or incorrect password. New to SINSAY? Please Sign Up first.",
+            {
+              tone: "error",
+              duration: 5000,
+              action: {
+                label: "Sign Up",
+                onPress: () => switchMode("signup"),
+              },
+            }
+          );
+        } else {
+          setError(authError);
+          showToast(authError, { tone: "error", duration: 4500 });
+        }
         return;
+      }
+      const {
+        data: { session: loginSession },
+      } = await supabase.auth.getSession();
+      if (loginSession?.user?.id) {
+        clearFirstTimeTutorialPending(loginSession.user.id);
       }
       router.replace(signedInOperator ? "/(operator-tabs)" : "/(tabs)");
       return;
@@ -269,6 +326,7 @@ export default function LoginPage() {
       data: { session },
     } = await supabase.auth.getSession();
     if (session) {
+      markFirstTimeTutorialPending(session.user.id);
       // New accounts must complete onboarding (/next) before reaching home
       router.replace("/next");
       return;

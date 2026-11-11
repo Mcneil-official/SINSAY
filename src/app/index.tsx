@@ -15,28 +15,36 @@ import SplashScreen from "../components/SplashScreen";
 import WaveDivider from "../components/WaveDivider";
 import { ENABLE_DESKTOP_LAYOUT } from "../constants/layout";
 import { useAuth } from "../hooks/useAuth";
+import { isFirstTimeTutorialPending } from "../lib/onboarding";
 
 export default function Index() {
   const router = useRouter();
   const pathname = usePathname();
   const { isTablet, isDesktop } = useLayout();
   const isWide = ENABLE_DESKTOP_LAYOUT && (isTablet || isDesktop);
-  const { user, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
+  const { user, profile, isOperator, viewAsTourist, isLoading, roleReady } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
 
   const authSettled = !isLoading && roleReady;
 
-  // When already authenticated and role is resolved, route immediately to Home
+  // When already authenticated and role is resolved, route immediately to Home (or /next if new account)
   useEffect(() => {
     if (pathname !== "/" && pathname !== "/index") return;
     if (!authSettled) return;
 
     if (user && !showSplash) {
+      if (
+        isFirstTimeTutorialPending(user.id) ||
+        (profile && profile.onboarding_completed === false)
+      ) {
+        router.replace("/next");
+        return;
+      }
       router.replace(
         isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"
       );
     }
-  }, [pathname, authSettled, showSplash, user, isOperator, viewAsTourist, router]);
+  }, [pathname, authSettled, showSplash, user, profile, isOperator, viewAsTourist, router]);
 
   if (isWide) {
     if (user && roleReady) {
@@ -111,7 +119,15 @@ export default function Index() {
           isReady={authSettled}
           onFinish={() => {
             setShowSplash(false);
+            if (pathname !== "/" && pathname !== "/index") return;
             if (user) {
+              if (
+                isFirstTimeTutorialPending(user.id) ||
+                (profile && profile.onboarding_completed === false)
+              ) {
+                router.replace("/next");
+                return;
+              }
               router.replace(
                 isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"
               );
