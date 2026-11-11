@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import {
     Checkbox,
+    DateField,
     Dropdown,
     FileUpload,
     ProgressiveWizardShell,
@@ -51,12 +52,12 @@ export default function DiveDetailsStep1() {
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [diveType, setDiveType] = useState("");
-  const [pcssdAccreditationNo, setPcssdAccreditationNo] = useState("");
-  const [pcssdFile, setPcssdFile] = useState<FileInfo | null>(null);
-  const [pcssdError, setPcssdError] = useState("");
-  const [permitToOperateNo, setPermitToOperateNo] = useState("");
-  const [permitFile, setPermitFile] = useState<FileInfo | null>(null);
-  const [permitError, setPermitError] = useState("");
+  const [certFile, setCertFile] = useState<FileInfo | null>(null);
+  const [certFileError, setCertFileError] = useState("");
+  const [renewalFile, setRenewalFile] = useState<FileInfo | null>(null);
+  const [renewalFileError, setRenewalFileError] = useState("");
+  const [dateAccredited, setDateAccredited] = useState("");
+  const [renewalDate, setRenewalDate] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -77,8 +78,8 @@ export default function DiveDetailsStep1() {
         initialType = "instructor-master";
       }
       setDiveType(initialType);
-      setPcssdAccreditationNo(profile.pcssd_accreditation_no || "");
-      setPermitToOperateNo(profile.permit_to_operate_no || "");
+      setDateAccredited(profile.date_accredited || "");
+      setRenewalDate(profile.renewal_date || "");
     });
   }, [profile]);
 
@@ -95,10 +96,10 @@ export default function DiveDetailsStep1() {
     } else if (currentStep === 1) {
       if (!diveType) nextErrors.diveType = "Required";
       if (diveType === "instructor-master") {
-        if (!pcssdAccreditationNo.trim()) nextErrors.pcssdAccreditationNo = "Required";
-        if (!pcssdFile && !profile?.pcssd_url) nextErrors.pcssdFile = "PCSSD Certificate required";
-        if (!permitToOperateNo.trim()) nextErrors.permitToOperateNo = "Required";
-        if (!permitFile && !profile?.permit_to_operate_url) nextErrors.permitFile = "Permit to Operate required";
+        // Require at least one of: newly picked cert file OR previously uploaded cert
+        if (!certFile && !profile?.cert_upload_path) nextErrors.certFile = "Certification proof required";
+        if (!dateAccredited.trim()) nextErrors.dateAccredited = "Required";
+        if (!renewalDate.trim()) nextErrors.renewalDate = "Required";
       }
       if (!agreed) nextErrors.agreed = "You must agree to continue";
     }
@@ -106,7 +107,7 @@ export default function DiveDetailsStep1() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const pickPcssdFile = async () => {
+  const pickCertFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
@@ -114,20 +115,20 @@ export default function DiveDetailsStep1() {
       });
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        setPcssdFile({ name: asset.name, mimeType: asset.mimeType, size: asset.size, uri: asset.uri });
-        setPcssdError("");
+        setCertFile({ name: asset.name, mimeType: asset.mimeType, size: asset.size, uri: asset.uri });
+        setCertFileError("");
         setErrors((current) => {
           const next = { ...current };
-          delete next.pcssdFile;
+          delete next.certFile;
           return next;
         });
       }
     } catch {
-      setPcssdError("Failed to pick file.");
+      setCertFileError("Failed to pick file.");
     }
   };
 
-  const pickPermitFile = async () => {
+  const pickRenewalFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
@@ -135,16 +136,16 @@ export default function DiveDetailsStep1() {
       });
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        setPermitFile({ name: asset.name, mimeType: asset.mimeType, size: asset.size, uri: asset.uri });
-        setPermitError("");
+        setRenewalFile({ name: asset.name, mimeType: asset.mimeType, size: asset.size, uri: asset.uri });
+        setRenewalFileError("");
         setErrors((current) => {
           const next = { ...current };
-          delete next.permitFile;
+          delete next.renewalFile;
           return next;
         });
       }
     } catch {
-      setPermitError("Failed to pick file.");
+      setRenewalFileError("Failed to pick file.");
     }
   };
 
@@ -196,29 +197,29 @@ export default function DiveDetailsStep1() {
 
       if (diveType === "instructor-master") {
         updates.certification_level = "dive-master";
-        if (pcssdAccreditationNo.trim()) {
-          updates.pcssd_accreditation_no = pcssdAccreditationNo.trim();
+        if (dateAccredited.trim()) {
+          updates.date_accredited = dateAccredited.trim();
         }
-        if (permitToOperateNo.trim()) {
-          updates.permit_to_operate_no = permitToOperateNo.trim();
+        if (renewalDate.trim()) {
+          updates.renewal_date = renewalDate.trim();
         }
-        if (pcssdFile) {
-          const { path, error } = await uploadFile("tourist_uploads", "pcssd", pcssdFile, profile?.id || "");
+        if (certFile) {
+          const { path, error } = await uploadFile("tourist_uploads", "cert", certFile, profile?.id || "");
           if (error) {
             setSaveError(error);
             setSaving(false);
             return;
           }
-          if (path) updates.pcssd_url = path;
+          if (path) updates.cert_upload_path = path;
         }
-        if (permitFile) {
-          const { path, error } = await uploadFile("tourist_uploads", "permits", permitFile, profile?.id || "");
+        if (renewalFile) {
+          const { path, error } = await uploadFile("tourist_uploads", "renewal", renewalFile, profile?.id || "");
           if (error) {
             setSaveError(error);
             setSaving(false);
             return;
           }
-          if (path) updates.permit_to_operate_url = path;
+          if (path) updates.renewal_cert_path = path;
         }
       } else {
         updates.certification_level = null;
@@ -332,10 +333,8 @@ export default function DiveDetailsStep1() {
                   setErrors((current) => {
                     const next = { ...current };
                     delete next.certLevel;
-                    delete next.pcssdAccreditationNo;
-                    delete next.pcssdFile;
-                    delete next.permitToOperateNo;
-                    delete next.permitFile;
+                    delete next.certFile;
+                    delete next.renewalFile;
                     return next;
                   });
                 }}
@@ -344,56 +343,91 @@ export default function DiveDetailsStep1() {
 
               {diveType === "instructor-master" ? (
                 <View style={styles.certificationGroup}>
-                  {/* PCSSD Accreditation */}
-                  <View style={styles.uploadCard}>
-                    <Text style={styles.uploadTitle}>PCSSD Accreditation</Text>
-                    <Text style={styles.sectionHint}>
-                      Mandatory for Dive Masters & Instructors. Accreditation number & certificate.
-                    </Text>
-                    <TextInput
-                      label="PCSSD Accreditation Number"
-                      placeholder="e.g. PCSSD-2024-XXXX"
-                      value={pcssdAccreditationNo}
-                      onChangeText={(val) => {
-                        setPcssdAccreditationNo(val);
-                        setErrors((curr) => { const next = { ...curr }; delete next.pcssdAccreditationNo; return next; });
-                      }}
-                      error={errors.pcssdAccreditationNo}
-                    />
-                    <FileUpload
-                      label="Upload PCSSD Certificate"
-                      onPress={pickPcssdFile}
-                      fileName={pcssdFile?.name || (profile?.pcssd_url ? "Previously uploaded" : undefined)}
-                      showCamera
-                    />
-                    {errors.pcssdFile ? <Text style={styles.errorText}>{errors.pcssdFile}</Text> : null}
-                    {pcssdError ? <Text style={styles.errorText}>{pcssdError}</Text> : null}
+                  {/* Card 1: Uploads */}
+                  <View style={styles.credCard}>
+                    <View style={styles.credCardHeader}>
+                      <View style={styles.credCardIcon}>
+                        <Ionicons name="document-text-outline" size={16} color="#087bff" />
+                      </View>
+                      <View style={styles.credCardCopy}>
+                        <Text style={styles.credCardTitle}>Certification Documents</Text>
+                        <Text style={styles.sectionHint}>
+                          Upload your accreditation certificate and renewal documents (JPG, PNG or PDF).
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Certification Proof (required) */}
+                    <View style={styles.uploadSlot}>
+                      <View style={styles.uploadSlotLabel}>
+                        <Text style={styles.uploadSlotTitle}>CERTIFICATION PROOF</Text>
+                        <Text style={styles.requiredDot}> *</Text>
+                      </View>
+                      <FileUpload
+                        label="Upload Here"
+                        onPress={pickCertFile}
+                        fileName={certFile?.name || (profile?.cert_upload_path ? "Previously uploaded" : undefined)}
+                        showCamera
+                      />
+                      {errors.certFile ? <Text style={styles.errorText}>{errors.certFile}</Text> : null}
+                      {certFileError ? <Text style={styles.errorText}>{certFileError}</Text> : null}
+                    </View>
+
+                    {/* Renewal Proof (optional) */}
+                    <View style={styles.uploadSlot}>
+                      <View style={styles.uploadSlotLabel}>
+                        <Text style={styles.uploadSlotTitle}>RENEWAL PROOF</Text>
+                        <Text style={styles.optionalTag}> (optional)</Text>
+                      </View>
+                      <FileUpload
+                        label="Upload Here"
+                        onPress={pickRenewalFile}
+                        fileName={renewalFile?.name || (profile?.renewal_cert_path ? "Previously uploaded" : undefined)}
+                        showCamera
+                      />
+                      {renewalFileError ? <Text style={styles.errorText}>{renewalFileError}</Text> : null}
+                    </View>
                   </View>
 
-                  {/* Permit to Operate */}
-                  <View style={styles.uploadCard}>
-                    <Text style={styles.uploadTitle}>Permit to Operate</Text>
-                    <Text style={styles.sectionHint}>
-                      Mandatory municipal guide permit number &amp; document for commercial dives.
-                    </Text>
-                    <TextInput
-                      label="Permit to Operate Number"
-                      placeholder="e.g. PTO-PG-2024-XXXX"
-                      value={permitToOperateNo}
-                      onChangeText={(val) => {
-                        setPermitToOperateNo(val);
-                        setErrors((curr) => { const next = { ...curr }; delete next.permitToOperateNo; return next; });
-                      }}
-                      error={errors.permitToOperateNo}
-                    />
-                    <FileUpload
-                      label="Upload Permit to Operate"
-                      onPress={pickPermitFile}
-                      fileName={permitFile?.name || (profile?.permit_to_operate_url ? "Previously uploaded" : undefined)}
-                      showCamera
-                    />
-                    {errors.permitFile ? <Text style={styles.errorText}>{errors.permitFile}</Text> : null}
-                    {permitError ? <Text style={styles.errorText}>{permitError}</Text> : null}
+                  {/* Card 2: Dates */}
+                  <View style={styles.credCard}>
+                    <View style={styles.credCardHeader}>
+                      <View style={styles.credCardIcon}>
+                        <Ionicons name="calendar-outline" size={16} color="#087bff" />
+                      </View>
+                      <View style={styles.credCardCopy}>
+                        <Text style={styles.credCardTitle}>Accreditation Dates</Text>
+                        <Text style={styles.sectionHint}>
+                          Specify when your certification was issued and when it expires.
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.twoCol}>
+                      <View style={styles.twoColItem}>
+                        <DateField
+                          label="Date Accredited *"
+                          value={dateAccredited}
+                          onChangeText={(val) => {
+                            setDateAccredited(val);
+                            setErrors((curr) => { const next = { ...curr }; delete next.dateAccredited; return next; });
+                          }}
+                          placeholder="Select date"
+                          error={errors.dateAccredited}
+                        />
+                      </View>
+                      <View style={styles.twoColItem}>
+                        <DateField
+                          label="Renewal Date *"
+                          value={renewalDate}
+                          onChangeText={(val) => {
+                            setRenewalDate(val);
+                            setErrors((curr) => { const next = { ...curr }; delete next.renewalDate; return next; });
+                          }}
+                          placeholder="Select date"
+                          error={errors.renewalDate}
+                        />
+                      </View>
+                    </View>
                   </View>
                 </View>
               ) : null}
@@ -435,6 +469,54 @@ const styles = StyleSheet.create({
   twoCol: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
   twoColStacked: { flexDirection: "column" },
   twoColItem: { flex: 1, minWidth: 0 },
+  credCard: {
+    gap: 14,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#ddeaf8",
+    backgroundColor: "#f8fbff",
+  },
+  credCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  credCardIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e7f3ff",
+  },
+  credCardCopy: { flex: 1, minWidth: 0 },
+  credCardTitle: {
+    fontSize: 13,
+    fontFamily: "Quicksand_700Bold",
+    color: "#07156c",
+  },
+  uploadSlot: { gap: 6 },
+  uploadSlotLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  uploadSlotTitle: {
+    fontSize: 10,
+    fontFamily: "Quicksand_700Bold",
+    color: "#5075a0",
+    letterSpacing: 0.6,
+  },
+  requiredDot: {
+    fontSize: 12,
+    color: "#e53935",
+    fontFamily: "Quicksand_700Bold",
+  },
+  optionalTag: {
+    fontSize: 10,
+    fontFamily: "Quicksand_500Medium",
+    color: "#94a3b8",
+  },
   uploadCard: { gap: 6, padding: 13, borderRadius: 15, borderWidth: 1, borderColor: "#e4eef8", backgroundColor: "#fbfdff" },
   uploadTitle: { fontSize: 12, fontFamily: "Quicksand_700Bold", color: "#07156c" },
   privacyCard: { gap: 8, padding: 13, borderRadius: 14, backgroundColor: "#f5f9fe" },

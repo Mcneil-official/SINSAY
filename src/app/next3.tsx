@@ -10,9 +10,11 @@ export default function Next3Page() {
   const { user, isOperator, viewAsTourist } = useAuth();
 
   const handleFinish = async () => {
-    if (user) {
-      await markUserOnboardingCompleted(user.id);
+    if (!user) {
+      router.replace("/");
+      return;
     }
+    await markUserOnboardingCompleted(user.id);
     if (router.canDismiss()) router.dismissAll();
     router.replace(
       isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"

@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 0,
     paddingTop: 12,
-    paddingLeft: 10,
+    paddingLeft: 8,
     zIndex: 120,
   },
   logoImage: {
