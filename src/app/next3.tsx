@@ -25,7 +25,7 @@ export default function Next3Page() {
         illustration={require("../../assets/onboarding/maintain-control transparent.png")}
         illustrationAlt="Illustration for maintaining control underwater"
         artContentPosition="top"
-        illustrationOffsetY={-160}
+        illustrationOffsetY={-130}
         title={"Maintain\nControl"}
         description={
           "Master your neutral buoyancy. Keep gauges clipped and never ground your fins on silt beds or fragile reefs."
