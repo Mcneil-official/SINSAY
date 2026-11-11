@@ -25,6 +25,8 @@ import { colors } from "../../../constants/colors";
 import { useToast } from "../../../context/ToastContext";
 import { supabase } from "../../../lib/supabase";
 
+const DEMO_QR = require("../../../../assets/payment/demo-qr-instapay.jpg");
+
 export default function PaymentScreen() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -201,7 +203,16 @@ export default function PaymentScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.gcashTitle}>Pay via GCash</Text>
-                <Text style={styles.merchantBadge}>MABINI TOURISM OFFICIAL MERCHANT</Text>
+                <Text
+                  style={[
+                    styles.merchantBadge,
+                    !config?.qr_code_url && !configLoading && styles.merchantBadgeDemo,
+                  ]}
+                >
+                  {!config?.qr_code_url && !configLoading
+                    ? "DEMO MERCHANT · NOT A REAL PAYMENT"
+                    : "MABINI TOURISM OFFICIAL MERCHANT"}
+                </Text>
               </View>
             </View>
 
@@ -232,10 +243,19 @@ export default function PaymentScreen() {
                   resizeMode="contain"
                 />
               ) : (
-                <View style={styles.qrPlaceholder}>
-                  <Ionicons name="qr-code-outline" size={48} color="#006bff" />
-                  <Text style={styles.qrPlaceholderText}>
-                    Merchant QR Code{"\n"}Scan with GCash
+                <View style={styles.demoQrWrap}>
+                  <View style={styles.demoBadge}>
+                    <Ionicons name="warning" size={12} color="#92400E" />
+                    <Text style={styles.demoBadgeText}>DEMO ONLY</Text>
+                  </View>
+                  <Image
+                    source={DEMO_QR}
+                    style={styles.qrImage}
+                    resizeMode="contain"
+                    accessibilityLabel="Demo payment QR code, for demonstration only"
+                  />
+                  <Text style={styles.demoCaption}>
+                    For demonstration purposes only. Do not send real payments.
                   </Text>
                 </View>
               )}
@@ -528,30 +548,44 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   qrImage: {
-    width: 170,
-    height: 170,
+    width: 190,
+    height: 190,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#cfe5ff",
-    backgroundColor: "#e7f3ff",
+    backgroundColor: "#FFFFFF",
   },
-  qrPlaceholder: {
-    width: 170,
-    height: 154,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#cfe5ff",
-    backgroundColor: "#e7f3ff",
+  demoQrWrap: {
     alignItems: "center",
-    justifyContent: "center",
-    padding: 14,
-    gap: 6,
+    gap: 8,
   },
-  qrPlaceholderText: {
+  demoBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FEF3C7",
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  demoBadgeText: {
+    fontSize: 10,
+    fontFamily: "Quicksand_700Bold",
+    color: "#92400E",
+    letterSpacing: 0.8,
+  },
+  demoCaption: {
     fontSize: 11,
-    fontFamily: "Quicksand_500Medium",
-    color: "#5368b1",
+    fontFamily: "Quicksand_600SemiBold",
+    color: "#92400E",
     textAlign: "center",
+    maxWidth: 230,
+    lineHeight: 15,
+  },
+  merchantBadgeDemo: {
+    color: "#B45309",
   },
   referenceSection: {
     marginTop: 2,

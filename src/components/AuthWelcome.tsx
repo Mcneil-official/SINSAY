@@ -17,8 +17,6 @@ import { StatusBar } from "expo-status-bar";
 import { colors } from "../constants/colors";
 import { useScreenTransition } from "../context/ScreenTransitionContext";
 
-const SHOW_ONBOARDING_PREVIEW = true;
-
 interface AuthWelcomeProps {
   active: boolean;
 }
@@ -163,24 +161,6 @@ export default function AuthWelcome({ active }: AuthWelcomeProps) {
           >
             <Text style={styles.createText}>Create an Account</Text>
           </Pressable>
-
-          {SHOW_ONBOARDING_PREVIEW ? (
-            <Pressable
-              style={styles.previewLink}
-              onPress={() => transitionTo("/next")}
-              accessibilityRole="link"
-              accessibilityLabel="Preview Eco-Dive Rules"
-            >
-              <Text
-                style={[
-                  styles.previewText,
-                  fontsLoaded && styles.previewTextFont,
-                ]}
-              >
-                Preview Eco-Dive Rules
-              </Text>
-            </Pressable>
-          ) : null}
         </View>
       </Animated.View>
     </View>
@@ -256,19 +236,5 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 13,
     fontFamily: "Quicksand_700Bold",
-  },
-  previewLink: {
-    alignSelf: "center",
-    marginTop: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  previewText: {
-    color: "rgba(255, 255, 255, 0.85)",
-    fontSize: 12,
-    textDecorationLine: "underline",
-  },
-  previewTextFont: {
-    fontFamily: "Quicksand_600SemiBold",
   },
 });

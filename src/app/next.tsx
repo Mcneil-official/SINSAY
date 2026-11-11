@@ -9,9 +9,11 @@ export default function NextPage() {
   const { user, isOperator, viewAsTourist } = useAuth();
 
   const handleSkip = async () => {
-    if (user) {
-      await markUserOnboardingCompleted(user.id);
+    if (!user) {
+      router.replace("/");
+      return;
     }
+    await markUserOnboardingCompleted(user.id);
     if (router.canDismiss()) router.dismissAll();
     router.replace(
       isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)"

@@ -144,6 +144,7 @@ export interface TouristRow {
   date_accredited: string | null;
   renewal_date: string | null;
   cert_upload_path: string | null;
+  renewal_cert_path: string | null;
   logbook_upload_path: string | null;
   business_permit_url: string | null;
   pcss_url: string | null;

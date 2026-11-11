@@ -143,16 +143,60 @@ function DefaultAvatarSilhouette() {
     <Svg
       width="100%"
       height="100%"
-      viewBox="0 0 120 160"
-      preserveAspectRatio="xMidYMax slice"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="xMidYMid meet"
     >
-      <Rect x="0" y="0" width="120" height="160" fill="#C6DAF1" />
-      <Circle cx="60" cy="58" r="24" fill="#82A8D9" />
+      <Rect x="0" y="0" width="100" height="100" fill="#C6DAF1" />
+      <Circle cx="50" cy="38" r="17" fill="#82A8D9" />
       <Path
-        d="M16 144C16 113 34 95 60 95C86 95 104 113 104 144H16Z"
+        d="M17 100C17 74 31 64 50 64C69 64 83 74 83 100H17Z"
         fill="#82A8D9"
       />
     </Svg>
+  );
+}
+
+/** One ID-card field: icon + small label on one row, value(s) below at full column width */
+function CardField({
+  icon,
+  label,
+  values,
+  maxLines = 1,
+  labelFs,
+  labelLh,
+  valFs,
+  valLh,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  values: string[];
+  maxLines?: number;
+  labelFs: number;
+  labelLh: number;
+  valFs: number;
+  valLh: number;
+}) {
+  return (
+    <View style={styles.cardField}>
+      <View style={styles.cardFieldHeader}>
+        {icon}
+        <Text
+          style={[styles.cardFieldLabel, { fontSize: labelFs, lineHeight: labelLh, flexShrink: 1 }]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      </View>
+      {values.map((v, i) => (
+        <Text
+          key={i}
+          style={[styles.cardFieldValue, { fontSize: valFs, lineHeight: valLh }]}
+          numberOfLines={i === 0 ? maxLines : 1}
+        >
+          {v}
+        </Text>
+      ))}
+    </View>
   );
 }
 
@@ -601,10 +645,8 @@ export function EcoDivePassportView() {
       const hasCertDetails = !isInstructorMasterPath
         ? hasDiveType
         : Boolean(
-            (profile.pcssd_accreditation_no?.trim() ||
-              profile.pcssd_url?.trim()) &&
-            (profile.permit_to_operate_no?.trim() ||
-              profile.permit_to_operate_url?.trim()),
+            profile.cert_upload_path?.trim() ||
+            profile.date_accredited?.trim(),
           );
 
       const checks = [
@@ -663,20 +705,18 @@ export function EcoDivePassportView() {
   const centerHeight = cardHeight - centerTop - centerBottom;
   const u = centerHeight / 100;
 
-  const labelFs = Math.round(u * 5.8 * 10) / 10;
-  const labelLh = Math.round(u * 7.2 * 10) / 10;
-  const valFs = Math.round(u * 9.0 * 10) / 10;
-  const valLh = Math.round(u * 11.0 * 10) / 10;
-  const subValFs = Math.round(u * 7.8 * 10) / 10;
-  const subValLh = Math.round(u * 9.6 * 10) / 10;
-  const iconSz = Math.max(13, Math.round(u * 13.2));
-  const iconBoxW = Math.max(16, Math.round(u * 15));
-  const rowGap = Math.max(5, Math.round(cardWidth * 0.016));
+  const labelFs = Math.max(7.5, Math.round(u * 5.8 * 10) / 10);
+  const labelLh = Math.round(labelFs * 1.24 * 10) / 10;
+  const valFs = Math.max(10.5, Math.round(u * 9.0 * 10) / 10);
+  const valLh = Math.round(valFs * 1.22 * 10) / 10;
+  const subValFs = Math.max(9, Math.round(u * 7.8 * 10) / 10);
+  const subValLh = Math.round(subValFs * 1.23 * 10) / 10;
+  const fieldIconSz = Math.max(10, Math.round(u * 8.6));
   const colPad = Math.max(7, Math.round(cardWidth * 0.022));
-  const midRowVerticalGap = Math.max(4, Math.round(u * 5.4));
-  const rightRowVerticalGap = Math.max(2, Math.round(u * 2.8));
-  const funDiverMidGap = Math.max(10, Math.round(u * 10.5));
-  const funDiverRightGap = Math.max(6, Math.round(u * 6.0));
+  const gridGapCert = Math.max(3, Math.round(u * 3.2));
+  const gridGapFun = Math.max(8, Math.round(u * 9));
+  // Narrow phones: use the short emergency label so it never clips
+  const compactCard = cardWidth < 330;
 
   // Responsive 9:16 story card size so the View Recap modal never overflows the viewport frame
   const storyCardHeight = Math.max(
@@ -761,7 +801,7 @@ export function EcoDivePassportView() {
                   style={[
                     styles.portraitCol,
                     {
-                      width: Math.round(cardWidth * 0.26),
+                      width: Math.round(cardWidth * 0.235),
                       paddingTop: Math.max(4, Math.round(u * 3.2)),
                     },
                   ]}
@@ -879,306 +919,124 @@ export function EcoDivePassportView() {
                   </View>
                 </View>
 
-                {/* PART 2: Middle Identity Column */}
+                {/* PART 2: Left Identity Column (Name, Nationality, + Type of Dive for certified) */}
                 <View
                   style={[
-                    styles.middleIdentityCol,
+                    styles.cardGridCol,
                     {
-                      flex: isCertifiedDiver ? 1.04 : 0.88,
                       paddingLeft: colPad,
-                      paddingRight: Math.max(4, Math.round(colPad * 0.65)),
-                      gap: isCertifiedDiver
-                        ? midRowVerticalGap
-                        : funDiverMidGap,
+                      paddingRight: Math.max(4, Math.round(colPad * 0.6)),
+                      gap: isCertifiedDiver ? gridGapCert : gridGapFun,
                     },
                   ]}
                 >
-                  {/* Row 1: FULL NAME */}
-                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
-                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
-                      <Ionicons name="person" size={iconSz} color="#0D74E7" />
-                    </View>
-                    <View style={styles.cardFieldTextCol}>
-                      <Text
-                        style={[
-                          styles.cardFieldLabel,
-                          { fontSize: labelFs, lineHeight: labelLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {t("label_full_name")}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cardFieldValue,
-                          { fontSize: valFs, lineHeight: valLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {cardData.fullName}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Row 2: NATIONALITY */}
-                  <View style={[styles.cardFieldRow, { gap: rowGap }]}>
-                    <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
-                      <Ionicons
-                        name="globe-outline"
-                        size={iconSz}
-                        color="#0D74E7"
-                      />
-                    </View>
-                    <View style={styles.cardFieldTextCol}>
-                      <Text
-                        style={[
-                          styles.cardFieldLabel,
-                          { fontSize: labelFs, lineHeight: labelLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {t("label_nationality")}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cardFieldValue,
-                          { fontSize: valFs, lineHeight: valLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {cardData.nationality}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Row 3: TYPE OF DIVE (shown in middle column only for Certified Divers) */}
+                  <CardField
+                    icon={<Ionicons name="person" size={fieldIconSz} color="#0D74E7" />}
+                    label={t("label_full_name")}
+                    values={[cardData.fullName]}
+                    maxLines={2}
+                    labelFs={labelFs}
+                    labelLh={labelLh}
+                    valFs={valFs}
+                    valLh={valLh}
+                  />
+                  <CardField
+                    icon={<Ionicons name="globe-outline" size={fieldIconSz} color="#0D74E7" />}
+                    label={t("label_nationality")}
+                    values={[cardData.nationality]}
+                    labelFs={labelFs}
+                    labelLh={labelLh}
+                    valFs={valFs}
+                    valLh={valLh}
+                  />
                   {isCertifiedDiver && (
-                    <View style={[styles.cardFieldRow, { gap: rowGap }]}>
-                      <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
-                        <DiveMaskIcon size={iconSz} color="#0D74E7" />
-                      </View>
-                      <View style={styles.cardFieldTextCol}>
-                        <Text
-                          style={[
-                            styles.cardFieldLabel,
-                            { fontSize: labelFs, lineHeight: labelLh },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {t("label_type_of_dive")}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.cardFieldValue,
-                            { fontSize: valFs, lineHeight: valLh },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {cardData.typeOfDive}
-                        </Text>
-                      </View>
-                    </View>
+                    <CardField
+                      icon={<DiveMaskIcon size={fieldIconSz} color="#0D74E7" />}
+                      label={t("label_type_of_dive")}
+                      values={[cardData.typeOfDive]}
+                      maxLines={2}
+                      labelFs={labelFs}
+                      labelLh={labelLh}
+                      valFs={subValFs}
+                      valLh={subValLh}
+                    />
                   )}
                 </View>
 
                 {/* Thin Vertical Light-Blue Divider */}
                 <View style={styles.verticalCardDivider} />
 
-                {/* PART 3: Right Certification & Emergency Column */}
+                {/* PART 3: Right Column (Type of Dive / Certification + Emergency Contact) */}
                 <View
                   style={[
-                    styles.rightCertCol,
+                    styles.cardGridCol,
                     {
-                      flex: isCertifiedDiver ? 1 : 1.2,
                       paddingLeft: colPad,
-                      gap: isCertifiedDiver
-                        ? rightRowVerticalGap
-                        : funDiverRightGap,
+                      gap: isCertifiedDiver ? gridGapCert : gridGapFun,
                     },
                   ]}
                 >
-                  {!isCertifiedDiver && (
+                  {!isCertifiedDiver ? (
                     <>
-                      {/* Row 1 (Fun Diver): TYPE OF DIVE */}
-                      <View style={[styles.cardFieldRow, { gap: rowGap }]}>
-                        <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
-                          <DiveMaskIcon size={iconSz} color="#0D74E7" />
-                        </View>
-                        <View style={styles.cardFieldTextCol}>
-                          <Text
-                            style={[
-                              styles.cardFieldLabel,
-                              { fontSize: labelFs, lineHeight: labelLh },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {t("label_type_of_dive")}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.cardFieldValue,
-                              { fontSize: valFs, lineHeight: valLh },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {cardData.cardTypeOfDive}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Thin Horizontal Light-Blue Divider between Type of Dive & Emergency Contact */}
-                      <View style={styles.horizontalCardDivider} />
-                    </>
-                  )}
-
-                  {isCertifiedDiver && (
-                    <>
-                      {/* Row 1: CERTIFICATION LEVEL */}
-                      <View style={[styles.cardFieldRow, { gap: rowGap }]}>
-                        <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
-                          <Ionicons name="ribbon" size={iconSz} color="#0D74E7" />
-                        </View>
-                        <View style={styles.cardFieldTextCol}>
-                          <Text
-                            style={[
-                              styles.cardFieldLabel,
-                              { fontSize: labelFs, lineHeight: labelLh },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {t("label_certification_level")}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.cardFieldValue,
-                              { fontSize: valFs, lineHeight: valLh },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {cardData.certLevel}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Row 2: DATE ACCREDITED */}
-                      <View style={[styles.cardFieldRow, { gap: rowGap }]}>
-                        <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
-                          <Ionicons
-                            name="calendar-outline"
-                            size={iconSz}
-                            color="#0D74E7"
-                          />
-                        </View>
-                        <View style={styles.cardFieldTextCol}>
-                          <Text
-                            style={[
-                              styles.cardFieldLabel,
-                              { fontSize: labelFs, lineHeight: labelLh },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {t("label_date_accredited")}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.cardFieldValue,
-                              { fontSize: subValFs, lineHeight: subValLh },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {cardData.dateAccredited}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Row 3: RENEWAL DATE */}
-                      <View style={[styles.cardFieldRow, { gap: rowGap }]}>
-                        <View style={[styles.cardIconWrap, { width: iconBoxW }]}>
-                          <Ionicons
-                            name="calendar-outline"
-                            size={iconSz}
-                            color="#0D74E7"
-                          />
-                        </View>
-                        <View style={styles.cardFieldTextCol}>
-                          <Text
-                            style={[
-                              styles.cardFieldLabel,
-                              { fontSize: labelFs, lineHeight: labelLh },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {t("label_renewal_date")}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.cardFieldValue,
-                              { fontSize: subValFs, lineHeight: subValLh },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {cardData.renewalDate}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Thin Horizontal Light-Blue Divider above Emergency Contact */}
-                      <View style={styles.horizontalCardDivider} />
-                    </>
-                  )}
-
-                  {/* Row 4: EMERGENCY CONTACT */}
-                  <View
-                    style={[
-                      styles.cardFieldRow,
-                      { gap: rowGap, alignItems: "flex-start" },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.cardIconWrap,
-                        {
-                          width: iconBoxW,
-                          paddingTop: Math.max(1, Math.round(u * 1.2)),
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name="call"
-                        size={Math.max(12, iconSz - 1)}
-                        color="#0D74E7"
+                      <CardField
+                        icon={<DiveMaskIcon size={fieldIconSz} color="#0D74E7" />}
+                        label={t("label_type_of_dive")}
+                        values={[cardData.cardTypeOfDive]}
+                        maxLines={2}
+                        labelFs={labelFs}
+                        labelLh={labelLh}
+                        valFs={valFs}
+                        valLh={valLh}
                       />
-                    </View>
-                    <View style={styles.cardFieldTextCol}>
-                      <Text
-                        style={[
-                          styles.cardFieldLabel,
-                          { fontSize: labelFs, lineHeight: labelLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {t("label_emergency_contact")}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cardFieldValue,
-                          { fontSize: subValFs, lineHeight: subValLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {cardData.emergencyName}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cardFieldValue,
-                          { fontSize: subValFs, lineHeight: subValLh },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {cardData.emergencyNumber}
-                      </Text>
-                    </View>
-                  </View>
+                      <View style={styles.horizontalCardDivider} />
+                    </>
+                  ) : (
+                    <>
+                      <CardField
+                        icon={<Ionicons name="ribbon" size={fieldIconSz} color="#0D74E7" />}
+                        label={t("label_certification_level")}
+                        values={[cardData.certLevel]}
+                        maxLines={2}
+                        labelFs={labelFs}
+                        labelLh={labelLh}
+                        valFs={subValFs}
+                        valLh={subValLh}
+                      />
+                      <CardField
+                        icon={<Ionicons name="calendar-outline" size={fieldIconSz} color="#0D74E7" />}
+                        label={t("label_date_accredited")}
+                        values={[cardData.dateAccredited]}
+                        labelFs={labelFs}
+                        labelLh={labelLh}
+                        valFs={subValFs}
+                        valLh={subValLh}
+                      />
+                      <CardField
+                        icon={<Ionicons name="calendar-outline" size={fieldIconSz} color="#0D74E7" />}
+                        label={t("label_renewal_date")}
+                        values={[cardData.renewalDate]}
+                        labelFs={labelFs}
+                        labelLh={labelLh}
+                        valFs={subValFs}
+                        valLh={subValLh}
+                      />
+                      <View style={styles.horizontalCardDivider} />
+                    </>
+                  )}
+
+                  <CardField
+                    icon={<Ionicons name="call" size={fieldIconSz} color="#0D74E7" />}
+                    label={
+                      compactCard
+                        ? t("label_emergency_contact").split(" ")[0]
+                        : t("label_emergency_contact")
+                    }
+                    values={[cardData.emergencyName, cardData.emergencyNumber]}
+                    labelFs={labelFs}
+                    labelLh={labelLh}
+                    valFs={subValFs}
+                    valLh={subValLh}
+                  />
                 </View>
               </View>
             </View>
@@ -2064,35 +1922,28 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  middleIdentityCol: {
-    flex: 1.04,
-    justifyContent: "center",
-  },
   verticalCardDivider: {
     width: 1,
     backgroundColor: "#B8D4F2",
-  },
-  rightCertCol: {
-    flex: 1,
-    justifyContent: "center",
   },
   horizontalCardDivider: {
     height: 1,
     backgroundColor: "#B8D4F2",
     marginRight: "6%",
   },
-  cardFieldRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  cardIconWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  cardFieldTextCol: {
+  cardGridCol: {
     flex: 1,
     minWidth: 0,
+    justifyContent: "center",
+  },
+  cardField: {
+    alignSelf: "stretch",
+    minWidth: 0,
+  },
+  cardFieldHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
   },
   cardFieldLabel: {
     fontFamily: "Quicksand_700Bold",
@@ -2712,7 +2563,8 @@ const styles = StyleSheet.create({
     left: 0,
   },
   storyTopBrandBlock: {
-    paddingHorizontal: 14,
+    paddingLeft: 9,
+    paddingRight: 14,
     paddingTop: 14,
     gap: 2,
   },
