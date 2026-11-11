@@ -2,6 +2,7 @@ import { Session, User } from "@supabase/supabase-js";
 import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { deleteAvatarBlob, loadAvatarBlob, saveAvatarBlob } from "../lib/avatarStore";
+import { isGoogleGisConfigured, triggerGoogleGisSignIn } from "../lib/googleAuth";
 import { supabase } from "../lib/supabase";
 import { EcoDiveIDRow, NotificationRow, OperatorApplicationRow, TouristRow, TouristUpdate } from "../types/supabase";
 
@@ -46,11 +47,15 @@ interface AuthState {
   markAllNotificationsRead: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error?: string; isOperator?: boolean }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error?: string }>;
-  // Google OAuth (web PWA): triggers a full-page redirect to Google; the
-  // session is picked up by getSession/onAuthStateChange on return and the
-  // gates route by role. Never throws — returns { error } (e.g. provider
-  // not enabled) when the redirect can't start.
-  signInWithGoogle: () => Promise<{ error?: string }>;
+  // Google Sign-In (web PWA): when EXPO_PUBLIC_GOOGLE_CLIENT_ID is set, uses
+  // Google Identity Services + supabase.auth.signInWithIdToken() directly from
+  // the app's origin (showing "SINSAY" instead of .supabase.co); otherwise
+  // falls back to full-page OAuth redirect.
+  signInWithGoogle: () => Promise<{ error?: string; isOperator?: boolean }>;
+  signInWithGoogleIdToken: (
+    idToken: string,
+    rawNonce?: string
+  ) => Promise<{ error?: string; isOperator?: boolean }>;
   signOut: () => Promise<void>;
   // Password reset (email link flow): request sends the Supabase recovery
   // email (redirects to /auth/reset-password — must be allowlisted in
@@ -83,6 +88,7 @@ const defaultAuthState: AuthState = {
   signIn: async () => ({}),
   signUp: async () => ({}),
   signInWithGoogle: async () => ({}),
+  signInWithGoogleIdToken: async () => ({}),
   signOut: async () => {},
   requestPasswordReset: async () => ({}),
   updatePassword: async () => ({}),
@@ -679,11 +685,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) await fetchProfile(user.id);
   }, [user, fetchProfile]);
 
+  const signInWithGoogleIdToken = useCallback(
+    async (idToken: string, rawNonce?: string) => {
+      setIsLoading(true);
+      setRoleReady(false);
+      try {
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "google",
+          token: idToken,
+          ...(rawNonce ? { nonce: rawNonce } : {}),
+        });
+        if (error) {
+          setRoleReady(true);
+          return { error: error.message };
+        }
+        let isOp = false;
+        if (data.user) {
+          isOp = await fetchProfile(data.user.id);
+        } else {
+          setRoleReady(true);
+        }
+        return { isOperator: isOp };
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [fetchProfile]
+  );
+
   const signInWithGoogle = useCallback(async () => {
-    // Web PWA: full-page redirect to /auth/callback; this promise only
-    // resolves when the redirect can't start (otherwise the page navigates
-    // away). The callback URL must be allowlisted in Supabase Auth → URL
-    // Configuration.
+    // Prefer direct Google Identity Services + signInWithIdToken when
+    // EXPO_PUBLIC_GOOGLE_CLIENT_ID is configured so Google displays "SINSAY"
+    // instead of the .supabase.co callback domain.
+    if (isGoogleGisConfigured) {
+      const gisResult = await triggerGoogleGisSignIn();
+      if (gisResult.cancelled) {
+        return {};
+      }
+      if (gisResult.error) {
+        return { error: gisResult.error };
+      }
+      if (gisResult.idToken) {
+        return await signInWithGoogleIdToken(
+          gisResult.idToken,
+          gisResult.rawNonce
+        );
+      }
+    }
+
+    // Fallback: Web PWA full-page redirect to /auth/callback when
+    // EXPO_PUBLIC_GOOGLE_CLIENT_ID is not yet configured.
     const redirectTo =
       typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
@@ -692,7 +743,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) return { error: error.message };
     return {};
-  }, []);
+  }, [signInWithGoogleIdToken]);
 
   const requestPasswordReset = useCallback(async (email: string) => {
     const redirectTo =
@@ -733,6 +784,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signInWithGoogle,
+        signInWithGoogleIdToken,
         signOut,
         requestPasswordReset,
         updatePassword,

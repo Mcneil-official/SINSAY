@@ -213,7 +213,7 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
 
     if (rect) {
       if (currentStep.target === "assistant-btn") {
-        const pad = 4;
+        const pad = 5;
         const size = Math.max(rect.width, rect.height) + pad * 2;
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
@@ -287,7 +287,26 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
     // Static fallback calculations when element is not measured yet
     const bottomNavHeight = 54;
     const bottomNavPadding = 8;
-    const tabY = height - bottomNavHeight - bottomNavPadding;
+    const barTrackWidth = containerWidth - 24;
+    const activeTabWidth = Math.min(80, barTrackWidth * 0.28);
+    const inactiveTabWidth = Math.max(0, barTrackWidth - activeTabWidth - 12) / 3;
+    const tab1Center =
+      containerLeft + 12 + activeTabWidth + 4 + inactiveTabWidth / 2;
+    const tab2Center =
+      containerLeft +
+      12 +
+      activeTabWidth +
+      4 +
+      (inactiveTabWidth + 4) +
+      inactiveTabWidth / 2;
+    const tab3Center =
+      containerLeft +
+      12 +
+      activeTabWidth +
+      4 +
+      (inactiveTabWidth + 4) * 2 +
+      inactiveTabWidth / 2;
+    const tabTop = height - 49;
 
     switch (currentStep.target) {
       case "top-bar":
@@ -295,88 +314,87 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
           left: containerLeft + 14,
           top: safeTop + 8,
           width: containerWidth - 28,
-          height: 52,
-          borderRadius: 18,
-          caretX: containerLeft + containerWidth - 44,
+          height: 50,
+          borderRadius: 25,
+          caretX: containerLeft + containerWidth - 60,
         };
       case "kpi-stats":
         return {
           left: containerLeft + 14,
-          top: safeTop + 140,
+          top: safeTop + 112,
           width: containerWidth - 28,
-          height: 105,
-          borderRadius: 18,
+          height: 96,
+          borderRadius: 16,
           caretX: containerLeft + containerWidth / 2,
         };
       case "map-tab":
         return {
-          left: containerLeft + tabWidth * 1 + (tabWidth - 64) / 2,
-          top: tabY + 4,
-          width: 64,
+          left: tab1Center - 33,
+          top: tabTop,
+          width: 66,
           height: 44,
           borderRadius: 22,
-          caretX: containerLeft + tabWidth * 1 + tabWidth / 2,
+          caretX: tab1Center,
         };
       case "eco-tab":
         return {
-          left: containerLeft + tabWidth * 2 + (tabWidth - 80) / 2,
-          top: tabY + 4,
-          width: 80,
+          left: tab2Center - 39,
+          top: tabTop,
+          width: 78,
           height: 44,
           borderRadius: 22,
-          caretX: containerLeft + tabWidth * 2 + tabWidth / 2,
+          caretX: tab2Center,
         };
       case "assistant-btn": {
         const fabBottom = bottomNavPadding + bottomNavHeight + 12; // 74
         const fabSize = 48;
-        const spotSize = 56;
-        const fabRight = 16;
-        const fabLeft = width - fabRight - fabSize;
-        const fabTop = height - fabBottom - fabSize;
+        const spotSize = 58;
+        const fabCenterX = containerLeft + containerWidth - 16 - fabSize / 2;
+        const fabCenterY = height - fabBottom - fabSize / 2;
         return {
-          left: fabLeft - (spotSize - fabSize) / 2,
-          top: fabTop - (spotSize - fabSize) / 2,
+          left: fabCenterX - spotSize / 2,
+          top: fabCenterY - spotSize / 2,
           width: spotSize,
           height: spotSize,
           borderRadius: spotSize / 2,
-          caretX: fabLeft + fabSize / 2,
+          caretX: fabCenterX,
         };
       }
       case "profile-tab":
         return {
-          left: containerLeft + tabWidth * 3 + (tabWidth - 64) / 2,
-          top: tabY + 4,
-          width: 64,
+          left: tab3Center - 33,
+          top: tabTop,
+          width: 66,
           height: 44,
           borderRadius: 22,
-          caretX: containerLeft + tabWidth * 3 + tabWidth / 2,
+          caretX: tab3Center,
         };
       case "manifests-tab":
         return {
-          left: containerLeft + tabWidth * 1 + (tabWidth - 76) / 2,
-          top: tabY + 4,
-          width: 76,
+          left: tab1Center - 39,
+          top: tabTop,
+          width: 78,
           height: 44,
           borderRadius: 22,
-          caretX: containerLeft + tabWidth * 1 + tabWidth / 2,
+          caretX: tab1Center,
         };
       case "buy-pass-tab":
         return {
-          left: containerLeft + tabWidth * 2 + (tabWidth - 76) / 2,
-          top: tabY + 4,
-          width: 76,
+          left: tab2Center - 39,
+          top: tabTop,
+          width: 78,
           height: 44,
           borderRadius: 22,
-          caretX: containerLeft + tabWidth * 2 + tabWidth / 2,
+          caretX: tab2Center,
         };
       case "op-profile-tab":
         return {
-          left: containerLeft + tabWidth * 3 + (tabWidth - 68) / 2,
-          top: tabY + 4,
-          width: 68,
+          left: tab3Center - 33,
+          top: tabTop,
+          width: 66,
           height: 44,
           borderRadius: 22,
-          caretX: containerLeft + tabWidth * 3 + tabWidth / 2,
+          caretX: tab3Center,
         };
       default:
         return {
