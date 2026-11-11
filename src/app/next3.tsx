@@ -24,14 +24,12 @@ export default function Next3Page() {
       <EcoOnboarding
         illustration={require("../../assets/onboarding/maintain-control.webp")}
         illustrationAlt="Illustration for maintaining control underwater"
-        illustrationOffsetY={-130}
         title={"Maintain\nControl"}
         description={
           "Master your neutral buoyancy. Keep gauges clipped and never ground your fins on silt beds or fragile reefs."
         }
         index={2}
         wave="control"
-        illustrationAspect={960 / 1280}
         onBack={() => safeBack(router, "/next2")}
         onFinish={handleFinish}
       />

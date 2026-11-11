@@ -1,16 +1,18 @@
 import { Afacad_700Bold } from "@expo-google-fonts/afacad/700Bold";
 import { Jost_400Regular } from "@expo-google-fonts/jost/400Regular";
 import { Asset } from "expo-asset";
+import { useFocusEffect } from "expo-router";
 import { useFonts } from "expo-font";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
   PanResponder,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -27,6 +29,11 @@ const WAVE_HEIGHT = 170;
 const CONTENT_SIDE = 30;
 const FOOTER_SIDE = 24;
 const BUTTON_HEIGHT = 52;
+const ART_MAX_HEIGHT = 300; // artwork cap: max-h-[300px]
+const ART_MAX_VH = 0.35; // artwork cap: max-h-[35vh]
+const ART_MIN_ZONE = 160; // never collapse the art zone — scroll instead
+const TEXT_ART_GAP = 40; // gap between body text and artwork (AC min 16px)
+const TITLE_GAP = 24;
 // Lift the protect wave so its right-side dip clears the Skip label
 // (design-space px; scaled with frame width like everything else).
 const PROTECT_WAVE_LIFT = 24;
@@ -61,16 +68,10 @@ interface EcoOnboardingProps {
   index: number;
   total?: number;
   wave: WaveVariant;
-  illustrationOffsetY?: number;
-  illustrationAspect?: number;
-  illustrationTopLimit?: number;
-  titleGap?: number;
-  headerOffsetY?: number;
   onNext?: () => void;
   onBack?: () => void;
   onSkip?: () => void;
   onFinish?: () => void;
-  onReviewTips?: () => void;
 }
 
 export default function EcoOnboarding({
@@ -82,16 +83,10 @@ export default function EcoOnboarding({
   index,
   total = 3,
   wave,
-  illustrationOffsetY = 0,
-  illustrationAspect,
-  illustrationTopLimit: _illustrationTopLimit,
-  titleGap = 24,
-  headerOffsetY = 0,
   onNext,
   onBack,
   onSkip,
   onFinish,
-  onReviewTips: _onReviewTips,
 }: EcoOnboardingProps) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -99,6 +94,7 @@ export default function EcoOnboarding({
   const [slideOpacity] = useState(() => new Animated.Value(0));
   const [slideTranslateX] = useState(() => new Animated.Value(18));
   const [waveScale] = useState(() => new Animated.Value(0.98));
+  const scrollRef = useRef<ScrollView>(null);
 
   const isWide = width > WIDE_BREAKPOINT;
   const frameWidth = isWide ? DESIGN_WIDTH : width;
@@ -110,28 +106,15 @@ export default function EcoOnboarding({
     insets.bottom > 0 ? Math.max(insets.bottom, 16) : 16;
   const isCompact = frameHeight < 740;
 
+  // Top-zone clearance so the progress row and title clear the wave header.
   const contentTop = Math.max(
     safeTop + (isCompact ? 104 : 116),
     (isCompact ? 154 : 168) * scale,
   );
   const footerBottom = safeBottom + (isCompact ? 10 : 14);
-  const resolvedTitleGap = titleGap ?? (isCompact ? 14 : 18);
-  const titleHeight = (isCompact ? 38 * 2 : 42 * 2) * scale;
-  const descHeight = (isCompact ? 20 * 3 : 22 * 3) * scale;
-  const textEstHeight =
-    (4 + resolvedTitleGap) * scale +
-    titleHeight +
-    (isCompact ? 12 : 14) * scale +
-    descHeight;
-  const textBottom = contentTop + textEstHeight;
-
-  const aspect = illustrationAspect ?? 853 / 1280;
-  const imageHeight = Math.round(frameWidth / aspect);
-  const imageTop = Math.round(
-    Math.max(
-      textBottom + (isCompact ? 10 : 16) * scale,
-      frameHeight - imageHeight + illustrationOffsetY * scale,
-    ),
+  const artMaxHeight = Math.min(
+    ART_MAX_HEIGHT,
+    Math.round(frameHeight * ART_MAX_VH),
   );
 
   const safeTotal = Math.max(total, 1);
@@ -178,28 +161,38 @@ export default function EcoOnboarding({
     animateTransition(1, onBack);
   }, [animateTransition, onBack]);
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(slideOpacity, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.timing(slideTranslateX, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.timing(waveScale, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-    ]).start();
-  }, [slideOpacity, slideTranslateX, waveScale]);
+  // Entrance animation + scroll reset on EVERY focus — first visit and
+  // browser-back/swipe-back alike. Screens stay mounted in the stack, so a
+  // mount-only effect would leave the page stuck at opacity 0 (faded out by
+  // the forward transition) and the ScrollView where the user left it, with
+  // the text scrolled off-screen.
+  useFocusEffect(
+    useCallback(() => {
+      slideOpacity.setValue(0);
+      slideTranslateX.setValue(18);
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      Animated.parallel([
+        Animated.timing(slideOpacity, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.timing(slideTranslateX, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.timing(waveScale, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+      ]).start();
+    }, [slideOpacity, slideTranslateX, waveScale]),
+  );
 
   const panResponder = useMemo(
     () =>
@@ -224,7 +217,6 @@ export default function EcoOnboarding({
     [advance, goBack],
   );
 
-  const contentWidth = frameWidth - CONTENT_SIDE * 2 * scale;
   const nextLabel = isLast ? "Done" : "Next";
 
   return (
@@ -250,14 +242,14 @@ export default function EcoOnboarding({
           ]}
           {...panResponder.panHandlers}
         >
+          {/* Decorative wave header — absolute background layer, not one
+              of the three content tiers. */}
           <Animated.View
             style={[
               styles.wave,
               {
                 height: (frameWidth * WAVE_HEIGHT) / DESIGN_WIDTH,
-                top:
-                  headerOffsetY -
-                  (wave === "protect" ? PROTECT_WAVE_LIFT * scale : 0),
+                top: -(wave === "protect" ? PROTECT_WAVE_LIFT * scale : 0),
                 transform: [{ scale: waveScale }],
               },
             ]}
@@ -287,172 +279,180 @@ export default function EcoOnboarding({
             </Svg>
           </Animated.View>
 
-          <Image
-            source={illustration}
-            onLoad={() => {
-              if (nextIllustration === undefined) return;
-              const nextUri = Asset.fromModule(nextIllustration).uri;
-              void Image.prefetch(nextUri, "disk").catch(() => undefined);
-            }}
-            style={{
-              position: "absolute",
-              zIndex: 0,
-              left: 0,
-              bottom: isWide ? undefined : 0,
-              top: isWide ? imageTop : undefined,
-              width: frameWidth,
-              height: imageHeight,
-              opacity: slideOpacity,
-              transform: [
-                {
-                  translateY: slideTranslateX.interpolate({
-                    inputRange: [0, 18],
-                    outputRange: [0, 8],
-                  }),
-                },
-              ],
-            }}
-            contentFit="cover"
-            accessibilityLabel={illustrationAlt}
-          />
-
+          {/* Page: 3-tier flex column inside a scroll fallback wrapper so
+              text, artwork, and CTA can never overlap each other. */}
           <Animated.View
             style={[
-              styles.content,
+              styles.page,
               {
-                top: contentTop,
-                left: CONTENT_SIDE * scale,
-                width: contentWidth,
                 opacity: slideOpacity,
                 transform: [{ translateX: slideTranslateX }],
               },
             ]}
           >
-            <View
-              style={[styles.progressRow, { gap: 7 * scale }]}
-              accessible
-              accessibilityRole="text"
-              accessibilityLabel={`Step ${activeIndex + 1} of ${safeTotal}`}
+            <ScrollView
+              ref={scrollRef}
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
             >
-              {steps.map((step) => (
+              {/* Top zone (flex-none): progress bar, Skip, title, description */}
+              <View
+                style={[
+                  styles.topZone,
+                  {
+                    paddingTop: contentTop,
+                    paddingHorizontal: CONTENT_SIDE * scale,
+                  },
+                ]}
+              >
                 <View
-                  key={step}
+                  style={[styles.progressRow, { gap: 7 * scale }]}
+                  accessible
+                  accessibilityRole="text"
+                  accessibilityLabel={`Step ${activeIndex + 1} of ${safeTotal}`}
+                >
+                  {steps.map((step) => (
+                    <View
+                      key={step}
+                      style={{
+                        width: 28 * scale,
+                        height: 4 * scale,
+                        borderRadius: 999,
+                        backgroundColor:
+                          step === activeIndex ? "#005EEC" : "#c8d8ee",
+                      }}
+                    />
+                  ))}
+                  {onSkip && !isLast ? (
+                    <Pressable
+                      onPress={onSkip}
+                      accessibilityRole="button"
+                      accessibilityLabel="Skip onboarding"
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      style={({ pressed }) => [
+                        styles.skip,
+                        { top: -8 * scale, opacity: pressed ? 0.6 : 1 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.skipLabel,
+                          fontsLoaded && styles.skipFont,
+                          { fontSize: 15 * scale, lineHeight: 20 * scale },
+                        ]}
+                      >
+                        Skip
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                <Text
+                  accessibilityRole="header"
+                  style={[
+                    styles.title,
+                    fontsLoaded && styles.titleFont,
+                    {
+                      marginTop: TITLE_GAP * scale,
+                      fontSize: (isCompact ? 38 : 42) * scale,
+                      lineHeight: (isCompact ? 42 : 46) * scale,
+                      letterSpacing: -0.8 * scale,
+                    },
+                  ]}
+                >
+                  {title}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.description,
+                    fontsLoaded && styles.descriptionFont,
+                    {
+                      marginTop: (isCompact ? 12 : 14) * scale,
+                      maxWidth: 330 * scale,
+                      fontSize: 15 * scale,
+                      lineHeight: 22 * scale,
+                    },
+                  ]}
+                >
+                  {description}
+                </Text>
+              </View>
+
+              {/* Middle zone (flex-1): contained artwork, bottom-aligned,
+                  capped at min(300px, 35vh) so it scales down instead of
+                  pushing into the text. minHeight floor forces the scroll
+                  fallback on ultra-short viewports. */}
+              <View style={styles.middleZone}>
+                <Image
+                  source={illustration}
                   style={{
-                    width: 28 * scale,
-                    height: 4 * scale,
-                    borderRadius: 999,
-                    backgroundColor:
-                      step === activeIndex ? "#005EEC" : "#c8d8ee",
+                    width: "100%",
+                    height: "100%",
+                    maxHeight: artMaxHeight,
                   }}
+                  contentFit="contain"
+                  onLoad={() => {
+                    if (nextIllustration === undefined) return;
+                    const nextUri = Asset.fromModule(nextIllustration).uri;
+                    void Image.prefetch(nextUri, "disk").catch(() => undefined);
+                  }}
+                  accessibilityLabel={illustrationAlt}
                 />
-              ))}
-              {onSkip && !isLast ? (
+              </View>
+
+              {/* Bottom zone (flex-none): CTA with bottom safe-area inset */}
+              <View
+                style={[
+                  styles.bottomZone,
+                  {
+                    paddingHorizontal: FOOTER_SIDE * scale,
+                    paddingTop: 8 * scale,
+                    paddingBottom: footerBottom,
+                  },
+                ]}
+              >
                 <Pressable
-                  onPress={onSkip}
+                  onPress={advance}
                   accessibilityRole="button"
-                  accessibilityLabel="Skip onboarding"
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityLabel={
+                    isLast ? "Finish onboarding" : "Continue to next tip"
+                  }
+                  accessibilityHint="Or swipe left to continue, right to go back."
                   style={({ pressed }) => [
-                    styles.skip,
-                    { top: -8 * scale, opacity: pressed ? 0.6 : 1 },
+                    styles.button,
+                    styles.buttonPrimary,
+                    {
+                      minHeight: BUTTON_HEIGHT * scale,
+                      borderRadius: 16 * scale,
+                      backgroundColor: pressed ? "#164e9b" : "#1c5eb9",
+                      shadowColor: "#1c5eb9",
+                      shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 10,
+                      elevation: 6,
+                    },
                   ]}
                 >
                   <Text
                     style={[
-                      styles.skipLabel,
-                      fontsLoaded && styles.skipFont,
-                      { fontSize: 15 * scale, lineHeight: 20 * scale },
+                      styles.buttonLabel,
+                      styles.buttonPrimaryLabel,
+                      { fontSize: 15 * scale },
                     ]}
                   >
-                    Skip
+                    {nextLabel}
+                  </Text>
+                  <Text
+                    style={[styles.buttonArrow, { fontSize: 15 * scale }]}
+                    accessible={false}
+                  >
+                    →
                   </Text>
                 </Pressable>
-              ) : null}
-            </View>
-
-            <Text
-              accessibilityRole="header"
-              style={[
-                styles.title,
-                fontsLoaded && styles.titleFont,
-                {
-                  marginTop: resolvedTitleGap * scale,
-                  width: contentWidth,
-                  fontSize: (isCompact ? 38 : 42) * scale,
-                  lineHeight: (isCompact ? 42 : 46) * scale,
-                  letterSpacing: -0.8 * scale,
-                },
-              ]}
-            >
-              {title}
-            </Text>
-
-            <Text
-              style={[
-                styles.description,
-                fontsLoaded && styles.descriptionFont,
-                {
-                  marginTop: (isCompact ? 12 : 14) * scale,
-                  maxWidth: 330 * scale,
-                  fontSize: 15 * scale,
-                  lineHeight: 22 * scale,
-                },
-              ]}
-            >
-              {description}
-            </Text>
-          </Animated.View>
-
-          <Animated.View
-            style={[
-              styles.footer,
-              {
-                bottom: footerBottom,
-                left: FOOTER_SIDE * scale,
-                right: FOOTER_SIDE * scale,
-                opacity: slideOpacity,
-                transform: [{ translateX: slideTranslateX }],
-              },
-            ]}
-          >
-            <Pressable
-              onPress={advance}
-              accessibilityRole="button"
-              accessibilityLabel={
-                isLast ? "Finish onboarding" : "Continue to next tip"
-              }
-              accessibilityHint="Or swipe left to continue, right to go back."
-              style={({ pressed }) => [
-                styles.button,
-                styles.buttonPrimary,
-                {
-                  minHeight: BUTTON_HEIGHT * scale,
-                  borderRadius: 16 * scale,
-                  backgroundColor: pressed ? "#164e9b" : "#1c5eb9",
-                  shadowColor: "#1c5eb9",
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 10,
-                  elevation: 6,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.buttonLabel,
-                  styles.buttonPrimaryLabel,
-                  { fontSize: 15 * scale },
-                ]}
-              >
-                {nextLabel}
-              </Text>
-              <Text
-                style={[styles.buttonArrow, { fontSize: 15 * scale }]}
-                accessible={false}
-              >
-                →
-              </Text>
-            </Pressable>
+              </View>
+            </ScrollView>
           </Animated.View>
         </View>
       </View>
@@ -484,9 +484,30 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 1,
   },
-  content: {
-    position: "absolute",
+  page: {
+    flex: 1,
     zIndex: 2,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  topZone: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  middleZone: {
+    flex: 1,
+    minHeight: ART_MIN_ZONE,
+    marginTop: TEXT_ART_GAP,
+    justifyContent: "flex-end",
+    overflow: "hidden",
+  },
+  bottomZone: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
   progressRow: {
     flexDirection: "row",
@@ -518,10 +539,6 @@ const styles = StyleSheet.create({
   descriptionFont: {
     fontFamily: "Jost_400Regular",
   },
-  footer: {
-    position: "absolute",
-    zIndex: 3,
-  },
   button: {
     flexDirection: "row",
     alignItems: "center",
@@ -536,15 +553,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
-  buttonSecondary: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  buttonSecondaryLabel: {
-    color: "#1c5eb9",
-    fontWeight: "600",
-  },
   buttonLabel: {
     fontSize: 15,
     includeFontPadding: false,
@@ -553,14 +561,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     includeFontPadding: false,
-  },
-  completion: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 4,
-    justifyContent: "center",
   },
 });

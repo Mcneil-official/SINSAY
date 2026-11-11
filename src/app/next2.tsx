@@ -31,7 +31,6 @@ export default function Next2Page() {
         }
         index={1}
         wave="protect"
-        illustrationAspect={960 / 1280}
         onNext={() => router.push("/next3")}
         onBack={() => safeBack(router, "/next")}
         onSkip={handleSkip}
