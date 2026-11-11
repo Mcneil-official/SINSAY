@@ -77,12 +77,13 @@ function MapSvgIcon({
 export function FloatingAssistant() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
 
   const [mode, setMode] = useState<AssistantMode>("closed");
   const [activeTab, setActiveTab] = useState<AssistantTab>("chat");
 
   const sheetHeight = Math.max(360, Math.round(windowHeight * 0.75));
+  const fabRight = Math.max(16, (windowWidth - 480) / 2 + 16);
   const useNative = Platform.OS !== "web";
 
   // Chooser fade/scale animation
@@ -155,6 +156,7 @@ export function FloatingAssistant() {
             styles.chooserCard,
             {
               bottom: fabBottom + 56,
+              right: fabRight,
               opacity: chooserAnim,
               transform: [{ scale: chooserScale }],
             },
@@ -217,7 +219,7 @@ export function FloatingAssistant() {
 
       {/* Minimized Pill */}
       {!hideFloatingTrigger && mode === "minimized" && (
-        <View style={[styles.miniPillWrap, { bottom: fabBottom }]}>
+        <View style={[styles.miniPillWrap, { bottom: fabBottom, right: fabRight }]}>
           <TouchableOpacity
             style={styles.miniPillMain}
             onPress={() => setMode("open")}
@@ -249,9 +251,8 @@ export function FloatingAssistant() {
       {/* Floating Action Button (closed or chooser state) */}
       {!hideFloatingTrigger && (mode === "closed" || mode === "chooser") && (
         <TouchableOpacity
-          nativeID="tutorial-assistant-btn"
           testID="tutorial-assistant-btn"
-          style={[styles.fab, { bottom: fabBottom }]}
+          style={[styles.fab, { bottom: fabBottom, right: fabRight }]}
           onPress={handleFabPress}
           activeOpacity={0.85}
           accessibilityRole="button"

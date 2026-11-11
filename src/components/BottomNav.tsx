@@ -132,7 +132,6 @@ export default function BottomNav({
     return (
       <TouchableOpacity
         key={route.key}
-        nativeID={tutorialId}
         testID={tutorialId}
         onPress={onPress}
         style={[

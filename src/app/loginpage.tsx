@@ -14,6 +14,10 @@ import {
 import { AuthLayout } from "../components";
 import AuthFooter from "../components/AuthFooter";
 import { useAuth } from "../hooks/useAuth";
+import {
+  isGoogleGisConfigured,
+  mountGoogleOverlayButton,
+} from "../lib/googleAuth";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { checkPasswordRules, validatePasswordForSignup } from "../lib/password";
 
@@ -36,8 +40,10 @@ export default function LoginPage() {
     signIn,
     signUp,
     signInWithGoogle,
+    signInWithGoogleIdToken,
     requestPasswordReset,
     user,
+    profile,
     isOperator,
     viewAsTourist,
     isLoading,
@@ -71,12 +77,43 @@ export default function LoginPage() {
   const [fade] = useState(() => new Animated.Value(1));
   const switching = useRef(false);
   const emailRef = useRef<TextInput>(null);
+  const googleOverlayRef = useRef<View>(null);
 
-  // Already signed in (e.g. back-nav after OAuth): route by role.
+  // Already signed in (e.g. after GIS ID token sign-in or back-nav after OAuth): route by role.
   useEffect(() => {
     if (isLoading || !roleReady || !user) return;
+    if (profile && profile.onboarding_completed === false) {
+      router.replace("/next");
+      return;
+    }
     router.replace(isOperator && !viewAsTourist ? "/(operator-tabs)" : "/(tabs)");
-  }, [isLoading, roleReady, user, isOperator, viewAsTourist, router]);
+  }, [isLoading, roleReady, user, profile, isOperator, viewAsTourist, router]);
+
+  useEffect(() => {
+    if (!isGoogleGisConfigured || !isSupabaseConfigured) return;
+    const node = googleOverlayRef.current as unknown as HTMLElement | null;
+    if (!node || typeof node.appendChild !== "function") return;
+
+    void mountGoogleOverlayButton(node, async (result) => {
+      if (result.cancelled) return;
+      if (result.error) {
+        setGoogleLoading(false);
+        setError(result.error);
+        return;
+      }
+      if (!result.idToken) return;
+      setGoogleLoading(true);
+      setError("");
+      const { error: authError } = await signInWithGoogleIdToken(
+        result.idToken,
+        result.rawNonce
+      );
+      setGoogleLoading(false);
+      if (authError) {
+        setError(authError);
+      }
+    });
+  }, [signInWithGoogleIdToken]);
 
   const isSignup = mode === "signup";
 
@@ -535,35 +572,49 @@ export default function LoginPage() {
               <View style={styles.dividerLine} />
             </View>
 
-            <Pressable
-              style={[
-                styles.socialButton,
-                (googleLoading || loading || resetLoading) &&
-                  styles.socialButtonDisabled,
-              ]}
-              onPress={handleGoogle}
-              disabled={googleLoading || loading || resetLoading}
-            >
-              {googleLoading ? (
-                <ActivityIndicator color="#1f1a17" />
-              ) : (
-                <>
-                  <Image
-                    source={require("../../assets/images/search.png")}
-                    style={styles.socialIcon}
+            <View style={styles.socialButtonWrap}>
+              <Pressable
+                style={[
+                  styles.socialButton,
+                  (googleLoading || loading || resetLoading) &&
+                    styles.socialButtonDisabled,
+                ]}
+                onPress={handleGoogle}
+                disabled={googleLoading || loading || resetLoading}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color="#1f1a17" />
+                ) : (
+                  <>
+                    <Image
+                      source={require("../../assets/images/search.png")}
+                      style={styles.socialIcon}
+                    />
+                    <Text
+                      style={[
+                        styles.socialText,
+                        (googleLoading || loading || resetLoading) &&
+                          styles.socialTextDisabled,
+                      ]}
+                    >
+                      Continue with Google
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+              {isGoogleGisConfigured &&
+                isSupabaseConfigured &&
+                !googleLoading &&
+                !loading &&
+                !resetLoading && (
+                  <View
+                    ref={googleOverlayRef}
+                    style={styles.googleOverlay}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
                   />
-                  <Text
-                    style={[
-                      styles.socialText,
-                      (googleLoading || loading || resetLoading) &&
-                        styles.socialTextDisabled,
-                    ]}
-                  >
-                    Continue with Google
-                  </Text>
-                </>
-              )}
-            </Pressable>
+                )}
+            </View>
 
             <AuthFooter
               mode={mode}
@@ -723,6 +774,11 @@ const styles = StyleSheet.create({
     fontFamily: "Quicksand_400Regular",
     color: "#9b9b9b",
   },
+  socialButtonWrap: {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 14,
+  },
   socialButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -733,6 +789,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     height: 38,
     backgroundColor: "#ffffff",
+  },
+  googleOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.01,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
   socialButtonDisabled: { opacity: 0.5 },
   socialIcon: { width: 20, height: 20 },
