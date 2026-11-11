@@ -32,7 +32,6 @@ import { useLayout } from "../../context/LayoutContext";
 import { useNotificationModal } from "../../context/NotificationModalContext";
 import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../context/LanguageContext";
-import { HeaderLanguageToggle } from "../../components/HeaderLanguageToggle";
 import { supabase } from "../../lib/supabase";
 import {
   AnnouncementRow,
@@ -429,7 +428,6 @@ export default function HomeScreen() {
               />
 
               <View style={[styles.topBarActions, isCompact && { gap: 6 }]}>
-                <HeaderLanguageToggle />
                 <TouchableOpacity
                   style={[
                     styles.iconButton,
@@ -788,6 +786,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 0,
     paddingTop: 12,
+    paddingLeft: 10,
     zIndex: 120,
   },
   logoImage: {

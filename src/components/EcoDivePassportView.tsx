@@ -32,7 +32,6 @@ import Svg, {
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../context/LanguageContext";
-import { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 import { deriveEffectiveEcoStatus } from "../lib/ecoIdExpiry";
 import { pickAvatarImage } from "../lib/pickAvatar";
 import { captureAndDownload, loadImageAsBase64 } from "../lib/snapshot";
@@ -749,7 +748,6 @@ export function EcoDivePassportView() {
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <HeaderLanguageToggle />
               <TouchableOpacity
                 style={styles.headerEditIconBtn}
                 onPress={() => router.push("/tourist/dive-details/step1")}

@@ -4,7 +4,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../hooks/useAuth";
 import { useNotificationModal } from "../context/NotificationModalContext";
 import { useLanguage } from "../context/LanguageContext";
-import { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 import { colors } from "../constants/colors";
 
 interface DesktopHeaderProps {
@@ -27,7 +26,6 @@ export default function DesktopHeader({ sidebarWidth }: DesktopHeaderProps) {
         </Text>
       </View>
       <View style={styles.rightSection}>
-        <HeaderLanguageToggle />
         <TouchableOpacity
           style={styles.notifWrapper}
           onPress={openNotifications}
