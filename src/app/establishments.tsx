@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Image,
@@ -76,8 +82,8 @@ export default function EstablishmentsScreen() {
                 (data ?? []).map((item) => [
                   item.name.trim().toLowerCase(),
                   item,
-                ])
-              ).values()
+                ]),
+              ).values(),
             );
             setEstablishments(uniqueList);
             setError(false);
@@ -88,7 +94,7 @@ export default function EstablishmentsScreen() {
           if (!active) return;
           setError(true);
           setLoading(false);
-        }
+        },
       );
     return () => {
       active = false;
@@ -96,20 +102,22 @@ export default function EstablishmentsScreen() {
   }, [reloadKey]);
 
   const pcssdCount = useMemo(() => {
-    return establishments.filter(
-      (e) => Boolean(e.pcssd_url && e.pcssd_url.trim().length > 0)
+    return establishments.filter((e) =>
+      Boolean(e.pcssd_url && e.pcssd_url.trim().length > 0),
     ).length;
   }, [establishments]);
 
   const dotCount = useMemo(() => {
-    return establishments.filter(
-      (e) => Boolean(e.dot_url && e.dot_url.trim().length > 0)
+    return establishments.filter((e) =>
+      Boolean(e.dot_url && e.dot_url.trim().length > 0),
     ).length;
   }, [establishments]);
 
   const filteredEstablishments = useMemo(() => {
     return establishments.filter((est) => {
-      const hasPcssd = Boolean(est.pcssd_url && est.pcssd_url.trim().length > 0);
+      const hasPcssd = Boolean(
+        est.pcssd_url && est.pcssd_url.trim().length > 0,
+      );
       const hasDot = Boolean(est.dot_url && est.dot_url.trim().length > 0);
       if (filter === "pcssd") return hasPcssd;
       if (filter === "dot") return hasDot;
@@ -126,7 +134,7 @@ export default function EstablishmentsScreen() {
       const idx = Math.round(e.nativeEvent.contentOffset.x / heroWidth);
       setActiveHeroIndex(idx);
     },
-    [heroWidth]
+    [heroWidth],
   );
 
   const jumpToHeroSlide = useCallback(
@@ -138,7 +146,7 @@ export default function EstablishmentsScreen() {
         animated: true,
       });
     },
-    [featuredResorts.length, heroWidth]
+    [featuredResorts.length, heroWidth],
   );
 
   useEffect(() => {
@@ -171,7 +179,11 @@ export default function EstablishmentsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Go back"
                 >
-                  <Ionicons name="chevron-back" size={20} color={colors.darkText} />
+                  <Ionicons
+                    name="chevron-back"
+                    size={20}
+                    color={colors.darkText}
+                  />
                 </TouchableOpacity>
                 <Text style={styles.fallbackHeaderTitle}>Dive Resorts</Text>
               </View>
@@ -220,7 +232,11 @@ export default function EstablishmentsScreen() {
                     accessibilityRole="button"
                     accessibilityLabel="Go back"
                   >
-                    <Ionicons name="chevron-back" size={20} color={colors.white} />
+                    <Ionicons
+                      name="chevron-back"
+                      size={20}
+                      color={colors.white}
+                    />
                   </TouchableOpacity>
                   <Text style={styles.heroHeaderTitle}>Dive Resorts</Text>
                 </View>
@@ -238,10 +254,17 @@ export default function EstablishmentsScreen() {
                   const { imageUrl } = resolveEstablishmentMedia(resort);
                   const photoSource = imageUrl
                     ? { uri: imageUrl }
-                    : FALLBACK_RESORT_IMAGES[idx % FALLBACK_RESORT_IMAGES.length];
-                  const hasPcssd = Boolean(resort.pcssd_url && resort.pcssd_url.trim().length > 0);
-                  const hasDot = Boolean(resort.dot_url && resort.dot_url.trim().length > 0);
-                  const displayLocation = resort.location?.trim() || "Mabini, Batangas";
+                    : FALLBACK_RESORT_IMAGES[
+                        idx % FALLBACK_RESORT_IMAGES.length
+                      ];
+                  const hasPcssd = Boolean(
+                    resort.pcssd_url && resort.pcssd_url.trim().length > 0,
+                  );
+                  const hasDot = Boolean(
+                    resort.dot_url && resort.dot_url.trim().length > 0,
+                  );
+                  const displayLocation =
+                    resort.location?.trim() || "Mabini, Batangas";
 
                   return (
                     <TouchableOpacity
@@ -250,7 +273,7 @@ export default function EstablishmentsScreen() {
                       onPress={() =>
                         router.push({
                           pathname: "/establishment/[id]",
-                          params: { id: resort.id },
+                          params: { id: resort.id, returnTo: "establishments" },
                         })
                       }
                       style={[styles.heroSlide, { width: heroWidth }]}
@@ -264,7 +287,10 @@ export default function EstablishmentsScreen() {
                       />
 
                       {/* Full-bleed gradient overlay */}
-                      <View style={styles.heroGradientWrap} pointerEvents="none">
+                      <View
+                        style={styles.heroGradientWrap}
+                        pointerEvents="none"
+                      >
                         <Svg
                           width="100%"
                           height="100%"
@@ -279,11 +305,31 @@ export default function EstablishmentsScreen() {
                               x2="0"
                               y2="1"
                             >
-                              <Stop offset="0" stopColor="#020817" stopOpacity="0.62" />
-                              <Stop offset="0.28" stopColor="#020817" stopOpacity="0.1" />
-                              <Stop offset="0.5" stopColor="#020817" stopOpacity="0.45" />
-                              <Stop offset="0.76" stopColor="#020817" stopOpacity="0.86" />
-                              <Stop offset="1" stopColor="#020817" stopOpacity="0.97" />
+                              <Stop
+                                offset="0"
+                                stopColor="#020817"
+                                stopOpacity="0.62"
+                              />
+                              <Stop
+                                offset="0.28"
+                                stopColor="#020817"
+                                stopOpacity="0.1"
+                              />
+                              <Stop
+                                offset="0.5"
+                                stopColor="#020817"
+                                stopOpacity="0.45"
+                              />
+                              <Stop
+                                offset="0.76"
+                                stopColor="#020817"
+                                stopOpacity="0.86"
+                              />
+                              <Stop
+                                offset="1"
+                                stopColor="#020817"
+                                stopOpacity="0.97"
+                              />
                             </LinearGradient>
                           </Defs>
                           <Rect
@@ -303,8 +349,15 @@ export default function EstablishmentsScreen() {
                         </Text>
 
                         <View style={styles.heroLocationRow}>
-                          <Ionicons name="location-sharp" size={14} color="#93C5FD" />
-                          <Text style={styles.heroLocationText} numberOfLines={1}>
+                          <Ionicons
+                            name="location-sharp"
+                            size={14}
+                            color="#93C5FD"
+                          />
+                          <Text
+                            style={styles.heroLocationText}
+                            numberOfLines={1}
+                          >
                             {displayLocation}
                           </Text>
                         </View>
@@ -312,8 +365,14 @@ export default function EstablishmentsScreen() {
                         <View style={styles.heroMetaFooter}>
                           <View style={styles.heroPillsGroup}>
                             <View style={styles.heroDepthPill}>
-                              <Ionicons name="water-outline" size={12} color="#93C5FD" />
-                              <Text style={styles.heroDepthText}>Dive Center</Text>
+                              <Ionicons
+                                name="water-outline"
+                                size={12}
+                                color="#93C5FD"
+                              />
+                              <Text style={styles.heroDepthText}>
+                                Dive Center
+                              </Text>
                             </View>
 
                             <View style={styles.heroTypePill}>
@@ -336,7 +395,11 @@ export default function EstablishmentsScreen() {
 
                           <View style={styles.heroExplorePill}>
                             <Text style={styles.heroExploreText}>Explore</Text>
-                            <Ionicons name="arrow-forward" size={13} color={colors.white} />
+                            <Ionicons
+                              name="arrow-forward"
+                              size={13}
+                              color={colors.white}
+                            />
                           </View>
                         </View>
                       </View>
@@ -491,8 +554,8 @@ export default function EstablishmentsScreen() {
                   filter === "pcssd"
                     ? "No dive resorts found with verified PCSSD accreditation."
                     : filter === "dot"
-                    ? "No dive resorts found with verified DOT accreditation."
-                    : "No dive resorts found."
+                      ? "No dive resorts found with verified DOT accreditation."
+                      : "No dive resorts found."
                 }
               />
             </View>
@@ -500,8 +563,12 @@ export default function EstablishmentsScreen() {
             <View style={styles.cardsList}>
               {filteredEstablishments.map((est, idx) => {
                 const { imageUrl, logoUrl } = resolveEstablishmentMedia(est);
-                const hasPcssd = Boolean(est.pcssd_url && est.pcssd_url.trim().length > 0);
-                const hasDot = Boolean(est.dot_url && est.dot_url.trim().length > 0);
+                const hasPcssd = Boolean(
+                  est.pcssd_url && est.pcssd_url.trim().length > 0,
+                );
+                const hasDot = Boolean(
+                  est.dot_url && est.dot_url.trim().length > 0,
+                );
 
                 return (
                   <EstablishmentCard
@@ -519,7 +586,7 @@ export default function EstablishmentsScreen() {
                     onPress={() =>
                       router.push({
                         pathname: "/establishment/[id]",
-                        params: { id: est.id },
+                        params: { id: est.id, returnTo: "establishments" },
                       })
                     }
                   />
@@ -545,13 +612,11 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   loadingText: {
-
     fontSize: 14,
 
     fontFamily: "Quicksand_500Medium",
 
     color: "#64748B",
-
   },
 
   center: {
