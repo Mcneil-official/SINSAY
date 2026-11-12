@@ -132,7 +132,7 @@ export default function AuthWelcome({ active }: AuthWelcomeProps) {
         style={[
           styles.actions,
           {
-            bottom: Math.max(insets.bottom, 0) + 16,
+            bottom: Math.max(insets.bottom, 0) + 52,
             opacity: actionsOpacity,
             transform: [{ translateY: actionsTranslate }],
           },
