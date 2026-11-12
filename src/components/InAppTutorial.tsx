@@ -207,7 +207,6 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
 
   // Calculate geometry for spotlight based on live measured target or calibrated fallback
   const spotlight = useMemo(() => {
-    const tabWidth = containerWidth / 4;
     const targetId = `tutorial-${currentStep.target}`;
     const rect = targetRect || getElementViewportRect(targetId);
 
@@ -413,7 +412,6 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
     containerLeft,
     safeTop,
     height,
-    width,
   ]);
 
   // Card position calculations

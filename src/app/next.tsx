@@ -24,8 +24,8 @@ export default function NextPage() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <EcoOnboarding
-        illustration={require("../../assets/onboarding/marine-life transparent.png")}
-        nextIllustration={require("../../assets/onboarding/protect-the-ocean transparent.png")}
+        illustration={require("../../assets/onboarding/marine-life.webp")}
+        nextIllustration={require("../../assets/onboarding/protect-the-ocean.webp")}
         illustrationAlt="A diver observing a sea turtle and fish underwater"
         title={"Respect\nMarine Life"}
         description={

@@ -19,7 +19,6 @@ import { usePWAInstall } from "../../../context/PWAContext";
 import { useTutorial } from "../../../context/TutorialContext";
 import { useAuth } from "../../../hooks/useAuth";
 import { useLanguage } from "../../../context/LanguageContext";
-import { Locale, t } from "../../../lib/i18n";
 
 interface ProfileRowProps {
   icon: keyof typeof Ionicons.glyphMap;

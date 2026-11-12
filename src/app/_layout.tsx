@@ -17,6 +17,7 @@ import {
   AnnouncementDetailModal,
   NotificationsModal,
   OperatorApprovalModal,
+  PilotTestingBanner,
   WebSafeInsetsNormalizer,
 } from "../components";
 import AppShell from "../components/AppShell";
@@ -55,6 +56,7 @@ function RootLayoutInner() {
     <View style={styles.root}>
       <SystemBarsSync />
       <AppShell>
+        <PilotTestingBanner />
         <PWAInstallBanner />
         <Stack
           screenOptions={{

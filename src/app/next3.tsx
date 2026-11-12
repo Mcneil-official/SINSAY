@@ -25,7 +25,7 @@ export default function Next3Page() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <EcoOnboarding
-        illustration={require("../../assets/onboarding/maintain-control transparent.png")}
+        illustration={require("../../assets/onboarding/maintain-control.webp")}
         illustrationAlt="Illustration for maintaining control underwater"
         title={"Maintain\nControl"}
         description={

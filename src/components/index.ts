@@ -50,3 +50,4 @@ export { OperatorApprovalModal, getOperatorApprovalSeenKey } from "./OperatorApp
 export { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 export { SearchableCombobox } from "./SearchableCombobox";
 export type { ComboboxOption } from "./SearchableCombobox";
+export { default as PilotTestingBanner } from "./PilotTestingBanner";

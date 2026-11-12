@@ -23,8 +23,8 @@ export default function Next2Page() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <EcoOnboarding
-        illustration={require("../../assets/onboarding/protect-the-ocean transparent.png")}
-        nextIllustration={require("../../assets/onboarding/maintain-control transparent.png")}
+        illustration={require("../../assets/onboarding/protect-the-ocean.webp")}
+        nextIllustration={require("../../assets/onboarding/maintain-control.webp")}
         illustrationAlt="Illustration for protecting the ocean"
         title={"Protect the\nOcean"}
         description={
