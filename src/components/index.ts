@@ -51,3 +51,4 @@ export { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 export { SearchableCombobox } from "./SearchableCombobox";
 export type { ComboboxOption } from "./SearchableCombobox";
 export { default as PilotTestingBanner } from "./PilotTestingBanner";
+export { default as FloatingFeedbackPrompt, DEFAULT_FEEDBACK_SURVEY_URL } from "./FloatingFeedbackPrompt";

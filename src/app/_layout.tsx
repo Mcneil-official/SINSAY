@@ -15,6 +15,7 @@ import {
 } from "react-native-safe-area-context";
 import {
   AnnouncementDetailModal,
+  FloatingFeedbackPrompt,
   NotificationsModal,
   OperatorApprovalModal,
   PilotTestingBanner,
@@ -72,6 +73,7 @@ function RootLayoutInner() {
           onClose={closeAnnouncementModal}
         />
         <OperatorApprovalModal />
+        <FloatingFeedbackPrompt />
       </AppShell>
     </View>
   );

@@ -293,6 +293,7 @@ export default function OperatorProfileScreen() {
       </View>
 
       <ScrollView
+        showsVerticalScrollIndicator={false}
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
       >
