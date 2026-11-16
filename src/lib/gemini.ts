@@ -25,9 +25,22 @@ async function invokeProxy<T>(body: Record<string, any>): Promise<T> {
     // Fall through to status-based mapping below.
   }
   const status = (error as { status?: number }).status;
-  const combined = `${status ?? ""} ${edgeMessage} ${error.message}`;
+  const errName = (error as { name?: string }).name ?? "";
+  const combined = `${status ?? ""} ${errName} ${edgeMessage} ${error.message}`;
   if (/429|rate limit/i.test(combined)) {
     throw new Error("Too many requests right now. Try again in a minute.");
+  }
+  const isOffline =
+    typeof navigator !== "undefined" && navigator.onLine === false;
+  if (
+    isOffline ||
+    /failed to fetch|network|offline|functionsfetcherror|failed to send a request|load failed|timeout/i.test(
+      combined
+    )
+  ) {
+    throw new Error(
+      "Network connection lost. Please check your internet connection and tap Retry."
+    );
   }
   console.warn("Gemini proxy error:", edgeMessage || error.message);
   throw new Error(

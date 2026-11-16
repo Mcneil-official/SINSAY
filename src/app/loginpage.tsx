@@ -72,6 +72,7 @@ export default function LoginPage() {
   const passwordRules = checkPasswordRules(password);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const submitLockRef = useRef(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState(() =>
     typeof params.error === "string" ? params.error : ""
@@ -249,7 +250,7 @@ export default function LoginPage() {
   }
 
   async function handleSubmit() {
-    if (resetLoading) return;
+    if (loading || resetLoading || submitLockRef.current) return;
     if (!isSupabaseConfigured) {
       setError("Backend not configured for this preview build.");
       return;
@@ -259,79 +260,129 @@ export default function LoginPage() {
       return;
     }
     setError("");
+
     if (mode === "login") {
+      submitLockRef.current = true;
       setLoading(true);
-      const { error: authError, isOperator: signedInOperator } = await signIn(
-        email.trim(),
-        password
-      );
-      setLoading(false);
-      if (authError) {
-        if (isInvalidLoginCredentialsError(authError)) {
-          const friendlyMsg =
-            "No account found with this email, or incorrect password. Tap Sign Up if you're new.";
-          setError(friendlyMsg);
+      try {
+        const { error: authError, isOperator: signedInOperator } = await signIn(
+          email.trim(),
+          password
+        );
+        if (authError) {
+          if (isInvalidLoginCredentialsError(authError)) {
+            const friendlyMsg =
+              "No account found with this email, or incorrect password. Tap Sign Up if you're new.";
+            setError(friendlyMsg);
+            setFieldErrors((prev) => ({
+              ...prev,
+              email: "Account not found or wrong password",
+            }));
+            showToast(
+              "Account not found or incorrect password. New to SINSAY? Please Sign Up first.",
+              {
+                tone: "error",
+                duration: 5000,
+                action: {
+                  label: "Sign Up",
+                  onPress: () => switchMode("signup"),
+                },
+              }
+            );
+          } else {
+            setError(authError);
+            showToast(authError, { tone: "error", duration: 4500 });
+          }
+          return;
+        }
+        const {
+          data: { session: loginSession },
+        } = await supabase.auth.getSession();
+        if (loginSession?.user?.id) {
+          clearFirstTimeTutorialPending(loginSession.user.id);
+        }
+        router.replace(signedInOperator ? "/(operator-tabs)" : "/(tabs)");
+        return;
+      } finally {
+        setLoading(false);
+        submitLockRef.current = false;
+      }
+    }
+
+    submitLockRef.current = true;
+    setLoading(true);
+    try {
+      // Pre-check: prevent duplicate account creation if an account with this diver name already exists
+      const cleanName = fullName.trim();
+      try {
+        const { data: existingTourist, error: checkError } = await supabase
+          .from("tourists")
+          .select("id")
+          .ilike("full_name", cleanName)
+          .limit(1);
+
+        if (!checkError && existingTourist && existingTourist.length > 0) {
           setFieldErrors((prev) => ({
             ...prev,
-            email: "Account not found or wrong password",
+            fullName: "An account with this diver name already exists. Please log in instead.",
           }));
           showToast(
-            "Account not found or incorrect password. New to SINSAY? Please Sign Up first.",
+            "An account with this name is already registered. Please log in with your existing account.",
             {
               tone: "error",
               duration: 5000,
               action: {
-                label: "Sign Up",
-                onPress: () => switchMode("signup"),
+                label: "Log In",
+                onPress: () => switchMode("login"),
               },
             }
           );
-        } else {
-          setError(authError);
-          showToast(authError, { tone: "error", duration: 4500 });
+          return;
         }
+      } catch {
+        // Non-blocking fallback to continue signup if network check fails
+      }
+
+      const { error: authError } = await signUp(
+        email.trim(),
+        password,
+        cleanName
+      );
+      if (authError) {
+        if (isDuplicateEmailError(authError)) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            email: "An account with this email already exists",
+          }));
+          return;
+        }
+        if (/duplicate_full_name|already registered|duplicate/i.test(authError)) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            fullName: "An account with this diver name already exists. Please log in instead.",
+          }));
+          return;
+        }
+        setError(authError);
         return;
       }
+      // Email confirmation is off: signUp returns a live session, so go
+      // straight home. If no session exists (confirmation still required),
+      // fall back to telling the user to confirm via email first.
       const {
-        data: { session: loginSession },
+        data: { session },
       } = await supabase.auth.getSession();
-      if (loginSession?.user?.id) {
-        clearFirstTimeTutorialPending(loginSession.user.id);
-      }
-      router.replace(signedInOperator ? "/(operator-tabs)" : "/(tabs)");
-      return;
-    }
-    setLoading(true);
-    const { error: authError } = await signUp(
-      email.trim(),
-      password,
-      fullName.trim()
-    );
-    setLoading(false);
-    if (authError) {
-      if (isDuplicateEmailError(authError)) {
-        setFieldErrors((prev) => ({
-          ...prev,
-          email: "An account with this email already exists",
-        }));
+      if (session) {
+        markFirstTimeTutorialPending(session.user.id);
+        // New accounts must complete onboarding (/next) before reaching home
+        router.replace("/next");
         return;
       }
-      setError(authError);
-      return;
+      setSuccess(true);
+    } finally {
+      setLoading(false);
+      submitLockRef.current = false;
     }
-    // Email confirmation is off: signUp returns a live session, so go
-    // straight home. If no session exists (confirmation still required),
-    // fall back to telling the user to confirm via email first.
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      markFirstTimeTutorialPending(session.user.id);
-      // New accounts must complete onboarding (/next) before reaching home
-      router.replace("/next");
-      return;
-    }
-    setSuccess(true);
   }
 
   async function handleGoogle() {
