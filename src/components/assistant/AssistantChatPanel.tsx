@@ -14,6 +14,12 @@ import {
 } from "react-native";
 import { colors } from "../../constants/colors";
 import { AI_TRIVIA_STARTERS } from "../../constants/didYouKnowData";
+import {
+  buildSanitizedChatHistory,
+  ChatErrorKind,
+  classifyChatError,
+  consumeRetryTarget,
+} from "../../lib/chatRetry";
 import { chatWithGemini } from "../../lib/gemini";
 import { MarkdownText } from "../MarkdownText";
 
@@ -23,6 +29,11 @@ export interface ChatMessage {
   text: string;
   time: string;
   failed?: boolean;
+  isError?: boolean;
+  errorKind?: ChatErrorKind;
+  errorTitle?: string;
+  retryPrompt?: string;
+  failedUserMsgId?: string;
 }
 
 export interface AssistantChatPanelProps {
@@ -128,7 +139,8 @@ export function AssistantChatPanel({
     }
   }, [initialMessage]);
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = async (text: string, baseMessages?: ChatMessage[]) => {
+    const activeList = baseMessages ?? messages;
     const userMsgId = nextMessageId();
     const userMsg: ChatMessage = {
       id: userMsgId,
@@ -136,11 +148,11 @@ export function AssistantChatPanel({
       text,
       time: getTime(),
     };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages([...activeList, userMsg]);
     setLoading(true);
 
     try {
-      const history = messages.map((m) => ({ role: m.role, text: m.text }));
+      const history = buildSanitizedChatHistory(activeList);
       const reply = await chatWithGemini(history, text);
       const assistantMsg: ChatMessage = {
         id: nextMessageId(),
@@ -150,23 +162,38 @@ export function AssistantChatPanel({
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (e) {
+      const isOffline =
+        typeof navigator !== "undefined" && navigator.onLine === false;
+      const classified = classifyChatError(e, isOffline);
       setMessages((prev) =>
         prev.map((m) => (m.id === userMsgId ? { ...m, failed: true } : m)),
       );
       const errorMsg: ChatMessage = {
         id: nextMessageId(),
         role: "assistant",
-        text:
-          e instanceof Error
-            ? e.message
-            : "Sorry, I couldn't process that request. Please try again.",
+        text: classified.message,
         time: getTime(),
+        isError: true,
+        errorKind: classified.kind,
+        errorTitle: classified.title,
+        retryPrompt: text,
+        failedUserMsgId: userMsgId,
       };
       setMessages((prev) => [...prev, errorMsg]);
     }
     setLoading(false);
   };
   sendMessageRef.current = sendMessage;
+
+  const handleRetry = async (targetMsgId: string) => {
+    if (loading) return;
+    const { remainingMessages, promptToRetry } = consumeRetryTarget(
+      messages,
+      targetMsgId,
+    );
+    if (!promptToRetry) return;
+    await sendMessage(promptToRetry, remainingMessages);
+  };
 
   const handleSend = async () => {
     const text = input.trim();
@@ -214,8 +241,23 @@ export function AssistantChatPanel({
             ]}
           >
             {msg.role === "assistant" && (
-              <View style={styles.assistantAvatar}>
-                <Ionicons name="bulb" size={12} color={colors.primaryBlue} />
+              <View
+                style={[
+                  styles.assistantAvatar,
+                  msg.isError && styles.assistantAvatarError,
+                ]}
+              >
+                <Ionicons
+                  name={
+                    msg.isError
+                      ? msg.errorKind === "network"
+                        ? "cloud-offline-outline"
+                        : "alert-circle"
+                      : "bulb"
+                  }
+                  size={13}
+                  color={msg.isError ? "#DC2626" : colors.primaryBlue}
+                />
               </View>
             )}
             <View
@@ -223,14 +265,41 @@ export function AssistantChatPanel({
                 styles.bubble,
                 isDrawer && styles.bubbleDrawer,
                 msg.role === "user"
-                  ? styles.bubbleUser
-                  : styles.bubbleAssistant,
+                  ? [styles.bubbleUser, msg.failed && styles.bubbleUserFailed]
+                  : msg.isError
+                    ? styles.bubbleError
+                    : styles.bubbleAssistant,
               ]}
             >
               {msg.role === "user" ? (
                 <Text style={[styles.bubbleText, styles.bubbleTextUser]}>
                   {msg.text}
                 </Text>
+              ) : msg.isError ? (
+                <View style={styles.errorBubbleContent}>
+                  <View style={styles.errorHeaderRow}>
+                    <Ionicons
+                      name={
+                        msg.errorKind === "network"
+                          ? "wifi-outline"
+                          : "warning-outline"
+                      }
+                      size={14}
+                      color="#991B1B"
+                    />
+                    <Text style={styles.errorTitleText}>
+                      {msg.errorTitle || "AI Service Unavailable"}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.errorBodyText,
+                      isDrawer && styles.errorBodyTextDrawer,
+                    ]}
+                  >
+                    {msg.text}
+                  </Text>
+                </View>
               ) : (
                 <MarkdownText
                   text={msg.text}
@@ -238,26 +307,45 @@ export function AssistantChatPanel({
                   fontSize={isDrawer ? 13 : 14}
                 />
               )}
-              <View style={styles.bubbleFooter}>
+              <View
+                style={[
+                  styles.bubbleFooter,
+                  msg.isError && styles.bubbleFooterError,
+                ]}
+              >
                 <Text
                   style={[
                     styles.bubbleTime,
                     msg.role === "user"
                       ? styles.bubbleTimeUser
-                      : styles.bubbleTimeAssistant,
+                      : msg.isError
+                        ? styles.bubbleTimeError
+                        : styles.bubbleTimeAssistant,
                   ]}
                 >
                   {msg.time}
                 </Text>
-                {msg.failed && !loading && (
+                {msg.role === "user" && msg.failed && !loading && (
                   <TouchableOpacity
                     style={styles.retryInline}
-                    onPress={() => sendMessage(msg.text)}
+                    onPress={() => handleRetry(msg.id)}
                     accessibilityLabel="Retry sending message"
                     accessibilityRole="button"
                   >
-                    <Ionicons name="refresh" size={12} color={colors.red} />
+                    <Ionicons name="refresh" size={11} color="#FEE2E2" />
                     <Text style={styles.retryInlineText}>Retry</Text>
+                  </TouchableOpacity>
+                )}
+                {msg.isError && !loading && (
+                  <TouchableOpacity
+                    style={styles.errorRetryBtn}
+                    onPress={() => handleRetry(msg.id)}
+                    activeOpacity={0.8}
+                    accessibilityLabel="Retry AI response"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="refresh" size={13} color={colors.white} />
+                    <Text style={styles.errorRetryBtnText}>Retry</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -416,6 +504,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 4,
   },
+  assistantAvatarError: {
+    backgroundColor: "#FEE2E2",
+  },
   bubble: {
     borderRadius: 16,
     paddingVertical: 10,
@@ -430,9 +521,40 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryBlue,
     borderBottomRightRadius: 4,
   },
+  bubbleUserFailed: {
+    opacity: 0.92,
+  },
   bubbleAssistant: {
     backgroundColor: "#F0F4FF",
     borderBottomLeftRadius: 4,
+  },
+  bubbleError: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderBottomLeftRadius: 4,
+  },
+  errorBubbleContent: {
+    gap: 4,
+  },
+  errorHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  errorTitleText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#991B1B",
+  },
+  errorBodyText: {
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: "#B91C1C",
+  },
+  errorBodyTextDrawer: {
+    fontSize: 12.5,
+    lineHeight: 18,
   },
   bubbleText: {
     fontSize: 14,
@@ -451,6 +573,10 @@ const styles = StyleSheet.create({
   },
   bubbleTimeAssistant: {
     color: colors.gray,
+  },
+  bubbleTimeError: {
+    color: "#B91C1C",
+    marginTop: 0,
   },
   typingRow: {
     flexDirection: "row",
@@ -471,15 +597,40 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 6,
   },
+  bubbleFooterError: {
+    justifyContent: "space-between",
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#FEE2E2",
+  },
   retryInline: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
+    backgroundColor: "rgba(220, 38, 38, 0.85)",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
   },
   retryInlineText: {
-    fontSize: 11,
-    color: colors.red,
-    fontWeight: "600",
+    fontSize: 10.5,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  errorRetryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#DC2626",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  errorRetryBtnText: {
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: colors.white,
   },
   suggestionRow: {
     alignItems: "center",
