@@ -6,6 +6,12 @@ import { supabase } from "./supabase";
 // answering with a random canned reply that ignores the question.
 const USE_MOCK_AI = process.env.EXPO_PUBLIC_USE_MOCK_AI === "1";
 
+export interface ProxyAIResponse {
+  reply?: string;
+  provider?: "gemini" | "groq" | "static" | "guard";
+  error?: string;
+}
+
 async function invokeProxy<T>(body: Record<string, any>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("gemini-proxy", {
     body,
@@ -53,11 +59,14 @@ export async function chatWithGemini(
   userMessage: string
 ): Promise<string> {
   try {
-    const data = await invokeProxy<{ reply?: string }>({
+    const data = await invokeProxy<ProxyAIResponse>({
       type: "chat",
       history,
       userMessage,
     });
+    if (data?.provider && data.provider !== "gemini") {
+      console.info(`[SINSAY AI] Handled by provider: ${data.provider}`);
+    }
     if (data?.reply) return data.reply;
     throw new Error("Empty reply from dive assistant.");
   } catch (e) {
@@ -109,6 +118,11 @@ export async function generateDivePlan(params: {
   const startDate = params.startDate?.trim() || "Day 1";
   const endDate = params.endDate?.trim() || (params.lengthOfStay ? params.lengthOfStay.trim() : "Day 2");
 
+  const targetDays =
+    LENGTH_OF_STAY_OPTIONS.find(
+      (o) => o.value === params.lengthOfStay || o.label === params.lengthOfStay
+    )?.days || 2;
+
   const normalizedParams = {
     destination,
     startDate,
@@ -118,15 +132,19 @@ export async function generateDivePlan(params: {
     interests,
     budget,
     lengthOfStay: params.lengthOfStay || `${startDate} - ${endDate}`,
+    targetDays,
     activities: diveType,
     groupSize: divers,
   };
 
   try {
-    const data = await invokeProxy<{ reply?: string }>({
+    const data = await invokeProxy<ProxyAIResponse>({
       type: "planner",
       params: normalizedParams,
     });
+    if (data?.provider && data.provider !== "gemini") {
+      console.info(`[SINSAY Planner] Handled by provider: ${data.provider}`);
+    }
     if (data?.reply) return data.reply;
     throw new Error("Empty reply from dive planner.");
   } catch (e) {
@@ -142,7 +160,7 @@ function getMockChatReply(_userMessage: string): string {
   const replies = [
     "Great question! Anilao is one of the best dive spots in Mabini with excellent coral reefs and macro life. The best time to dive is early morning when visibility is at its peak.",
     "For safety tips: always check your equipment before diving, never dive alone, and make sure to ascend slowly. The maximum recommended depth for recreational divers is 18-30 meters depending on your certification level.",
-    "The marine life in Mabini includes sea turtles, nudibranchs, frogfish, and occasional whale sharks during certain seasons. The healthiest coral reefs can be found at Sombrero Island and Sepoc Beach.",
+    "The marine life in Mabini includes sea turtles, nudibranchs, frogfish, and vibrant reef fish. Premier coral reefs can be found at Cathedral Rock, Twin Rocks, and Arthur's Rock.",
     "To get your Eco-Dive ID, you'll need to complete your diver profile on the SINSAY app. You'll need to provide your personal details, emergency contact, and certification proof if you're a certified diver.",
   ];
   return replies[Math.floor(Math.random() * replies.length)];
@@ -167,9 +185,9 @@ function getMockPlan(params: {
     `Day 1:\n` +
     `  • 08:00 - Morning dive at Cathedral Rock\n` +
     `  • 12:00 - Lunch break at resort\n` +
-    `  • 14:00 - Reef exploration at Sombrero Island\n\n` +
+    `  • 14:00 - Reef exploration at Twin Rocks\n\n` +
     `Day 2:\n` +
-    `  • 07:00 - Sunrise dive at Sepoc Beach\n` +
+    `  • 07:00 - Sunrise dive at Arthur's Rock\n` +
     `  • 11:00 - Marine life photography session\n` +
     `  • 15:00 - Departure\n\n` +
     (params.interests.trim() ? `Special interests noted: ${params.interests}\n\n` : "") +
