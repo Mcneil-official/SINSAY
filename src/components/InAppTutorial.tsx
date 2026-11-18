@@ -122,7 +122,8 @@ function getElementViewportRect(targetId: string): TargetRect | null {
   if (typeof document === "undefined") return null;
   const el =
     document.getElementById(targetId) ||
-    document.querySelector(`[data-testid="${targetId}"]`);
+    document.querySelector(`[data-testid="${targetId}"]`) ||
+    document.querySelector(`[nativeid="${targetId}"]`);
   if (!el) return null;
   const rect = el.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return null;
@@ -137,6 +138,7 @@ function getElementViewportRect(targetId: string): TargetRect | null {
 export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
   const { isTutorialActive, dismissTutorial } = useTutorial();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [measuredCardHeight, setMeasuredCardHeight] = useState<number>(205);
 
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -164,7 +166,7 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
         currentStep.target === "top-bar" ||
         currentStep.target === "kpi-stats"
       ) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: 0, behavior: "instant" as any });
       }
     }
 
@@ -188,7 +190,9 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
 
     measure();
     const raf = requestAnimationFrame(measure);
-    const timer = setTimeout(measure, 50);
+    const timer1 = setTimeout(measure, 40);
+    const timer2 = setTimeout(measure, 120);
+    const timer3 = setTimeout(measure, 260);
 
     if (typeof window !== "undefined") {
       window.addEventListener("resize", measure);
@@ -197,7 +201,9 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
 
     return () => {
       cancelAnimationFrame(raf);
-      clearTimeout(timer);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
       if (typeof window !== "undefined") {
         window.removeEventListener("resize", measure);
         window.removeEventListener("scroll", measure, true);
@@ -415,18 +421,21 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
   ]);
 
   // Card position calculations
-  const cardWidth = Math.min(containerWidth - 36, 335);
-  const cardLeft = Math.max(
-    containerLeft + 18,
-    Math.min(
-      containerLeft + containerWidth - cardWidth - 18,
-      spotlight.caretX - cardWidth / 2,
-    ),
-  );
+  const cardWidth = Math.min(containerWidth - 24, 340);
+  const minCardLeft = containerLeft + 10;
+  const maxCardLeft = containerLeft + containerWidth - cardWidth - 10;
+  const targetCardLeft = spotlight.caretX - cardWidth / 2;
+  const cardLeft = Math.max(minCardLeft, Math.min(maxCardLeft, targetCardLeft));
+
   const caretRelativeX = Math.max(
-    22,
-    Math.min(cardWidth - 22, spotlight.caretX - cardLeft),
+    20,
+    Math.min(cardWidth - 20, spotlight.caretX - cardLeft),
   );
+
+  const cardTop =
+    currentStep.caretPosition === "top"
+      ? spotlight.top + spotlight.height + 12
+      : Math.max(safeTop + 8, spotlight.top - measuredCardHeight - 12);
 
   const handleNext = () => {
     if (isLastStep) {
@@ -502,11 +511,15 @@ export function InAppTutorial({ role = "tourist" }: InAppTutorialProps) {
             {
               width: cardWidth,
               left: cardLeft,
-              ...(currentStep.caretPosition === "top"
-                ? { top: spotlight.top + spotlight.height + 14 }
-                : { bottom: height - spotlight.top + 14 }),
+              top: cardTop,
             },
           ]}
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            if (h > 60 && Math.abs(h - measuredCardHeight) > 2) {
+              setMeasuredCardHeight(h);
+            }
+          }}
           accessibilityRole="alert"
           accessibilityLabel={`${currentStep.title}, step ${currentStepIndex + 1} of ${totalSteps}`}
         >

@@ -135,6 +135,7 @@ export default function BottomNav({
       <TouchableOpacity
         key={route.key}
         testID={tutorialId}
+        {...({ id: tutorialId } as any)}
         onPress={onPress}
         style={[
           isFocused ? styles.activeTab : styles.inactiveTab,

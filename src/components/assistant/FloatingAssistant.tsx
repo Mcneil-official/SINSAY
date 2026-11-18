@@ -252,6 +252,7 @@ export function FloatingAssistant() {
       {!hideFloatingTrigger && (mode === "closed" || mode === "chooser") && (
         <TouchableOpacity
           testID="tutorial-assistant-btn"
+          {...({ id: "tutorial-assistant-btn" } as any)}
           style={[styles.fab, { bottom: fabBottom, right: fabRight }]}
           onPress={handleFabPress}
           activeOpacity={0.85}

@@ -664,23 +664,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = useCallback(
     async (email: string, password: string, fullName: string) => {
+      const trimmedEmail = email.trim();
+      const trimmedName = fullName.trim();
       const emailRedirectTo =
         typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: trimmedEmail,
         password,
         options: {
-          data: { full_name: fullName },
+          data: { full_name: trimmedName },
           ...(emailRedirectTo ? { emailRedirectTo } : {}),
         },
       });
       if (error) return { error: error.message };
       if (data.user?.id) {
         markFirstTimeTutorialPending(data.user.id);
-        await supabase
-          .from("tourists")
-          .update({ onboarding_completed: false })
-          .eq("id", data.user.id);
+        try {
+          await supabase
+            .from("tourists")
+            .update({ onboarding_completed: false })
+            .eq("id", data.user.id);
+        } catch {
+          // Non-blocking update
+        }
       }
       return {};
     },
