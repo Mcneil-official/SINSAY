@@ -49,7 +49,7 @@ export default function FloatingFeedbackPrompt({
 
   // Check eligibility and start timer on eligible screens
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     let isCancelled = false;
 
     async function checkEligibility() {
@@ -263,7 +263,11 @@ export default function FloatingFeedbackPrompt({
 
 const styles = StyleSheet.create({
   overlayRoot: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 999,
   },
   card: {

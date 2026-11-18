@@ -363,6 +363,16 @@ export default function LoginPage() {
           }));
           return;
         }
+        if (/database error/i.test(authError)) {
+          setError(
+            "Database error saving new user. Please ensure migration 078 has been applied in Supabase, or try logging in."
+          );
+          showToast(
+            "Database error saving new user. Please ensure migration 078 has been applied in Supabase.",
+            { tone: "error", duration: 6000 }
+          );
+          return;
+        }
         setError(authError);
         return;
       }
