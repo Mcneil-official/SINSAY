@@ -229,7 +229,7 @@ export default function FloatingFeedbackPrompt({
 
         {/* Subtitle Body Description */}
         <Text style={styles.bodyText}>
-          Tell us what you think of this pilot release. It only takes 2 minutes to share your thoughts.
+          Tell us what you think of SINSAY. It only takes 2 minutes to share your thoughts.
         </Text>
 
         {/* Action Button Row */}
