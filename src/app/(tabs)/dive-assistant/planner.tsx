@@ -98,7 +98,7 @@ function parsePlan(
     return {
       summary: {
         experienceLevel: raw.summary?.experienceLevel || inputs.activity,
-        duration: raw.summary?.duration || inputs.lengthOfStay,
+        duration: inputs.lengthOfStay,
         interest: raw.summary?.interest || inputs.activity,
         overview:
           raw.summary?.overview ||
@@ -270,12 +270,14 @@ export default function PlannerScreen() {
     const lengthLabel =
       LENGTH_OF_STAY_OPTIONS.find((o) => o.value === lengthOfStay)?.label ||
       lengthOfStay;
+    const targetDays = parseLengthOfStayDays(lengthLabel);
 
     const geminiPromise = generateDivePlan({
       budget: budget.trim(),
       groupSize: groupSize.trim(),
       activities: activityLabel,
       lengthOfStay: lengthLabel,
+      targetDays,
       destination: "Anilao, Mabini, Batangas",
     });
 
@@ -317,8 +319,8 @@ export default function PlannerScreen() {
           activity: activityLabel,
           groupSize: groupSize.trim(),
         });
-      const targetDays = parseLengthOfStayDays(lengthLabel);
       parsed.days = alignPlanDays(parsed.days, targetDays);
+      parsed.summary.duration = lengthLabel;
       parsed.days = sanitizePlanActivities(parsed.days);
       parsed.sites = resolvePlannerSites(
         parsed.sites,

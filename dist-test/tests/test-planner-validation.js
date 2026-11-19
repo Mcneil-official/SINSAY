@@ -65,6 +65,8 @@ check("parses length of stay options to exact target day counts", () => {
     assertEqual((0, plannerSites_1.parseLengthOfStayDays)("1 Week (7 Days)"), 7);
     assertEqual((0, plannerSites_1.parseLengthOfStayDays)("1-week"), 7);
     assertEqual((0, plannerSites_1.parseLengthOfStayDays)("7"), 7);
+    assertEqual((0, plannerSites_1.parseLengthOfStayDays)("7 days"), 7);
+    assertEqual((0, plannerSites_1.parseLengthOfStayDays)("7 day plan"), 7);
     assertEqual((0, plannerSites_1.parseLengthOfStayDays)("Extended Stay (8+ Days)"), 10);
     assertEqual((0, plannerSites_1.parseLengthOfStayDays)("extended"), 10);
 });
@@ -121,6 +123,36 @@ check("alignPlanDays pads under-generation up to exact target days (e.g. 2 days 
     assertEqual(aligned[2].activities.length > 0, true);
     assertEqual(aligned[3].activities.length > 0, true);
     assertEqual(aligned[4].activities.length > 0, true);
+});
+check("alignPlanDays expands 3-day AI output to exact 7-day user request", () => {
+    const threeDays = [
+        {
+            day: 1,
+            title: "Day 1",
+            activities: [
+                { period: "Morning", time: "08:00", title: "Act 1", details: "Det 1" },
+            ],
+        },
+        {
+            day: 2,
+            title: "Day 2",
+            activities: [
+                { period: "Morning", time: "08:00", title: "Act 2", details: "Det 2" },
+            ],
+        },
+        {
+            day: 3,
+            title: "Day 3",
+            activities: [
+                { period: "Morning", time: "08:00", title: "Act 3", details: "Det 3" },
+            ],
+        },
+    ];
+    const aligned = (0, plannerSites_1.alignPlanDays)(threeDays, 7);
+    assertEqual(aligned.length, 7);
+    assertEqual(JSON.stringify(aligned.map((d) => d.day)), JSON.stringify([1, 2, 3, 4, 5, 6, 7]));
+    assertEqual(aligned[6].day, 7);
+    assertEqual(aligned[6].activities.length > 0, true);
 });
 // ---------------------------------------------------------------------------
 // 3. Geographic Boundary Detection Tests (Excluding Tingloy LGU)

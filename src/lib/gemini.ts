@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { parseLengthOfStayDays } from "./plannerSites";
 
 // Mock replies exist ONLY for explicit offline demos:
 // set EXPO_PUBLIC_USE_MOCK_AI=1 to use them. Otherwise backend failures
@@ -107,6 +108,7 @@ export async function generateDivePlan(params: {
   diveType?: string;
   activities?: string;
   lengthOfStay?: string;
+  targetDays?: number;
   interests?: string;
   budget?: string;
 }): Promise<string> {
@@ -119,9 +121,12 @@ export async function generateDivePlan(params: {
   const endDate = params.endDate?.trim() || (params.lengthOfStay ? params.lengthOfStay.trim() : "Day 2");
 
   const targetDays =
+    params.targetDays ||
     LENGTH_OF_STAY_OPTIONS.find(
       (o) => o.value === params.lengthOfStay || o.label === params.lengthOfStay
-    )?.days || 2;
+    )?.days ||
+    parseLengthOfStayDays(params.lengthOfStay || "") ||
+    2;
 
   const normalizedParams = {
     destination,
