@@ -58,7 +58,8 @@ Use exactly this shape:
   "budgetTotal": 5000
 }
 CRITICAL DURATION RULE:
-- The 'days' array MUST contain EXACTLY the number of day objects requested (e.g., if a 1-day trip is requested, there must be exactly 1 day object; if 3 days are requested, there must be exactly 3 day objects; if 5 days are requested, exactly 5 day objects). Do NOT output more or fewer days.
+- The 'days' array MUST contain EXACTLY the number of day objects requested (e.g., if a 1-day trip is requested, exactly 1 day object; if 3 days are requested, exactly 3 day objects; if 5 days are requested, exactly 5 day objects; if 7 days are requested, exactly 7 day objects; if 10 days are requested, exactly 10 day objects).
+- Every single day from Day 1 to Day N must be present in the 'days' array, each with its own morning, afternoon, and evening activities. Do NOT summarize, combine days, or skip days.
 
 STRICT MABINI GEOGRAPHIC BOUNDARY:
 - SINSAY is strictly for the Municipality of Mabini (Anilao), Batangas, Philippines.
@@ -171,7 +172,8 @@ async function callGemini(contents: unknown, systemInstruction: string): Promise
 async function callGroq(
   messages: { role: string; content: string }[],
   temperature = 0.6,
-  responseFormat?: { type: "json_object" }
+  responseFormat?: { type: "json_object" },
+  maxTokens = 2048
 ): Promise<string> {
   if (!GROQ_API_KEY) {
     throw new Error("Groq API key not configured");
@@ -181,7 +183,7 @@ async function callGroq(
     model: GROQ_MODEL,
     messages,
     temperature,
-    max_tokens: 1024,
+    max_tokens: maxTokens,
   };
   if (responseFormat) {
     body.response_format = responseFormat;
@@ -318,14 +320,25 @@ Deno.serve(async (req: Request) => {
 
     if (type === "planner") {
       const { params } = body;
-      const targetDays = Number(params.targetDays) || (
-        params.lengthOfStay?.includes("1") ? 1 :
-        params.lengthOfStay?.includes("2") ? 2 :
-        params.lengthOfStay?.includes("3") ? 3 :
-        params.lengthOfStay?.includes("4") || params.lengthOfStay?.includes("5") ? 5 :
-        params.lengthOfStay?.includes("7") || params.lengthOfStay?.toLowerCase().includes("week") ? 7 :
-        params.lengthOfStay?.toLowerCase().includes("extended") ? 10 : 2
-      );
+      const rawStay = String(params.lengthOfStay || params.duration || "").toLowerCase();
+      let targetDays = Number(params.targetDays);
+      if (!targetDays || isNaN(targetDays)) {
+        if (rawStay.includes("1-week") || rawStay.includes("7") || rawStay.includes("week")) {
+          targetDays = 7;
+        } else if (rawStay.includes("extended") || rawStay.includes("10") || rawStay.includes("8")) {
+          targetDays = 10;
+        } else if (rawStay.includes("4-5") || rawStay.includes("4–5") || rawStay.includes("5") || rawStay.includes("4")) {
+          targetDays = 5;
+        } else if (rawStay.includes("3-day") || rawStay.includes("3 days") || rawStay.includes("long weekend") || rawStay.includes("3")) {
+          targetDays = 3;
+        } else if (rawStay.includes("2-day") || rawStay.includes("2 days") || rawStay.includes("weekend") || rawStay.includes("2")) {
+          targetDays = 2;
+        } else if (rawStay.includes("1-day") || rawStay.includes("1 day") || rawStay.includes("day trip") || rawStay.includes("1")) {
+          targetDays = 1;
+        } else {
+          targetDays = 2;
+        }
+      }
       const prompt = `Create the JSON dive trip plan requested by your instructions using these details:
 - Destination: ${params.destination} (Strictly within the Municipality of Mabini / Anilao, Batangas)
 - Duration: ${params.lengthOfStay || `${params.startDate} to ${params.endDate}`} (EXACTLY ${targetDays} day(s))
@@ -335,11 +348,11 @@ Deno.serve(async (req: Request) => {
 - Special interests: ${params.interests || "None"}
 
 CRITICAL REQUIREMENTS:
-1. EXACT DURATION: Your JSON 'days' array MUST contain EXACTLY ${targetDays} day object(s) (Day 1 through Day ${targetDays}). Do NOT produce more or fewer days.
+1. EXACT DURATION: Your JSON 'days' array MUST contain EXACTLY ${targetDays} day object(s) (numbered day: 1 through day: ${targetDays}). You MUST detail every day from Day 1 to Day ${targetDays} with Morning, Afternoon, and Evening activities. Do NOT stop early, summarize, or produce fewer days than ${targetDays}.
 2. MABINI GOVERNANCE: All dive sites and activities must be located strictly within the Municipality of Mabini, Batangas. Do NOT select dive sites in Tingloy (e.g. Sombrero Island, Sepoc Beach, Maricaban Island, Caban Island, Beatrice Rock, Mapating Rock) as Tingloy is under separate municipal governance from Mabini. Do NOT select dive sites in Puerto Galera or elsewhere.
 Choose exclusively from authentic Mabini dive sites: Cathedral Rock, Twin Rocks, Arthur's Rock, Kirby's Rock, Mainit Point, Secret Bay, Koala, Ligpo Island, Cabancal, Bethlehem, Bahura, Eagle Point, Dive-and-Trek, Balanoy, Red Rock.
 
-Generate a complete day-by-day itinerary. Keep paid activities within the stated budget where one is given.`;
+Generate a complete day-by-day itinerary with all ${targetDays} days. Keep paid activities within the stated budget where one is given.`;
 
       const contents = [{ role: "user", parts: [{ text: prompt }] }];
       let reply = "";
@@ -355,7 +368,7 @@ Generate a complete day-by-day itinerary. Keep paid activities within the stated
               { role: "system", content: PLANNER_SYSTEM },
               { role: "user", content: prompt },
             ];
-            reply = await callGroq(groqMessages, 0.3, { type: "json_object" });
+            reply = await callGroq(groqMessages, 0.3, { type: "json_object" }, 4096);
             provider = "groq";
           } else {
             throw geminiErr;
@@ -366,7 +379,7 @@ Generate a complete day-by-day itinerary. Keep paid activities within the stated
           { role: "system", content: PLANNER_SYSTEM },
           { role: "user", content: prompt },
         ];
-        reply = await callGroq(groqMessages, 0.3, { type: "json_object" });
+        reply = await callGroq(groqMessages, 0.3, { type: "json_object" }, 4096);
         provider = "groq";
       }
 
