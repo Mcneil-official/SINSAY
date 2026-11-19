@@ -26,6 +26,7 @@ import {
 import { colors } from "../../../constants/colors";
 import { useAuth } from "../../../hooks/useAuth";
 import { deleteDraft, saveDraft } from "../../../lib/manifestDrafts";
+import { FilterableOption, resolveManifestDiveSiteLinks } from "../../../lib/comboboxFilter";
 import { toDbPhPhone, toLocalPhDigits } from "../../../lib/phone";
 import { supabase } from "../../../lib/supabase";
 
@@ -305,9 +306,9 @@ export default function CreateManifestStep1() {
     setLocations(locations.filter((_, i) => i !== index));
   };
 
-  const [diveSiteOptions, setDiveSiteOptions] = useState<
-    { label: string; value: string }[]
-  >(FALLBACK_MABINI_DIVE_SITES);
+  const [diveSiteOptions, setDiveSiteOptions] = useState<FilterableOption[]>(
+    FALLBACK_MABINI_DIVE_SITES,
+  );
   const [diveSitesLoading, setDiveSitesLoading] = useState(true);
   const [diveSitesError, setDiveSitesError] = useState(false);
   const [diveSitesReloadKey, setDiveSitesReloadKey] = useState(0);
@@ -481,6 +482,7 @@ export default function CreateManifestStep1() {
                 !site.status || site.status.toLowerCase() !== "restricted",
             )
             .map((site) => ({
+              id: site.id,
               label: site.barangay
                 ? `${site.name} · ${site.barangay}`
                 : site.name,
@@ -1118,6 +1120,10 @@ export default function CreateManifestStep1() {
         tourist_id: d.touristId || null,
         is_walk_in: d.isWalkIn,
       }));
+      const { primaryDiveSiteId, diveSiteIds } = resolveManifestDiveSiteLinks(
+        diveSiteOptions,
+        validLocations,
+      );
       const { data: rpcData, error: rpcError } = await supabase.rpc(
         "create_manifest_with_divers",
         {
@@ -1143,6 +1149,8 @@ export default function CreateManifestStep1() {
           p_crew_members: isBoatDive ? validCrewMembers : [],
           p_dive_masters: diveMasters.filter((dm) => dm.trim().length > 0),
           p_locations: validLocations,
+          p_dive_site_id: primaryDiveSiteId,
+          p_dive_site_ids: diveSiteIds,
         },
       );
 

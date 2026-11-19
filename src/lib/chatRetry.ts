@@ -116,3 +116,41 @@ export function consumeRetryTarget(
 
   return { remainingMessages: messages, promptToRetry: null };
 }
+
+/**
+ * Determines whether an error from the primary Gemini model should trigger a Groq failover.
+ * Covers 503 (Model overloaded), 500, 429, timeouts, and network connection drops.
+ */
+export function shouldFailoverToGroq(error: unknown): boolean {
+  if (!error) return false;
+  const str =
+    error instanceof Error ? `${error.name} ${error.message}` : String(error);
+  return /503|overloaded|unavailable|timeout|500|internal|429|rate limit|failed to fetch|network/i.test(
+    str
+  );
+}
+
+/**
+ * Transforms conversation history and prompt into standard OpenAI/Groq message format.
+ */
+export function transformGeminiContentsToOpenAIMessages(
+  history: { role: string; text: string }[],
+  userMessage: string,
+  systemInstruction?: string
+): { role: "system" | "user" | "assistant"; content: string }[] {
+  const messages: { role: "system" | "user" | "assistant"; content: string }[] =
+    [];
+  if (systemInstruction && systemInstruction.trim()) {
+    messages.push({ role: "system", content: systemInstruction.trim() });
+  }
+  for (const m of history) {
+    const role =
+      m.role === "assistant" || m.role === "model" ? "assistant" : "user";
+    messages.push({ role, content: m.text });
+  }
+  if (userMessage && userMessage.trim()) {
+    messages.push({ role: "user", content: userMessage.trim() });
+  }
+  return messages;
+}
+

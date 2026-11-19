@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.classifyChatError = classifyChatError;
 exports.buildSanitizedChatHistory = buildSanitizedChatHistory;
 exports.consumeRetryTarget = consumeRetryTarget;
+exports.shouldFailoverToGroq = shouldFailoverToGroq;
+exports.transformGeminiContentsToOpenAIMessages = transformGeminiContentsToOpenAIMessages;
 const NETWORK_ERROR_REGEX = /failed to fetch|network|offline|functionsfetcherror|failed to send a request|load failed|timeout|err_internet_disconnected|connection lost/i;
 const RATE_LIMIT_REGEX = /429|rate limit|too many requests/i;
 /**
@@ -68,4 +70,31 @@ function consumeRetryTarget(messages, targetMessageId) {
         return { remainingMessages, promptToRetry: prompt };
     }
     return { remainingMessages: messages, promptToRetry: null };
+}
+/**
+ * Determines whether an error from the primary Gemini model should trigger a Groq failover.
+ * Covers 503 (Model overloaded), 500, 429, timeouts, and network connection drops.
+ */
+function shouldFailoverToGroq(error) {
+    if (!error)
+        return false;
+    const str = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+    return /503|overloaded|unavailable|timeout|500|internal|429|rate limit|failed to fetch|network/i.test(str);
+}
+/**
+ * Transforms conversation history and prompt into standard OpenAI/Groq message format.
+ */
+function transformGeminiContentsToOpenAIMessages(history, userMessage, systemInstruction) {
+    const messages = [];
+    if (systemInstruction && systemInstruction.trim()) {
+        messages.push({ role: "system", content: systemInstruction.trim() });
+    }
+    for (const m of history) {
+        const role = m.role === "assistant" || m.role === "model" ? "assistant" : "user";
+        messages.push({ role, content: m.text });
+    }
+    if (userMessage && userMessage.trim()) {
+        messages.push({ role: "user", content: userMessage.trim() });
+    }
+    return messages;
 }

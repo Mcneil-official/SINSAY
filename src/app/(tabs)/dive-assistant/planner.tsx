@@ -39,7 +39,15 @@ import {
   saveDiveItinerary,
 } from "../../../lib/savedItineraries";
 import { supabase } from "../../../lib/supabase";
-import { resolvePlannerSites, PlannerSite } from "../../../lib/plannerSites";
+import {
+  resolvePlannerSites,
+  PlannerSite,
+  validatePlannerBudget,
+  MIN_PLANNER_BUDGET,
+  sanitizePlanActivities,
+  parseLengthOfStayDays,
+  alignPlanDays,
+} from "../../../lib/plannerSites";
 
 const stripMarkdown = (s: string) =>
   s
@@ -138,18 +146,23 @@ function fallbackPlan(inputs: {
   const stayDays =
     LENGTH_OF_STAY_OPTIONS.find(
       (o) => o.value === inputs.lengthOfStay || o.label === inputs.lengthOfStay
-    )?.days || 1;
+    )?.days || parseLengthOfStayDays(inputs.lengthOfStay);
 
   const days: PlanDay[] = [];
-  for (let d = 1; d <= Math.min(stayDays, 3); d++) {
+  for (let d = 1; d <= stayDays; d++) {
     days.push({
       day: d,
-      title: d === 1 ? "Orientation and reef discovery" : `Day ${d} Guided dive & exploration`,
+      title:
+        d === 1
+          ? "Orientation and reef discovery"
+          : d === stayDays
+          ? "Final dives & Mabini conservation review"
+          : `Day ${d} Guided dive & exploration`,
       activities: [
         {
           period: "Morning",
           time: "08:00",
-          title: d === 1 ? "Briefing and first dive" : "Morning boat dive",
+          title: d === 1 ? "Briefing and first dive" : `Morning dive - Day ${d}`,
           details: "Review conditions, buddy checks, and entry points with your operator.",
         },
         {
@@ -184,14 +197,18 @@ function fallbackPlan(inputs: {
     budgetBreakdown: [
       {
         label: "Guide and boat estimate",
-        amount: Math.round(Number(inputs.budget || 0) * 0.7),
+        amount: Math.round(
+          Math.max(Number(inputs.budget) || MIN_PLANNER_BUDGET, MIN_PLANNER_BUDGET) * 0.7
+        ),
       },
       {
         label: "Fees and surface costs",
-        amount: Math.round(Number(inputs.budget || 0) * 0.3),
+        amount: Math.round(
+          Math.max(Number(inputs.budget) || MIN_PLANNER_BUDGET, MIN_PLANNER_BUDGET) * 0.3
+        ),
       },
     ],
-    budgetTotal: Number(inputs.budget) || 0,
+    budgetTotal: Math.max(Number(inputs.budget) || MIN_PLANNER_BUDGET, MIN_PLANNER_BUDGET),
   };
 }
 
@@ -224,8 +241,9 @@ export default function PlannerScreen() {
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!budget.trim() || isNaN(Number(budget)) || Number(budget) < 1) {
-      errs.budget = "Enter a valid budget";
+    const budgetErr = validatePlannerBudget(budget);
+    if (budgetErr) {
+      errs.budget = budgetErr;
     }
     if (!groupSize.trim() || !/^\d+$/.test(groupSize.trim()) || Number(groupSize) < 1) {
       errs.groupSize = "Whole number, at least 1";
@@ -299,6 +317,9 @@ export default function PlannerScreen() {
           activity: activityLabel,
           groupSize: groupSize.trim(),
         });
+      const targetDays = parseLengthOfStayDays(lengthLabel);
+      parsed.days = alignPlanDays(parsed.days, targetDays);
+      parsed.days = sanitizePlanActivities(parsed.days);
       parsed.sites = resolvePlannerSites(
         parsed.sites,
         (sitesResult.data || []).filter((site) => site.status !== "Restricted")
@@ -461,9 +482,14 @@ export default function PlannerScreen() {
 
                 <TextInput
                   label="Budget (PHP)"
-                  placeholder="e.g. 5000"
+                  placeholder="e.g. 5000 (min. ₱1,000)"
                   value={budget}
-                  onChangeText={setBudget}
+                  onChangeText={(val) => {
+                    setBudget(val);
+                    if (errors.budget) {
+                      setErrors((prev) => ({ ...prev, budget: "" }));
+                    }
+                  }}
                   keyboardType="numeric"
                   error={errors.budget}
                 />

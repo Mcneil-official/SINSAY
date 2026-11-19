@@ -31,6 +31,11 @@ export interface Database {
         Insert: DiveManifestInsert;
         Update: DiveManifestUpdate;
       };
+      manifest_dive_sites: {
+        Row: ManifestDiveSiteRow;
+        Insert: ManifestDiveSiteInsert;
+        Update: ManifestDiveSiteUpdate;
+      };
       manifest_divers: {
         Row: ManifestDiverRow;
         Insert: ManifestDiverInsert;
@@ -283,6 +288,7 @@ export type PaymentTransactionUpdate = Partial<PaymentTransactionInsert>;
 export interface DiveManifestRow {
   id: string;
   operator_id: string;
+  dive_site_id?: string | null;
   dive_type: string;
   dive_mode: string;
   location: string;
@@ -306,6 +312,18 @@ export interface DiveManifestRow {
 
 export type DiveManifestInsert = Partial<DiveManifestRow> & Pick<DiveManifestRow, "operator_id" | "dive_type" | "dive_mode" | "location" | "difficulty">;
 export type DiveManifestUpdate = Partial<DiveManifestInsert>;
+
+export interface ManifestDiveSiteRow {
+  id: string;
+  manifest_id: string;
+  dive_site_id: string;
+  stop_order: number;
+  created_at: string;
+}
+
+export type ManifestDiveSiteInsert = Partial<ManifestDiveSiteRow> &
+  Pick<ManifestDiveSiteRow, "manifest_id" | "dive_site_id">;
+export type ManifestDiveSiteUpdate = Partial<ManifestDiveSiteInsert>;
 
 export interface ManifestDiverRow {
   id: string;
