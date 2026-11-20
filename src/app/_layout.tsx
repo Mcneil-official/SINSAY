@@ -18,6 +18,7 @@ import {
   FloatingFeedbackPrompt,
   NotificationsModal,
   OperatorApprovalModal,
+  OperatorRejectionModal,
   WebSafeInsetsNormalizer,
 } from "../components";
 import AppShell from "../components/AppShell";
@@ -71,6 +72,7 @@ function RootLayoutInner() {
           onClose={closeAnnouncementModal}
         />
         <OperatorApprovalModal />
+        <OperatorRejectionModal />
         <FloatingFeedbackPrompt />
       </AppShell>
     </View>

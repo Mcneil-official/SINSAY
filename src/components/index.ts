@@ -47,6 +47,7 @@ export { InAppTutorial } from "./InAppTutorial";
 export { ResortLogoBadge, getResortInitials } from "./ResortLogoBadge";
 export { ResortProfileHero } from "./ResortProfileHero";
 export { OperatorApprovalModal, getOperatorApprovalSeenKey } from "./OperatorApprovalModal";
+export { OperatorRejectionModal, getOperatorRejectionSeenKey } from "./OperatorRejectionModal";
 export { HeaderLanguageToggle } from "./HeaderLanguageToggle";
 export { SearchableCombobox } from "./SearchableCombobox";
 export type { ComboboxOption } from "./SearchableCombobox";
