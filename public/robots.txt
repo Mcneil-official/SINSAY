@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /dive-sites
+Allow: /establishments
+Disallow: /auth/
+Disallow: /(operator-tabs)/
+Disallow: /establishment/
+
+Sitemap: https://sinsay-mabini.techsite.live/sitemap.xml
