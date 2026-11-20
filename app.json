@@ -84,7 +84,7 @@
     },
     "extra": {
       "router": {
-        "origin": "https://sinsay-prod.vercel.app"
+        "origin": "https://sinsay-mabini.techsite.live"
       },
       "eas": {
         "projectId": "e43b1547-7151-48a5-8d42-b9f26a471404"
