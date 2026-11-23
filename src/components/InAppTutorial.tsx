@@ -33,7 +33,7 @@ const TOURIST_STEPS: TutorialStep[] = [
   {
     title: "Welcome to SINSAY",
     description:
-      "Explore Mabini's world-class diving. Check notifications for live marine sanctuary advisories, weather, and municipal notices.",
+      "Explore Mabini's world-class diving. Check notifications for live marine sanctuary advisories and municipal notices.",
     icon: "notifications",
     target: "top-bar",
     caretPosition: "top",
@@ -41,7 +41,7 @@ const TOURIST_STEPS: TutorialStep[] = [
   {
     title: "Explore Dive Sites & MPAs",
     description:
-      "Browse 30+ official dive spots across Mabini. Check depth, coordinates, marine biodiversity, and sanctuary protection levels.",
+      "Browse 24 official dive spots across Mabini. Check depth, coordinates, marine biodiversity, and sanctuary protection levels.",
     icon: "map",
     target: "map-tab",
     caretPosition: "bottom",
@@ -57,7 +57,7 @@ const TOURIST_STEPS: TutorialStep[] = [
   {
     title: "AI Dive Assistant",
     description:
-      "Powered by Gemini AI. Tap anytime to ask about marine life, MPA sanctuary fees, local dive rules, or generate custom dive plans.",
+      "Powered by Gemini AI. Tap anytime to ask about marine life, MPA sanctuary, local dive rules, or generate custom dive plans.",
     icon: "sparkles",
     target: "assistant-btn",
     caretPosition: "bottom",

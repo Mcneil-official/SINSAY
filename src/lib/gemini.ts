@@ -161,7 +161,14 @@ export async function generateDivePlan(params: {
   }
 }
 
-function getMockChatReply(_userMessage: string): string {
+export function getMockChatReply(userMessage: string): string {
+  if (
+    /sinsay.*(mean|meaning|ibig sabihin|ano)|(mean|meaning|ibig sabihin).*sinsay/i.test(
+      userMessage
+    )
+  ) {
+    return "SINSAY is a traditional Batangueño word that means 'to drop by' or 'to visit'. It invites divers and tourists to drop by Mabini, Batangas and experience its world-class dive sites and marine sanctuaries!";
+  }
   const replies = [
     "Great question! Anilao is one of the best dive spots in Mabini with excellent coral reefs and macro life. The best time to dive is early morning when visibility is at its peak.",
     "For safety tips: always check your equipment before diving, never dive alone, and make sure to ascend slowly. The maximum recommended depth for recreational divers is 18-30 meters depending on your certification level.",
