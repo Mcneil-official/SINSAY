@@ -3,7 +3,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { ConfirmModal, ContentContainer, Dropdown, TextInput } from "../components";
+import { ConfirmModal, ContentContainer, Dropdown, TextInput, resolveMediaUrl } from "../components";
 import { colors } from "../constants/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../hooks/useAuth";
@@ -16,7 +16,7 @@ import { detectTravelPlatform, PLATFORM_NAMES, normalizeTravelUrl } from "../com
 
 type Photo = { uri: string; path: string | null; file?: DocumentPicker.DocumentPickerAsset };
 type EditorTab = "resort" | "photos" | "account";
-const publicUrl = (path?: string | null) => path ? supabase.storage.from("operator_media").getPublicUrl(path).data.publicUrl : "";
+const publicUrl = (path?: string | null) => (path ? resolveMediaUrl(path) || "" : "");
 
 const PLATFORM_OPTIONS: { label: string; value: BookingPlatformType }[] = [
   { label: "Facebook", value: "messenger" },

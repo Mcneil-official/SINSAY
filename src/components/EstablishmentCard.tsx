@@ -1,29 +1,24 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "../constants/colors";
-import { supabase } from "../lib/supabase";
+import {
+  EstablishmentMediaInput,
+  ResolvedEstablishmentMedia,
+  resolveEstablishmentMedia,
+  resolveMediaUrl,
+} from "../lib/establishmentMedia";
 import { ResortLogoBadge } from "./ResortLogoBadge";
+
+export {
+  EstablishmentMediaInput,
+  ResolvedEstablishmentMedia,
+  resolveEstablishmentMedia,
+  resolveMediaUrl,
+};
 
 const PCSSD_LOGO = require("../../assets/logo-pcssd.png");
 const DOT_LOGO = require("../../assets/logo-dot.png");
-
-export function resolveEstablishmentMedia(est: {
-  cover_image_paths?: string[] | null;
-  image_url?: string | null;
-  operator_avatar_path?: string | null;
-  logo_url?: string | null;
-}): { imageUrl: string | null; logoUrl: string | null } {
-  const imageUrl = est.cover_image_paths?.[0]
-    ? supabase.storage.from("operator_media").getPublicUrl(est.cover_image_paths[0]).data.publicUrl
-    : est.image_url || null;
-
-  const logoUrl = est.operator_avatar_path
-    ? supabase.storage.from("operator_media").getPublicUrl(est.operator_avatar_path).data.publicUrl
-    : est.logo_url || null;
-
-  return { imageUrl, logoUrl };
-}
 
 const FALLBACK_RESORT_IMAGES = [
   require("../../assets/establishment-1.png"),
@@ -72,7 +67,20 @@ export function EstablishmentCard({
         accessibilityLabel={`${name}${location ? `, ${location}` : ""}`}
       >
         <View style={styles.gridImageWrap}>
-          <Image source={photoSource} style={styles.gridImage} resizeMode="cover" />
+          <View style={styles.imagePlaceholder}>
+            <ResortLogoBadge
+              name={name}
+              logoUrl={logoUrl}
+              size={44}
+              borderRadius={22}
+              fontSize={15}
+            />
+          </View>
+          <Image
+            source={photoSource}
+            style={styles.gridImage}
+            resizeMode="cover"
+          />
           {(isPcssdAccredited || isDotAccredited) && (
             <View style={styles.gridEmblemsFloating}>
               {isPcssdAccredited ? (
@@ -135,7 +143,20 @@ export function EstablishmentCard({
     >
       {/* Resort cover photograph */}
       <View style={styles.imageWrap}>
-        <Image source={photoSource} style={styles.image} resizeMode="cover" />
+        <View style={styles.imagePlaceholder}>
+          <ResortLogoBadge
+            name={name}
+            logoUrl={logoUrl}
+            size={36}
+            borderRadius={18}
+            fontSize={12}
+          />
+        </View>
+        <Image
+          source={photoSource}
+          style={styles.image}
+          resizeMode="cover"
+        />
       </View>
 
       {/* Center information column */}
@@ -223,7 +244,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: "hidden",
     backgroundColor: "#E2E8F0",
+    position: "relative",
     flexShrink: 0,
+  },
+  imagePlaceholder: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
   },
   image: {
     width: "100%",
