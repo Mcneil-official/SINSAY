@@ -27,6 +27,9 @@
       "navigationBarColor": "#00000000"
     },
     "web": {
+      "meta": {
+        "referrer": "no-referrer"
+      },
       "output": "single",
       "bundler": "metro",
       "favicon": "./public/SINSAY-favicon.png",

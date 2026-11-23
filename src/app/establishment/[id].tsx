@@ -95,12 +95,12 @@ export default function EstablishmentDetailScreen() {
         >
           <ContentContainer maxWidth={720} paddingH={16}>
             {(() => {
-              const { imageUrl, logoUrl } = resolveEstablishmentMedia(est);
+              const { imageUrl, logoUrl, allImageUrls } = resolveEstablishmentMedia(est);
               return (
                 <ResortProfileHero
                   coverImageUrls={
-                    est.cover_image_paths?.length
-                      ? est.cover_image_paths.map((path) => supabase.storage.from("operator_media").getPublicUrl(path).data.publicUrl)
+                    allImageUrls.length
+                      ? allImageUrls
                       : imageUrl
                       ? [imageUrl]
                       : []

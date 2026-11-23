@@ -103,6 +103,8 @@ if (fs.existsSync(indexPath)) {
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <!-- Allow external image links (CDNs, Facebook, Cloudinary, etc.) to load without referer blocking -->
+    <meta name="referrer" content="no-referrer" />
 
     <!-- Primary SEO Metadata -->
     <meta name="description" content="Official Eco-Dive Tourism & Conservation Pass platform for the Municipality of Mabini (Anilao, Batangas). Explore dive sites, accredited resorts, and generate smart dive itineraries." />
