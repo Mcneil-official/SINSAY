@@ -52,10 +52,12 @@ export function EstablishmentCard({
   variant = "row",
   onPress,
 }: EstablishmentCardProps) {
+  const [imageError, setImageError] = useState(false);
   const badgeLabel = accreditation?.trim() || null;
-  const photoSource = imageUrl
-    ? { uri: imageUrl }
-    : FALLBACK_RESORT_IMAGES[index % FALLBACK_RESORT_IMAGES.length];
+  const photoSource =
+    imageUrl && !imageError
+      ? { uri: imageUrl }
+      : FALLBACK_RESORT_IMAGES[index % FALLBACK_RESORT_IMAGES.length];
 
   if (variant === "grid") {
     return (
@@ -80,6 +82,7 @@ export function EstablishmentCard({
             source={photoSource}
             style={styles.gridImage}
             resizeMode="cover"
+            onError={() => setImageError(true)}
           />
           {(isPcssdAccredited || isDotAccredited) && (
             <View style={styles.gridEmblemsFloating}>
@@ -156,6 +159,7 @@ export function EstablishmentCard({
           source={photoSource}
           style={styles.image}
           resizeMode="cover"
+          onError={() => setImageError(true)}
         />
       </View>
 

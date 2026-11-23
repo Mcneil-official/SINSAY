@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const chatRetry_1 = require("../src/lib/chatRetry");
+const gemini_1 = require("../src/lib/gemini");
 let failures = 0;
 function check(name, fn) {
     try {
@@ -115,6 +116,17 @@ check("tags responses accurately by provider", () => {
     assertEqual(parseProvider({ reply: "Hi", provider: "guard" }), "guard");
     assertEqual(parseProvider({ reply: "Hi", provider: "static" }), "static");
     assertEqual(parseProvider({ reply: "Hi" }), "gemini");
+});
+// 5. Meaning of SINSAY
+check("answers meaning of SINSAY with Batangueño 'to drop by' definition", () => {
+    const reply1 = (0, gemini_1.getMockChatReply)("what does sinsay mean?");
+    if (!reply1.includes("Batangueño") || !reply1.includes("to drop by")) {
+        throw new Error(`Expected Batangueño 'to drop by' explanation, got: ${reply1}`);
+    }
+    const reply2 = (0, gemini_1.getMockChatReply)("ano ibig sabihin ng sinsay");
+    if (!reply2.includes("Batangueño") || !reply2.includes("to visit")) {
+        throw new Error(`Expected Batangueño 'to visit' explanation, got: ${reply2}`);
+    }
 });
 if (failures > 0) {
     console.error(`\n${failures} tests failed.`);

@@ -113,6 +113,18 @@ export function resolveEstablishmentMedia(
     }
   }
 
+  // Fallback: If allImageUrls is empty because all links were fbcdn links, still preserve the raw image link
+  if (allImageUrls.length === 0) {
+    const rawFallback =
+      est.photo_url ||
+      est.image_url ||
+      (Array.isArray(est.cover_image_paths) && est.cover_image_paths[0]);
+    if (rawFallback && typeof rawFallback === "string") {
+      const resolved = resolveMediaUrl(rawFallback);
+      if (resolved) allImageUrls.push(resolved);
+    }
+  }
+
   const imageUrl = allImageUrls[0] || null;
 
   const logoUrl =
