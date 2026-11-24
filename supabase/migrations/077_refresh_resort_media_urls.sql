@@ -203,3 +203,24 @@ set image_url = 'https://scontent.fcrk3-4.fna.fbcdn.net/v/t39.30808-6/486613235_
     website = 'https://blueribbondivers.com/',
     facebook = 'https://www.facebook.com/Blueribbonphilippines'
 where name ilike '%Blue Ribbon%';
+
+-- 18. Portulano Dive Resort
+update public.establishments
+set image_url = 'https://www.portulano.com/images/portulano-reef-view.jpg',
+    photo_url = 'https://www.portulano.com/images/portulano-reef-view.jpg',
+    cover_image_paths = array['https://www.portulano.com/images/portulano-reef-view.jpg'::text],
+    logo_url = null,
+    phone = '+63 917 540 4257',
+    website = 'http://www.portulano.com/',
+    facebook = 'https://www.facebook.com/portulanodiveresort'
+where name ilike '%Portulano%';
+
+-- 19. Vista Aplaya Resort
+update public.establishments
+set image_url = 'https://vistaaplayaresort.com/images/vista-aplaya-hero.jpg',
+    photo_url = 'https://vistaaplayaresort.com/images/vista-aplaya-hero.jpg',
+    cover_image_paths = array['https://vistaaplayaresort.com/images/vista-aplaya-hero.jpg'::text],
+    logo_url = null,
+    phone = '+63 917 669 1222',
+    facebook = 'https://www.facebook.com/vistaaplayaresort'
+where name ilike '%Vista Aplaya%';

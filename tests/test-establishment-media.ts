@@ -154,6 +154,21 @@ check("filters out expired fbcdn URLs in resolveEstablishmentMedia", () => {
   assertEqual(media.allImageUrls.length, 1);
 });
 
+check("falls back to authentic resort photo and logo from registry when DB URLs are expired or missing", () => {
+  const est = {
+    name: "Aiyanar Beach and Dive Resort",
+    image_url: "https://scontent.fmnl17-5.fna.fbcdn.net/expired.jpg?oe=6AF854BE",
+    logo_url: "https://scontent.fmnl17-5.fna.fbcdn.net/expired-logo.jpg?oe=6AF854BE",
+  };
+  const media = resolveEstablishmentMedia(est);
+  if (!media.imageUrl || !media.imageUrl.includes("http")) {
+    throw new Error(`Expected authentic resort photo for Aiyanar, got ${media.imageUrl}`);
+  }
+  if (!media.logoUrl || !media.logoUrl.includes("http")) {
+    throw new Error(`Expected authentic resort logo for Aiyanar, got ${media.logoUrl}`);
+  }
+});
+
 if (failures > 0) {
   throw new Error(`${failures} establishment media test(s) failed`);
 }
