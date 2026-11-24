@@ -1,3 +1,7 @@
+import {
+  getAuthenticResortLogo,
+  getAuthenticResortPhoto,
+} from "./resortMediaRegistry";
 import { supabase } from "./supabase";
 
 /**
@@ -42,6 +46,7 @@ export function resolveMediaUrl(
 }
 
 export interface EstablishmentMediaInput {
+  name?: string | null;
   cover_image_paths?: string[] | null;
   image_url?: string | null;
   photo_url?: string | null;
@@ -61,6 +66,7 @@ export interface ResolvedEstablishmentMedia {
  * - Checks image_url (the database image URL)
  * - Checks uploaded / configured cover_image_paths
  * - Checks logo_url and operator_avatar_path for the resort logo
+ * - Falls back to the Authentic Resort Media Registry for recognized Mabini resorts
  */
 /**
  * Checks if a Facebook CDN URL contains an expired signature (oe timestamp).
@@ -113,7 +119,16 @@ export function resolveEstablishmentMedia(
     }
   }
 
-  // Fallback: If allImageUrls is empty because all links were fbcdn links, still preserve the raw image link
+  // 4. Authentic Registry Fallback: If no valid non-expired image exists, use authentic resort photo
+  if (allImageUrls.length === 0 && est.name) {
+    const authenticPhoto = getAuthenticResortPhoto(est.name);
+    if (authenticPhoto) {
+      const resolved = resolveMediaUrl(authenticPhoto);
+      if (resolved) allImageUrls.push(resolved);
+    }
+  }
+
+  // 5. Final fallback to raw database strings if nothing else resolved
   if (allImageUrls.length === 0) {
     const rawFallback =
       est.photo_url ||
@@ -127,10 +142,18 @@ export function resolveEstablishmentMedia(
 
   const imageUrl = allImageUrls[0] || null;
 
-  const logoUrl =
+  // Resolve logo: avatar -> unexpired logo_url -> authentic registry logo
+  let logoUrl =
     resolveMediaUrl(est.operator_avatar_path) ||
     resolveMediaUrl(isExpiredFbcdnUrl(est.logo_url) ? null : est.logo_url) ||
     null;
+
+  if (!logoUrl && est.name) {
+    const authenticLogo = getAuthenticResortLogo(est.name);
+    if (authenticLogo) {
+      logoUrl = resolveMediaUrl(authenticLogo);
+    }
+  }
 
   return { imageUrl, logoUrl, allImageUrls };
 }

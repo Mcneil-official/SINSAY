@@ -668,7 +668,7 @@ export default function HomeScreen() {
               ) : (
                 <View style={styles.resortsGrid}>
                   {establishments.slice(0, 6).map((item, idx) => {
-                    const { imageUrl } = resolveEstablishmentMedia(item);
+                    const { imageUrl, logoUrl } = resolveEstablishmentMedia(item);
                     return (
                       <View key={item.id} style={styles.resortsGridCol}>
                         <EstablishmentCard
@@ -684,6 +684,7 @@ export default function HomeScreen() {
                             item.dot_url && item.dot_url.trim().length > 0,
                           )}
                           imageUrl={imageUrl}
+                          logoUrl={logoUrl}
                           index={idx}
                           onPress={() =>
                             router.push({

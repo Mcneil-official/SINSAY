@@ -25,6 +25,7 @@ import {
 } from "../components";
 import { colors } from "../constants/colors";
 import { safeBack } from "../lib/navigation";
+import { getAuthenticResortPhoto } from "../lib/resortMediaRegistry";
 import { supabase } from "../lib/supabase";
 import { EstablishmentRow } from "../types/supabase";
 
@@ -236,8 +237,10 @@ export default function EstablishmentsScreen() {
               >
                 {featuredResorts.map((resort, idx) => {
                   const { imageUrl } = resolveEstablishmentMedia(resort);
-                  const photoSource = imageUrl
-                    ? { uri: imageUrl }
+                  const authenticPhoto = getAuthenticResortPhoto(resort.name);
+                  const effectiveUri = imageUrl || authenticPhoto;
+                  const photoSource = effectiveUri
+                    ? { uri: effectiveUri }
                     : FALLBACK_RESORT_IMAGES[idx % FALLBACK_RESORT_IMAGES.length];
                   const hasPcssd = Boolean(resort.pcssd_url && resort.pcssd_url.trim().length > 0);
                   const hasDot = Boolean(resort.dot_url && resort.dot_url.trim().length > 0);

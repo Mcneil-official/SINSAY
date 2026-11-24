@@ -8,6 +8,10 @@ import {
   resolveEstablishmentMedia,
   resolveMediaUrl,
 } from "../lib/establishmentMedia";
+import {
+  getAuthenticResortLogo,
+  getAuthenticResortPhoto,
+} from "../lib/resortMediaRegistry";
 import { ResortLogoBadge } from "./ResortLogoBadge";
 
 export {
@@ -54,10 +58,17 @@ export function EstablishmentCard({
 }: EstablishmentCardProps) {
   const [imageError, setImageError] = useState(false);
   const badgeLabel = accreditation?.trim() || null;
-  const photoSource =
-    imageUrl && !imageError
-      ? { uri: imageUrl }
-      : FALLBACK_RESORT_IMAGES[index % FALLBACK_RESORT_IMAGES.length];
+
+  const authenticPhoto = getAuthenticResortPhoto(name);
+  const authenticLogo = getAuthenticResortLogo(name);
+  const effectiveLogo = logoUrl || authenticLogo;
+
+  let photoSource = FALLBACK_RESORT_IMAGES[index % FALLBACK_RESORT_IMAGES.length];
+  if (imageUrl && !imageError) {
+    photoSource = { uri: imageUrl };
+  } else if (authenticPhoto) {
+    photoSource = { uri: authenticPhoto };
+  }
 
   if (variant === "grid") {
     return (
@@ -72,7 +83,7 @@ export function EstablishmentCard({
           <View style={styles.imagePlaceholder}>
             <ResortLogoBadge
               name={name}
-              logoUrl={logoUrl}
+              logoUrl={effectiveLogo}
               size={44}
               borderRadius={22}
               fontSize={15}
@@ -149,7 +160,7 @@ export function EstablishmentCard({
         <View style={styles.imagePlaceholder}>
           <ResortLogoBadge
             name={name}
-            logoUrl={logoUrl}
+            logoUrl={effectiveLogo}
             size={36}
             borderRadius={18}
             fontSize={12}
